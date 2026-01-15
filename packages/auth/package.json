@@ -1,0 +1,24 @@
+{
+  "name": "@phish-guard-app/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@phish-guard-app/db": "workspace:*",
+    "@phish-guard-app/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@phish-guard-app/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
