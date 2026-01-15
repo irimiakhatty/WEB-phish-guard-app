@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/auth-helpers";
 import AdminUsersClient from "./users-client";
 import { getAllUsers } from "@/app/actions/scans";
+import { getAllOrganizations } from "@/app/actions/organizations";
 
 export default async function AdminUsersPage() {
   const session = await auth.api.getSession({
@@ -14,7 +15,10 @@ export default async function AdminUsersPage() {
     redirect("/dashboard");
   }
 
-  const users = await getAllUsers();
+  const [users, organizations] = await Promise.all([
+    getAllUsers(),
+    getAllOrganizations(),
+  ]);
 
-  return <AdminUsersClient users={users} />;
+  return <AdminUsersClient users={users} organizations={organizations} />;
 }

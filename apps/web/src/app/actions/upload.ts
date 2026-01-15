@@ -54,7 +54,9 @@ export async function uploadAvatar(formData: FormData) {
     data: { image: result.secure_url },
   });
 
+  revalidatePath("/settings");
   revalidatePath("/dashboard");
+  revalidatePath("/");
   return { success: true, imageUrl: result.secure_url };
 }
 

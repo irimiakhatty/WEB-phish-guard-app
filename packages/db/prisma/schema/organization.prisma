@@ -1,0 +1,22 @@
+// Organization management for multi-user admin
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  
+  // Admin who created/owns this organization
+  adminId     String
+  
+  // Settings
+  maxUsers    Int      @default(10)
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("organization")
+}
