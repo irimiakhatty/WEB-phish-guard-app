@@ -10,3 +10,14 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 export default prisma;
+
+// Export types for use in other packages
+export type { 
+  User, 
+  Scan, 
+  DashboardStats, 
+  ScanActivity, 
+  Subscription 
+} from "../prisma/generated/client";
+
+export { PrismaClient } from "../prisma/generated/client";

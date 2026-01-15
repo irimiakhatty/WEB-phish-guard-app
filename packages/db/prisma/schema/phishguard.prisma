@@ -1,0 +1,89 @@
+// PhishGuard specific models
+
+model Scan {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Scan input
+  url        String?  @db.Text
+  textContent String? @db.Text
+  imageUrl   String?
+  
+  // Scan results
+  textScore    Float    @default(0)
+  urlScore     Float    @default(0)
+  overallScore Float    @default(0)
+  riskLevel    String   // "safe", "low", "medium", "high", "critical"
+  isPhishing   Boolean  @default(false)
+  confidence   Float    @default(0)
+  
+  // Analysis details
+  detectedThreats String[] @default([])
+  analysis        String?  @db.Text
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([riskLevel])
+  @@map("scan")
+}
+
+model DashboardStats {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  totalScans      Int      @default(0)
+  threatsBlocked  Int      @default(0)
+  safeSites       Int      @default(0)
+  
+  // Weekly/monthly tracking
+  scansThisWeek   Int      @default(0)
+  scansThisMonth  Int      @default(0)
+  
+  lastScanAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("dashboard_stats")
+}
+
+// Activity log for tracking scans over time
+model ScanActivity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  scanType   String   // "url", "text", "image", "email"
+  result     String   // "safe", "threat"
+  timestamp  DateTime @default(now())
+  
+  @@index([userId])
+  @@index([timestamp])
+  @@map("scan_activity")
+}
+
+// User subscription and plan info
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  planType        String   @default("free") // "free", "premium", "business"
+  status          String   @default("active") // "active", "cancelled", "expired"
+  
+  scansLimit      Int      @default(50) // scans per month
+  scansUsed       Int      @default(0)
+  
+  periodStart     DateTime @default(now())
+  periodEnd       DateTime
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("subscription")
+}

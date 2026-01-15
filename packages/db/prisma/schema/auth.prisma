@@ -8,6 +8,12 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  
+  // PhishGuard relations
+  scans         Scan[]
+  dashboardStats DashboardStats?
+  scanActivities ScanActivity[]
+  subscription   Subscription?
 
   @@unique([email])
   @@map("user")
