@@ -119,59 +119,63 @@ export default function ManualAnalysis() {
   };
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Phishing Analysis</h1>
-        <p className="text-muted-foreground">
-          Analyze URLs and text content for potential phishing threats
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="container mx-auto max-w-6xl px-4 py-12">
+        {/* Welcome Section */}
+        <div className="mb-12">
+          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
+            Phishing Analysis
+          </h1>
+          <p className="text-base text-gray-600 dark:text-gray-400">
+            Analyze URLs, text content, and images for potential phishing threats
+          </p>
+        </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={activeTab === "url" ? "default" : "outline"}
-          onClick={() => setActiveTab("url")}
-          className="flex items-center gap-2"
-        >
-          <LinkIcon className="w-4 h-4" />
-          URL Analysis
-        </Button>
-        <Button
-          variant={activeTab === "text" ? "default" : "outline"}
-          onClick={() => setActiveTab("text")}
-          className="flex items-center gap-2"
-        >
-          <FileText className="w-4 h-4" />
-          Text Analysis
-        </Button>
-        <Button
-          variant={activeTab === "image" ? "default" : "outline"}
-          onClick={() => setActiveTab("image")}
-          className="flex items-center gap-2"
-        >
-          <ImageIcon className="w-4 h-4" />
-          Image Analysis
-        </Button>
-      </div>
+        {/* Tabs */}
+        <div className="flex gap-2 mb-8 flex-wrap">
+          <Button
+            variant={activeTab === "url" ? "default" : "outline"}
+            onClick={() => setActiveTab("url")}
+            className="flex items-center gap-2"
+          >
+            <LinkIcon className="w-4 h-4" />
+            URL Analysis
+          </Button>
+          <Button
+            variant={activeTab === "text" ? "default" : "outline"}
+            onClick={() => setActiveTab("text")}
+            className="flex items-center gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            Text Analysis
+          </Button>
+          <Button
+            variant={activeTab === "image" ? "default" : "outline"}
+            onClick={() => setActiveTab("image")}
+            className="flex items-center gap-2"
+          >
+            <ImageIcon className="w-4 h-4" />
+            Image Analysis
+          </Button>
+        </div>
 
-      {/* Input Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>
-            {activeTab === "url" && "Enter URL"}
-            {activeTab === "text" && "Enter Text Content"}
-            {activeTab === "image" && "Upload Image"}
-          </CardTitle>
-          <CardDescription>
-            {activeTab === "url" && "Enter a website URL to check for phishing indicators"}
-            {activeTab === "text" && "Paste email content or message text to analyze"}
-            {activeTab === "image" && "Upload a screenshot of suspicious email or message"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        {/* Input Section */}
+        <Card className="mb-8 hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-xl">
+              {activeTab === "url" && "Enter URL"}
+              {activeTab === "text" && "Enter Text Content"}
+              {activeTab === "image" && "Upload Image"}
+            </CardTitle>
+            <CardDescription>
+              {activeTab === "url" && "Enter a website URL to check for phishing indicators"}
+              {activeTab === "text" && "Paste email content or message text to analyze"}
+              {activeTab === "image" && "Upload a screenshot of suspicious email or message"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           {activeTab === "url" ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="url">URL</Label>
               <div className="flex gap-2">
                 <Input
@@ -181,7 +185,11 @@ export default function ManualAnalysis() {
                   onChange={(e) => setUrl(e.target.value)}
                   className="flex-1"
                 />
-                <Button onClick={handleAnalyze} disabled={analyzing}>
+                <Button 
+                  onClick={handleAnalyze} 
+                  disabled={analyzing}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
                   {analyzing ? (
                     <>Analyzing...</>
                   ) : (
@@ -194,21 +202,25 @@ export default function ManualAnalysis() {
               </div>
             </div>
           ) : activeTab === "text" ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label htmlFor="text">Text Content</Label>
               <textarea
                 id="text"
-                className="w-full min-h-[200px] p-3 rounded-md border border-input bg-background"
+                className="w-full min-h-[200px] p-3 rounded-lg border border-input bg-background"
                 placeholder="Paste email or message content here..."
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
               />
-              <Button onClick={handleAnalyze} disabled={analyzing} className="w-full">
+              <Button 
+                onClick={handleAnalyze} 
+                disabled={analyzing} 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
                 {analyzing ? (
                   <>Analyzing...</>
                 ) : (
                   <>
-                    <Send className="w-4 h-4 mr-2" />
+                    <Send className="w-5 h-5 mr-2" />
                     Analyze
                   </>
                 )}
@@ -327,6 +339,7 @@ export default function ManualAnalysis() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

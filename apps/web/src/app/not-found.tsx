@@ -23,11 +23,9 @@ export default function NotFound() {
                 Go to Dashboard
               </Link>
             </Button>
-            <Button asChild variant="outline" onClick={() => window.history.back()}>
-              <button>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Go Back
-              </button>
+            <Button variant="outline" onClick={() => window.history.back()}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Go Back
             </Button>
           </div>
         </CardContent>
