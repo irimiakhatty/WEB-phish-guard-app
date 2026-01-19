@@ -27,30 +27,61 @@ function analyzeUrlHeuristic(url: string): { score: number; threats: string[] } 
   const threats: string[] = [];
   let suspiciousCount = 0;
 
+  // Define legitimate brand domains
+  const BRAND_DOMAINS: Record<string, string[]> = {
+    paypal: ["paypal.com", "paypal.me"],
+    google: ["google.com", "gmail.com", "accounts.google.com", "youtube.com"],
+    microsoft: ["microsoft.com", "live.com", "office.com", "outlook.com", "azure.com"],
+    apple: ["apple.com", "icloud.com"],
+    facebook: ["facebook.com", "fb.com", "messenger.com", "instagram.com"],
+    amazon: ["amazon.com", "amazon.co.uk", "amazon.de", "amazon.ca"],
+    netflix: ["netflix.com"],
+    dhl: ["dhl.com"],
+    yahoo: ["yahoo.com", "mail.yahoo.com"],
+    linkedin: ["linkedin.com"],
+    twitter: ["twitter.com", "x.com"],
+    bank: ["chase.com", "wellsfargo.com", "bankofamerica.com", "citibank.com"],
+  };
+
   try {
     const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname.toLowerCase();
+    
+    // Normalize hostname by removing www. for brand checking
+    const normalizedHostname = hostname.replace(/^www\./, '');
+    
+    console.log(`🔍 Analyzing URL: ${url}`);
+    console.log(`   Hostname: ${hostname}`);
+    console.log(`   Normalized: ${normalizedHostname}`);
 
     // Check for IP address instead of domain
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(urlObj.hostname)) {
+    const isIPAddress = /^\d+\.\d+\.\d+\.\d+$/.test(urlObj.hostname);
+    if (isIPAddress) {
       threats.push("Uses IP address instead of domain name");
-      suspiciousCount += 2;
+      suspiciousCount += 3; // Increased from 2 to 3
     }
 
     // Check for suspicious TLDs
-    const suspiciousTLDs = [".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top"];
-    if (suspiciousTLDs.some((tld) => urlObj.hostname.endsWith(tld))) {
+    const highRiskTLDs = [".tk", ".ml", ".ga", ".cf", ".gq"]; // Very high risk
+    const suspiciousTLDs = [".xyz", ".top", ".work", ".click", ".loan"];
+    
+    if (highRiskTLDs.some((tld) => urlObj.hostname.endsWith(tld))) {
+      threats.push("Uses HIGH RISK top-level domain commonly abused for phishing");
+      suspiciousCount += 2.5; // Increased penalty for very dangerous TLDs
+    } else if (suspiciousTLDs.some((tld) => urlObj.hostname.endsWith(tld))) {
       threats.push("Uses suspicious top-level domain");
-      suspiciousCount += 1;
+      suspiciousCount += 1.5;
     }
 
     // Check for excessive subdomains
     const subdomains = urlObj.hostname.split(".");
     if (subdomains.length > 4) {
       threats.push("Contains excessive subdomains");
-      suspiciousCount += 1;
+      suspiciousCount += 1.5;
     }
 
-    // Check for common phishing keywords in domain
+    // Check for common phishing keywords in domain or path
     const phishingKeywords = [
       "verify",
       "account",
@@ -61,18 +92,47 @@ function analyzeUrlHeuristic(url: string): { score: number; threats: string[] } 
       "signin",
       "confirm",
       "suspended",
+      "validate",
+      "authentication",
+      "prize",
+      "winner",
+      "reward",
+      "free",
+      "gift",
+      "claim",
+      "urgent",
     ];
-    const hostname = urlObj.hostname.toLowerCase();
-    const foundKeywords = phishingKeywords.filter((keyword) => hostname.includes(keyword));
-    if (foundKeywords.length > 0) {
-      threats.push(`Contains suspicious keywords: ${foundKeywords.join(", ")}`);
-      suspiciousCount += foundKeywords.length;
+    const foundKeywordsInHost = phishingKeywords.filter((keyword) => hostname.includes(keyword));
+    const foundKeywordsInPath = phishingKeywords.filter((keyword) => pathname.includes(keyword));
+    
+    if (foundKeywordsInHost.length > 0) {
+      threats.push(`Contains suspicious keywords in domain: ${foundKeywordsInHost.join(", ")}`);
+      suspiciousCount += foundKeywordsInHost.length * 1.5;
+    }
+    
+    if (foundKeywordsInPath.length > 0) {
+      threats.push(`Contains suspicious keywords in path: ${foundKeywordsInPath.join(", ")}`);
+      suspiciousCount += foundKeywordsInPath.length;
     }
 
     // Check for @ symbol (can hide real domain)
     if (url.includes("@")) {
       threats.push("Contains @ symbol which can hide the real domain");
-      suspiciousCount += 2;
+      suspiciousCount += 3;
+      
+      // Extra penalty: check for phishing keywords BEFORE the @ symbol
+      const beforeAt = url.split("@")[0].toLowerCase();
+      const atPhishingKeywords = [
+        "account", "suspended", "urgent", "verify", "confirm", 
+        "security", "alert", "warning", "locked", "blocked",
+        "update", "validate", "expire", "immediate"
+      ];
+      
+      const foundAtKeywords = atPhishingKeywords.filter(keyword => beforeAt.includes(keyword));
+      if (foundAtKeywords.length > 0) {
+        threats.push(`CRITICAL: Phishing keywords in URL disguise: ${foundAtKeywords.join(", ")}`);
+        suspiciousCount += foundAtKeywords.length * 2; // 2 points per keyword
+      }
     }
 
     // Check for URL shorteners
@@ -82,16 +142,90 @@ function analyzeUrlHeuristic(url: string): { score: number; threats: string[] } 
       suspiciousCount += 1;
     }
 
-    // Check for HTTPS
+    // CRITICAL: Check for brand impersonation
+    for (const [brandName, officialDomains] of Object.entries(BRAND_DOMAINS)) {
+      // Check if domain contains the brand name (use normalized hostname)
+      let containsBrand = normalizedHostname.includes(brandName);
+      
+      // Also check for common character substitutions (typosquatting)
+      if (!containsBrand && brandName === "facebook") {
+        // Check for variations like: fac8b00k, faceb00k, face8ook, etc.
+        const fbVariations = [
+          /face?b[o0]{2}k/i,     // facebo0k, faceb00k, facebOOk
+          /fac[e38][b8][o0]{2}k/i, // fac8b00k, fac3b00k, face800k
+          /f[a4]c[e3][b8][o0]{2}k/i, // f4ceb00k, face800k
+        ];
+        containsBrand = fbVariations.some(pattern => pattern.test(normalizedHostname));
+      } else if (!containsBrand && brandName === "paypal") {
+        const ppVariations = [
+          /p[a4]yp[a4][l1]/i,    // p4ypal, paypa1, p4yp4l
+        ];
+        containsBrand = ppVariations.some(pattern => pattern.test(normalizedHostname));
+      } else if (!containsBrand && brandName === "google") {
+        const ggVariations = [
+          /g[o0]{2}g[l1][e3]/i,  // goog1e, g00gle, goog13
+        ];
+        containsBrand = ggVariations.some(pattern => pattern.test(normalizedHostname));
+      } else if (!containsBrand && brandName === "amazon") {
+        const azVariations = [
+          /[a4]m[a4]z[o0]n/i,    // amaz0n, 4mazon, am4z0n
+        ];
+        containsBrand = azVariations.some(pattern => pattern.test(normalizedHostname));
+      }
+      
+      if (containsBrand) {
+        // Verify if it's actually an official domain
+        const isOfficialDomain = officialDomains.some(
+          (official) => normalizedHostname === official || normalizedHostname.endsWith(`.${official}`)
+        );
+        
+        // Debug logging
+        console.log(`🔍 Brand check: "${brandName}" in "${normalizedHostname}" | Official: ${isOfficialDomain}`);
+        
+        if (!isOfficialDomain) {
+          threats.push(`CRITICAL: Impersonates ${brandName.toUpperCase()} but is NOT an official domain`);
+          suspiciousCount += 7; // Very high penalty for brand impersonation (increased from 5)
+          console.log(`⚠️ DETECTED IMPERSONATION: ${brandName} in ${normalizedHostname}`);
+        }
+      }
+    }
+
+    // Check for typosquatting patterns (common character substitutions)
+    const typoPatterns = [
+      { real: 'o', fake: '0' },  // facebook00k
+      { real: 'l', fake: '1' },  // paypa1
+      { real: 'i', fake: '1' },  // microsoftl
+      { real: 'o', fake: 'o0' }, // goo0gle
+    ];
+    
+    // Check for numbers mixed with letters in suspicious ways
+    if (/[a-z]+[0-9]+[a-z]|[a-z][0-9]{2,}/.test(hostname)) {
+      threats.push("Suspicious character pattern detected (possible typosquatting)");
+      suspiciousCount += 2;
+    }
+
+    // Check for HTTPS - more severe penalty
     if (urlObj.protocol !== "https:") {
       threats.push("Does not use HTTPS encryption");
-      suspiciousCount += 1;
+      suspiciousCount += 2; // Increased from 1 to 2
+      
+      // Extra penalty if no HTTPS AND has sensitive keywords
+      if (foundKeywordsInPath.length > 0 || foundKeywordsInHost.length > 0) {
+        threats.push("Critical: Sensitive operation without HTTPS encryption");
+        suspiciousCount += 2;
+      }
+      
+      // Extra critical penalty if no HTTPS AND using IP
+      if (isIPAddress) {
+        threats.push("Critical: IP address without HTTPS - highly suspicious");
+        suspiciousCount += 3;
+      }
     }
 
     // Check for suspicious port numbers
     if (urlObj.port && !["80", "443", "8080"].includes(urlObj.port)) {
       threats.push(`Uses non-standard port: ${urlObj.port}`);
-      suspiciousCount += 1;
+      suspiciousCount += 1.5;
     }
 
   } catch (error) {
@@ -99,7 +233,12 @@ function analyzeUrlHeuristic(url: string): { score: number; threats: string[] } 
     suspiciousCount += 3;
   }
 
-  const score = Math.min(suspiciousCount / 10, 1);
+  // Improved scoring: More sensitive to multiple red flags
+  // 0-2: low risk (20%)
+  // 3-5: medium risk (30-50%)
+  // 6-8: high risk (60-80%)
+  // 9+: critical risk (90-100%)
+  const score = Math.min(suspiciousCount / 12, 1);
   return { score, threats };
 }
 
@@ -154,24 +293,24 @@ function analyzeTextHeuristic(text: string): { score: number; threats: string[] 
     }
   });
 
-  // Check for requests for sensitive information
+  // Check for requests for sensitive information (using word boundaries)
   const sensitiveRequests = [
-    "social security",
-    "password",
-    "pin",
-    "credit card",
-    "bank account",
-    "ssn",
-    "cvv",
-    "verify your account",
-    "verify your identity",
-    "confirm your identity",
-    "update your information",
-    "update payment",
+    { term: "social security", regex: /social\s+security/i },
+    { term: "password", regex: /\bpassword\b/i },
+    { term: "pin", regex: /\bpin\b/i },  // Word boundary to avoid "shopping"
+    { term: "credit card", regex: /credit\s+card/i },
+    { term: "bank account", regex: /bank\s+account/i },
+    { term: "ssn", regex: /\bssn\b/i },
+    { term: "cvv", regex: /\bcvv\b/i },
+    { term: "verify your account", regex: /verify\s+your\s+account/i },
+    { term: "verify your identity", regex: /verify\s+your\s+identity/i },
+    { term: "confirm your identity", regex: /confirm\s+your\s+identity/i },
+    { term: "update your information", regex: /update\s+your\s+information/i },
+    { term: "update payment", regex: /update\s+payment/i },
   ];
-  sensitiveRequests.forEach((request) => {
-    if (lowerText.includes(request)) {
-      threats.push(`Requests sensitive information: "${request}"`);
+  sensitiveRequests.forEach(({ term, regex }) => {
+    if (regex.test(lowerText)) {
+      threats.push(`Requests sensitive information: "${term}"`);
       suspiciousCount += 2;
     }
   });
@@ -286,7 +425,7 @@ function calculateRiskLevel(score: number): "safe" | "low" | "medium" | "high" |
   if (score < 0.15) return "safe";
   if (score < 0.3) return "low";
   if (score < 0.5) return "medium";
-  if (score < 0.7) return "high";
+  if (score < 0.75) return "high";
   return "critical";
 }
 
