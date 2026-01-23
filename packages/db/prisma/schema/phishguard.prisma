@@ -2,6 +2,11 @@
 
 model Scan {
   id         String   @id @default(cuid())
+  
+  // Organization context (nullable for personal scans)
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
@@ -22,6 +27,9 @@ model Scan {
   detectedThreats String[] @default([])
   analysis        String?  @db.Text
   
+  // Source tracking
+  source          String?  // "web", "extension", "api"
+  
   // Admin actions
   isDeleted    Boolean  @default(false)
   deletedAt    DateTime?
@@ -31,6 +39,7 @@ model Scan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
+  @@index([organizationId])
   @@index([userId])
   @@index([createdAt])
   @@index([riskLevel])

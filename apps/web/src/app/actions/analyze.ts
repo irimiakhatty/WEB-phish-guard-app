@@ -4,6 +4,7 @@ import prisma from "@phish-guard-app/db";
 import { requireAuth } from "@/lib/auth-helpers";
 import { checkSafeBrowsing, getThreatSeverity } from "@/lib/safe-browsing";
 import { analyzeTextML, analyzeUrlML } from "@/lib/ml-service";
+import { checkScanLimits, getUserSubscriptionInfo } from "@/lib/subscription-helpers";
 
 type AnalyzeInput = {
   url?: string;
@@ -432,6 +433,12 @@ function calculateRiskLevel(score: number): "safe" | "low" | "medium" | "high" |
 export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResult> {
   const session = await requireAuth();
 
+  // Check scan limits based on subscription
+  const limitsCheck = await checkScanLimits(session.user.id);
+  if (!limitsCheck.allowed) {
+    throw new Error(limitsCheck.reason || "Scan limit exceeded");
+  }
+
   let urlScore = 0;
   let textScore = 0;
   const allThreats: string[] = [];
@@ -563,10 +570,14 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
     ? `This ${input.url ? "URL" : input.imageUrl ? "image" : "content"} shows ${allThreats.length} suspicious indicator${allThreats.length !== 1 ? 's' : ''} commonly associated with phishing attempts. ${analysisMethod}Risk score: ${(overallScore * 100).toFixed(1)}%. Exercise caution and verify the source before proceeding.`
     : `No significant threats detected in this ${input.url ? "URL" : input.imageUrl ? "image" : "content"}. ${mlDetectionUsed ? 'AI models analyzed the content and found it safe. ' : ''}Risk score: ${(overallScore * 100).toFixed(1)}%. However, always verify the sender's identity and be cautious with personal information.`;
 
-  // Save to database
+  // Get subscription info to determine organization context
+  const subInfo = await getUserSubscriptionInfo(session.user.id);
+
+  // Save to database (with organization if applicable)
   await prisma.scan.create({
     data: {
       userId: session.user.id,
+      organizationId: subInfo.organizationId || null,
       url: input.url,
       textContent: extractedText || input.textContent,
       imageUrl: input.imageUrl,
@@ -578,6 +589,7 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
       confidence,
       detectedThreats: allThreats,
       analysis,
+      source: "web",
     },
   });
 

@@ -1,16 +1,30 @@
-# phish-guard-app
+# PhishGuard - AI-Powered Phishing Detection Platform
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, and more.
+A comprehensive phishing detection system with a Next.js web application, Python ML service, and Chrome extension for real-time email protection.
 
-## Features
+## 🚀 Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Prisma** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
+### Web Application
+- **TypeScript** - Type safety and improved developer experience
+- **Next.js 16** - Full-stack React framework with App Router
+- **TailwindCSS + shadcn/ui** - Modern, accessible UI components
+- **Prisma + PostgreSQL** - Type-safe database with migrations
+- **Better-Auth** - Secure session-based authentication
+- **Cloudinary** - Cloud-based image storage and processing
+
+### Phishing Detection
+- **Multi-Layer Analysis**: Google Safe Browsing, ML models, and heuristic detection
+- **Text Analysis**: LSTM neural networks for email content classification
+- **URL Analysis**: CNN models for malicious URL detection
+- **Image OCR**: Tesseract.js for extracting text from phishing images
+- **Comprehensive Heuristics**: Brand impersonation, urgency tactics, and more
+
+### Chrome Extension (NEW!)
+- **Real-time Email Scanning**: Auto-scans Gmail and Outlook emails
+- **Local ML Analysis**: TensorFlow.js models run in the browser
+- **API Integration**: Syncs with web app for scan history and analytics
+- **Token Authentication**: Secure API access with rate limiting (100 req/hour)
+- **Manual Scanning**: Scan any URL or text via popup interface
 
 ## Getting Started
 
@@ -62,16 +76,98 @@ bun run dev
 
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 phish-guard-app/
 ├── apps/
-│   └── web/         # Fullstack application (Next.js)
+│   ├── web/                      # Next.js web application (Port 3001)
+│   │   ├── src/app/              # App router pages
+│   │   │   ├── api/v1/          # REST API endpoints (NEW!)
+│   │   │   │   ├── analyze/     # POST - Phishing analysis
+│   │   │   │   ├── quick-check/ # POST - Anonymous URL check
+│   │   │   │   ├── scans/       # GET - Scan history
+│   │   │   │   ├── incidents/   # POST - Log incidents
+│  🔧 Available Scripts
+
+- `npm run dev`: Start web application in development mode
+- `npm run build`: Build all applications
+- `npm run db:push`: Push Prisma schema changes to database
+- `npm run db:migrate`: Create and run database migrations
+- `npm run db:studio`: Open Prisma Studio (database GUI)
+
+## 🌐 Chrome Extension Integration
+
+### Quick Start
+
+1. **Start the database and web app:**
+   ```bash
+   docker-compose up -d
+   npm run dev
+   ```
+
+2. **Load the extension:**
+   - Go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select `apps/extension` folder
+
+3. **Authenticate:**
+   - Click extension icon → "Login"
+   - Generate API token at `http://localhost:3001/ext-auth`
+   - Token auto-saves to extension
+
+4. **Test:**
+   - Open Gmail
+   - Extension auto-scans emails
+   - Check dashboard for scan history
+
+For detailed setup instructions, see [EXTENSION_SETUP.md](EXTENSION_SETUP.md)
+
+### API Endpoints
+
+The extension uses these new REST API endpoints:
+
+- `POST /api/v1/analyze` - Full phishing analysis (auth required)
+- `POST /api/v1/quick-check` - Anonymous URL check (50/hour per IP)
+- `POST /api/v1/incidents` - Log detected incidents (auth required)
+- `GET /api/v1/scans` - Get scan history (auth required)
+- `POST /api/v1/auth/token` - Generate API tokens
+
+**Authentication:** Bearer token with 100 requests/hour rate limit
+
+**Documentation:** See [apps/extension/README.md](apps/extension/README.md)
+
+## 📚 Documentation
+
+- [Extension Setup Guide](EXTENSION_SETUP.md) - Step-by-step integration guide
+- [Extension README](apps/extension/README.md) - Architecture and API docs
+- [Cloudinary Setup](CLOUDINARY_SETUP.md) - Image storage configuration
+- [ML Service Setup](ML_SERVICE_SETUP.md) - Python service configurationion authentication (NEW!)
+│   │   │   └── ...
+│   │   └── src/lib/             # Utilities
+│   │       ├── api-auth.ts      # API token auth (NEW!)
+│   │       ├── ml-service.ts    # ML API client
+│   │       ├── safe-browsing.ts # Google API client
+│   │       └── ...
+│   └── extension/               # Chrome extension (NEW!)
+│       ├── manifest.json        # Extension configuration
+│       ├── background.js        # Service worker (ML analysis)
+│       ├── content.js           # Email content extraction
+│       ├── popup.html/js/css    # Extension popup UI
+│       ├── options.html/js      # Settings page
+│       └── assets/              # ML models + icons
 ├── packages/
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+│   ├── auth/                    # Better-Auth configuration
+│   ├── db/                      # Prisma schema & client
+│   │   └── prisma/schema/
+│   │       └── auth.prisma      # Added ApiToken model (NEW!)
+│   ├── config/                  # Shared configs
+│   └── env/                     # Environment variables
+└── ml-service/                  # Python FastAPI service (Port 5000)
+    ├── app.py                   # ML prediction API
+    ├── models/                  # Pre-trained models
+    └── requirements.txt
 ```
 
 ## Available Scripts

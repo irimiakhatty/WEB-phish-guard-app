@@ -22,6 +22,7 @@ export async function createFirstAdmin(data: {
   email: string;
   password: string;
   name: string;
+  organizationName?: string;
 }) {
   // Double check that no admin exists
   const adminExists = await checkAdminExists();
@@ -63,13 +64,47 @@ export async function createFirstAdmin(data: {
       throw new Error("Failed to create user");
     }
 
-    // Update the user to admin role
-    await prisma.user.update({
-      where: { email: data.email },
-      data: { 
-        role: "admin",
-        emailVerified: true,
-      },
+    // Default organization name if not provided
+    const orgName = data.organizationName || `${data.name}'s Organization`;
+    const orgSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString().slice(-4);
+
+    // Create organization and update user role in a transaction? 
+    // We can't easily transaction with auth.api but we can do prisma ops together.
+    
+    await prisma.$transaction(async (tx) => {
+        // Update user to admin
+        await tx.user.update({
+            where: { email: data.email },
+            data: { 
+                role: "admin",
+                emailVerified: true,
+            },
+        });
+
+        // Create Default Organization
+        await tx.organization.create({
+            data: {
+                name: orgName,
+                slug: orgSlug,
+                createdById: user.user.id,
+                subscription: {
+                    create: {
+                        plan: "team_free",
+                        status: "active",
+                        maxMembers: 3,
+                        scansPerMonth: 500,
+                        scansPerHourPerUser: 25,
+                        maxApiTokens: 1,
+                    }
+                },
+                members: {
+                    create: {
+                        userId: user.user.id,
+                        role: "admin",
+                    }
+                }
+            }
+        });
     });
 
     revalidatePath("/");
@@ -77,10 +112,12 @@ export async function createFirstAdmin(data: {
     
     return {
       success: true,
-      message: "Admin account created successfully! You can now login.",
+      message: "Admin account and organization created successfully! You can now login.",
     };
   } catch (error: any) {
     console.error("Error creating admin:", error);
+    // Ideally we should delete the user if org creation fails to keep consistency, 
+    // but better-auth user deletion might require more setup.
     throw new Error(error.message || "Failed to create admin account");
   }
 }

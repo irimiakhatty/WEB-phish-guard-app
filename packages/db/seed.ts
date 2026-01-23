@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "./src/index";
 import { hash } from "@node-rs/argon2";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Starting database seed...");

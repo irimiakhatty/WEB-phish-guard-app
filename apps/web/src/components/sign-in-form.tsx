@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -5,6 +6,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
+import { checkAdminExists } from "@/app/actions/setup";
 
 import Loader from "./loader";
 import { Button } from "./ui/button";

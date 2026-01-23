@@ -1,0 +1,19 @@
+{
+  "name": "@phishguard/extension",
+  "version": "1.0.0",
+  "description": "PhishGuard Chrome Extension for real-time phishing detection",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Extension files are ready to load'",
+    "package": "zip -r phishguard-extension.zip . -x '*.git*' 'node_modules/*' 'package.json' 'package-lock.json' 'README.md'",
+    "clean": "rm -f phishguard-extension.zip"
+  },
+  "keywords": [
+    "phishing",
+    "security",
+    "chrome-extension",
+    "email-security"
+  ],
+  "author": "PhishGuard Team",
+  "license": "MIT"
+}

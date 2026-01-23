@@ -19,6 +19,7 @@ export function Header() {
     { to: "/dashboard", label: "Dashboard" },
     { to: "/analyze", label: "Analyze" },
     { to: "/scans", label: "My Scans" },
+    ...(session?.user?.role === "admin" ? [{ to: "/organizations", label: "Organizations" }] : []),
     { to: "/settings", label: "Settings" },
   ] as const;
 

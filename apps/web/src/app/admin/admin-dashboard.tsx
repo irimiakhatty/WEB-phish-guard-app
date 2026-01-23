@@ -1,9 +1,25 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Users, Shield, AlertTriangle, CheckCircle, Activity, Building2, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+function FormattedDate({ date }: { date: Date }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Return a consistent format for SSR
+    return <>{new Date(date).toISOString().slice(0, 19).replace('T', ' ')}</>;
+  }
+
+  return <>{new Date(date).toLocaleString()}</>;
+}
 
 type AdminStats = {
   totalUsers: number;
@@ -198,7 +214,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
                     {scan.riskLevel.toUpperCase()}
                   </span>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(scan.createdAt).toLocaleString()}
+                    <FormattedDate date={scan.createdAt} />
                   </p>
                 </div>
               </div>

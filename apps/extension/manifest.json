@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard - AI Phishing Detector",
+  "version": "1.0",
+  "description": "Detects phishing in emails using Deep Learning (LSTM + CNN).",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "notifications"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Scan for Phishing",
+    "default_icon": {
+      "16": "assets/logo.png",
+      "48": "assets/logo.png",
+      "128": "assets/logo.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "icons": {
+    "16": "assets/logo.png",
+    "48": "assets/logo.png",
+    "128": "assets/logo.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://mail.google.com/*",
+        "*://outlook.live.com/*",
+        "*://outlook.office.com/*",
+        "*://outlook.office365.com/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "tf.min.js"
+      ],
+      "matches": [
+        "*://mail.google.com/*",
+        "*://outlook.live.com/*",
+        "*://outlook.office.com/*",
+        "*://outlook.office365.com/*"
+      ]
+    }
+  ],
+  "host_permissions": [
+    "http://localhost:3001/*",
+    "https://phish-guard-rho.vercel.app/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:3001/*",
+      "https://phish-guard-rho.vercel.app/*"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

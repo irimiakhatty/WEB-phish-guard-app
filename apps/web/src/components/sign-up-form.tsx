@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import z from "zod";
+import { Building2, User } from "lucide-react";
 
+import { signUpWithOrganization } from "@/app/actions/auth";
 import { authClient } from "@/lib/auth-client";
 
 import Loader from "./loader";
@@ -21,30 +24,55 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
       email: "",
       password: "",
       name: "",
+      organizationName: "",
+      accountType: "personal" as "personal" | "organization",
     },
     onSubmit: async ({ value }) => {
-      await authClient.signUp.email(
-        {
+      try {
+        // Create user and organization on server
+        await signUpWithOrganization({
           email: value.email,
           password: value.password,
           name: value.name,
-        },
-        {
-          onSuccess: () => {
-            router.push("/dashboard");
-            toast.success("Sign up successful");
+          organizationName: value.organizationName,
+          accountType: value.accountType,
+        });
+
+        // Sign in on client to establish session
+        await authClient.signIn.email(
+          {
+            email: value.email,
+            password: value.password,
           },
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
+          {
+            onSuccess: () => {
+              router.push("/dashboard");
+              toast.success("Account created successfully");
+            },
+            onError: (error) => {
+              toast.error(error.error.message || error.error.statusText);
+            },
           },
-        },
-      );
+        );
+      } catch (error: any) {
+        toast.error(error.message || "Failed to create account");
+      }
     },
     validators: {
       onSubmit: z.object({
         name: z.string().min(2, "Name must be at least 2 characters"),
         email: z.email("Invalid email address"),
         password: z.string().min(8, "Password must be at least 8 characters"),
+        accountType: z.enum(["personal", "organization"]),
+        organizationName: z.string().optional(),
+      }).superRefine((data, ctx) => {
+        if (data.accountType === "organization" && (!data.organizationName || data.organizationName.length < 2)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Organization name is required",
+            path: ["organizationName"],
+          });
+        }
       }),
     },
   });
@@ -72,6 +100,37 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
             className="space-y-4"
           >
             <div>
+              <form.Field name="accountType">
+                {(field) => (
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div
+                      className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                        field.state.value === "personal"
+                          ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-600"
+                          : "border-gray-200 hover:border-blue-400 dark:border-gray-700"
+                      }`}
+                      onClick={() => field.handleChange("personal")}
+                    >
+                      <User className={`h-6 w-6 ${field.state.value === "personal" ? "text-blue-600" : "text-gray-500"}`} />
+                      <span className={`text-sm font-medium ${field.state.value === "personal" ? "text-blue-900 dark:text-blue-100" : "text-gray-600 dark:text-gray-400"}`}>Personal</span>
+                    </div>
+                    <div
+                      className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                        field.state.value === "organization"
+                          ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-600"
+                          : "border-gray-200 hover:border-blue-400 dark:border-gray-700"
+                      }`}
+                      onClick={() => field.handleChange("organization")}
+                    >
+                      <Building2 className={`h-6 w-6 ${field.state.value === "organization" ? "text-blue-600" : "text-gray-500"}`} />
+                      <span className={`text-sm font-medium ${field.state.value === "organization" ? "text-blue-900 dark:text-blue-100" : "text-gray-600 dark:text-gray-400"}`}>Organization</span>
+                    </div>
+                  </div>
+                )}
+              </form.Field>
+            </div>
+
+            <div>
               <form.Field name="name">
                 {(field) => (
                   <div className="space-y-2">
@@ -93,6 +152,38 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
                 )}
               </form.Field>
             </div>
+
+            <form.Subscribe selector={(state) => state.values.accountType}>
+              {(accountType) =>
+                accountType === "organization" ? (
+                  <div>
+                    <form.Field name="organizationName">
+                      {(field) => (
+                        <div className="space-y-2">
+                          <Label htmlFor={field.name}>Organization Name</Label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            placeholder="My Company Ltd."
+                            value={field.state.value}
+                            onBlur={field.handleBlur}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                          />
+                          {field.state.meta.errors.map((error) => (
+                            <p key={error?.message} className="text-sm text-red-500">
+                              {error?.message}
+                            </p>
+                          ))}
+                          <p className="text-[0.8rem] text-muted-foreground">
+                            This will create a new organization where you are the admin.
+                          </p>
+                        </div>
+                      )}
+                    </form.Field>
+                  </div>
+                ) : null
+              }
+            </form.Subscribe>
 
             <div>
               <form.Field name="email">
@@ -164,12 +255,6 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
             >
               Sign in
             </Button>
-          </div>
-
-          <div className="mt-2 text-center text-xs">
-            <Link href="/setup" className="text-gray-500 dark:text-gray-500 hover:underline">
-              First time? Set up admin account →
-            </Link>
           </div>
         </CardContent>
       </Card>

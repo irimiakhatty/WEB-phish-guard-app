@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishGuard</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      PhishGuard
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- LOGIN SECTION -->
+    <div id="login-section" class="hidden">
+       <div style="text-align: center; margin-top: 2rem;">
+         <div style="margin-bottom: 2rem; color: var(--muted-foreground);">
+            Protect yourself from phishing attacks with real-time AI analysis.
+         </div>
+         <button id="loginBtn" class="btn btn-primary">
+            Sign In / Sign Up
+         </button>
+         <div id="loginError" class="error" style="color: var(--danger); margin-top: 1rem;"></div>
+       </div>
+    </div>
+
+    <!-- SCAN SECTION -->
+    <div id="scan-section" class="hidden">
+       <!-- Info Bar -->
+       <div class="info-box">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span id="subscriptionInfo">Checking plan...</span>
+       </div>
+
+       <div class="form-group">
+          <label for="urlText">URL to Analyze</label>
+          <input type="text" id="urlText" placeholder="https://example.com" />
+       </div>
+
+       <div class="form-group">
+          <label for="emailText">Suspicious Text</label>
+          <textarea id="emailText" placeholder="Paste email content or message here..."></textarea>
+       </div>
+
+       <button id="scanBtn" class="btn btn-primary mb-4">
+         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+         Analyze Now
+       </button>
+       
+       <div id="loader" class="loader"></div>
+       <div id="result"></div>
+       
+       <!-- Footer Actions -->
+       <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+          <button id="dashboardBtn" class="btn btn-outline text-sm">
+             Dashboard
+          </button>
+          <button id="logoutBtn" class="btn btn-outline text-sm" style="color: var(--destructive); border-color: var(--border);">
+             Logout
+          </button>
+       </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

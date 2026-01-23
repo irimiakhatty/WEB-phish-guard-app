@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>PhishGuard Settings</title>
+    <style>
+        body {
+            padding: 20px;
+            font-family: sans-serif;
+            width: 300px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: green;
+            display: none;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>⚙️ Settings</h2>
+
+    <div class="option-group">
+        <label for="apiUrl">Dashboard/API URL:</label>
+        <input type="text" id="apiUrl" placeholder="http://localhost:3000">
+        <div class="help-text">Enter the URL of your deployed PhishGuard Web App (e.g., https://phish-guard.vercel.app).
+            Default is http://localhost:3000.</div>
+    </div>
+
+    <div class="option-group">
+        <label for="apiToken">API Token:</label>
+        <input type="password" id="apiToken" placeholder="Paste your API Token here">
+        <div class="help-text">Generate a token at <a href="http://localhost:3001/ext-auth" target="_blank">/ext-auth</a></div>
+    </div>
+
+    <div class="option-group">
+        <label>
+            <input type="checkbox" id="autoScan"> Automatically scan emails when opened
+        </label>
+    </div>
+
+    <button id="save">Save Settings</button>
+    <div id="status">Settings saved!</div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>
