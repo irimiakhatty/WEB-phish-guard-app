@@ -9,6 +9,7 @@ import { Building2, Users, CreditCard, Settings2, Shield, ArrowLeft } from "luci
 import Link from "next/link";
 import OrganizationMembers from "./organization-members";
 import OrganizationSettings from "./organization-settings";
+import UpgradePlanForm from "@/components/upgrade-plan";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -70,7 +71,9 @@ export default async function OrganizationPage({ params }: PageProps) {
             <CardHeader className="pb-3">
               <CardDescription>Current Plan</CardDescription>
               <CardTitle className="text-2xl">
-                {organization.subscription?.planId.replace("team_", "").toUpperCase() || "FREE"}
+                {(organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free")
+                  .replace("team_", "")
+                  .toUpperCase()}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -139,13 +142,19 @@ export default async function OrganizationPage({ params }: PageProps) {
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <p className="font-semibold">
-                          {organization.subscription?.planId.replace("team_", "").toUpperCase() || "FREE"} Plan
+                          {(organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free")
+                            .replace("team_", "")
+                            .toUpperCase()}{" "}
+                          Plan
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {organization.subscription?.maxMembers || 3} members, {organization.subscription?.scansPerMonth || 500} scans/month
                         </p>
                       </div>
-                      <Button>Upgrade Plan</Button>
+                      <UpgradePlanForm
+                        organizationId={organization.id}
+                        currentPlan={organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free"}
+                      />
                     </div>
                     <p className="text-sm text-muted-foreground">
                       Stripe integration coming soon. You'll be able to upgrade to paid plans and manage billing here.

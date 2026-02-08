@@ -50,13 +50,13 @@ export async function getGlobalStats() {
       prisma.personalSubscription.count({
         where: {
           status: "active",
-          planId: { not: "free" },
+          plan: { not: "free" },
         },
       }),
       prisma.subscription.count({
         where: {
           status: "active",
-          planId: { not: "team_free" },
+          plan: { not: "team_free" },
         },
       }),
     ]).then(([personal, team]) => personal + team),
@@ -260,7 +260,7 @@ export async function getAllSubscriptions() {
   const [personalSubscriptions, teamSubscriptions] = await Promise.all([
     prisma.personalSubscription.findMany({
       where: {
-        planId: { not: "free" },
+        plan: { not: "free" },
       },
       include: {
         user: {
@@ -275,7 +275,7 @@ export async function getAllSubscriptions() {
     }),
     prisma.subscription.findMany({
       where: {
-        planId: { not: "team_free" },
+        plan: { not: "team_free" },
       },
       include: {
         organization: {
