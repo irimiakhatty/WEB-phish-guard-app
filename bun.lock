@@ -50,6 +50,7 @@
         "next": "^16.1.1",
         "next-cloudinary": "^6.17.5",
         "next-themes": "^0.4.6",
+        "nodemailer": "^6.9.13",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
         "shadcn": "^3.6.2",
@@ -1187,6 +1188,8 @@
     "node-loader": ["node-loader@2.1.0", "", { "dependencies": { "loader-utils": "^2.0.3" }, "peerDependencies": { "webpack": "^5.0.0" } }, "sha512-OwjPkyh8+7jW8DMd/iq71uU1Sspufr/C2+c3t0p08J3CrM9ApZ4U53xuisNrDXOHyGi5OYHgtfmmh+aK9zJA6g=="],
 
     "node-releases": ["node-releases@2.0.27", "", {}, "sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA=="],
+
+    "nodemailer": ["nodemailer@6.10.1", "", {}, "sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA=="],
 
     "npm-run-path": ["npm-run-path@6.0.0", "", { "dependencies": { "path-key": "^4.0.0", "unicorn-magic": "^0.3.0" } }, "sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA=="],
 

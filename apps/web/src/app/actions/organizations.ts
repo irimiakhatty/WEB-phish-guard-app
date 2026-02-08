@@ -5,6 +5,8 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { getPlanById, isTeamPlan } from "@/lib/subscription-plans";
+import { sendInviteEmail } from "@/lib/email";
+import { auth } from "@phish-guard-app/auth";
 
 // ==========================================
 // ORGANIZATION CRUD
@@ -341,26 +343,34 @@ export async function inviteMember(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
-    await prisma.organizationInvite.create({
+    const invite = await prisma.organizationInvite.create({
       data: {
         organizationId,
         email: data.email,
         role: data.role,
-        invitedBy: user.id,
+        invitedById: user.id,
         token: inviteToken,
         expiresAt,
       },
     });
 
-    // TODO: Send invite email
-    console.log(`Invite link: ${process.env.NEXT_PUBLIC_APP_URL}/invite/${inviteToken}`);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3001";
+    const inviteLink = `${appUrl}/invite/${inviteToken}`;
 
-    revalidatePath(`/org/${organizationId}/members`);
+    await sendInviteEmail({
+      to: data.email,
+      link: inviteLink,
+      orgName: organization.name,
+      inviterName: user.name || user.email,
+    });
+
+    revalidatePath(`/org/${organization.slug}`);
 
     return {
       success: true,
       message: "Invitation sent",
-      inviteLink: `/invite/${inviteToken}`,
+      inviteLink,
+      inviteId: invite.id,
     };
   } catch (error) {
     console.error("Error creating invite:", error);
@@ -369,6 +379,82 @@ export async function inviteMember(
       error: "Failed to create invitation",
     };
   }
+}
+
+// Accept invite with signup (new user)
+export async function acceptInviteSignUp(input: { token: string; name: string; password: string }) {
+  const { token, name, password } = input;
+
+  const invite = await prisma.organizationInvite.findUnique({
+    where: { token },
+  });
+
+  if (!invite) {
+    return { success: false, error: "Invalid or expired invite" };
+  }
+
+  if (invite.expiresAt < new Date()) {
+    return { success: false, error: "Invite expired" };
+  }
+
+  // Check if user already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email: invite.email },
+  });
+
+  if (existingUser) {
+    // Ensure membership exists or create it
+    const membership = await prisma.organizationMember.findFirst({
+      where: { organizationId: invite.organizationId, userId: existingUser.id },
+    });
+    if (!membership) {
+      await prisma.organizationMember.create({
+        data: {
+          organizationId: invite.organizationId,
+          userId: existingUser.id,
+          role: invite.role,
+        },
+      });
+    }
+    // Consume invite
+    await prisma.organizationInvite.delete({ where: { id: invite.id } });
+    return { success: false, code: "USER_EXISTS", email: invite.email };
+  }
+
+  // Create new user via better-auth
+  const created = await auth.api.signUpEmail({
+    body: {
+      email: invite.email,
+      password,
+      name,
+    },
+  });
+
+  if (!created) {
+    return { success: false, error: "Failed to create user" };
+  }
+
+  // Add membership
+  await prisma.organizationMember.create({
+    data: {
+      organizationId: invite.organizationId,
+      userId: created.user.id,
+      role: invite.role,
+    },
+  });
+
+  // Default personal subscription optional (skip)
+
+  // Consume invite
+  await prisma.organizationInvite.delete({ where: { id: invite.id } });
+
+  // Get org slug
+  const org = await prisma.organization.findUnique({
+    where: { id: invite.organizationId },
+    select: { slug: true },
+  });
+
+  return { success: true, email: invite.email, orgSlug: org?.slug };
 }
 
 export async function removeMember(

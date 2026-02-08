@@ -19,13 +19,19 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   const router = useRouter();
   const { isPending } = authClient.useSession();
 
+  // Prefill from query params (invite flow)
+  const searchParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const inviteEmail = searchParams.get("email") || "";
+  const inviteOrg = searchParams.get("org");
+  const isInvite = Boolean(searchParams.get("invite"));
+
   const form = useForm({
     defaultValues: {
-      email: "",
+      email: inviteEmail,
       password: "",
       name: "",
-      organizationName: "",
-      accountType: "personal" as "personal" | "organization",
+      organizationName: inviteOrg || "",
+      accountType: inviteOrg ? ("organization" as const) : ("personal" as "personal" | "organization"),
     },
     onSubmit: async ({ value }) => {
       try {

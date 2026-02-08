@@ -23,6 +23,7 @@
     "@tensorflow/tfjs": "^4.22.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "catalog:",
+    "nodemailer": "^6.9.13",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",

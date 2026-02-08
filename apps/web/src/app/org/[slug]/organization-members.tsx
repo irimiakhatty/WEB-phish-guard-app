@@ -257,7 +257,13 @@ export default function OrganizationMembers({
                         {member.user.email}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Joined {new Date(member.joinedAt).toLocaleDateString()}
+                        Joined{" "}
+                        {new Date(member.joinedAt).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        })}
                       </p>
                     </div>
                   </div>
