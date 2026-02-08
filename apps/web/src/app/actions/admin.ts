@@ -119,7 +119,6 @@ export async function getAllUsers(page = 1, limit = 50) {
       include: {
         personalSubscription: true,
         memberships: {
-          where: { status: "active" },
           include: {
             organization: {
               select: {
