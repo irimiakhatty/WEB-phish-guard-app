@@ -15,7 +15,7 @@ export const PERSONAL_PLANS = {
     category: "personal",
     features: {
       scansPerMonth: 100,
-      scansPerHour: 25,
+      scansPerHour: 30,
       maxApiTokens: 1,
       features: [
         "100 scans per month",

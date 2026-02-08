@@ -26,6 +26,7 @@ export interface UserSubscriptionInfo {
   };
   organizationId?: string;
   organizationName?: string;
+  organizationSlug?: string;
   isOrgAdmin?: boolean;
 }
 
@@ -45,7 +46,10 @@ export async function getUserSubscriptionInfo(
       memberships: {
         include: {
           organization: {
-            include: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
               subscription: true,
             },
           },
@@ -72,17 +76,18 @@ export async function getUserSubscriptionInfo(
     // Use organization subscription (typically higher limits)
     const orgMembership = activeOrgMemberships[0]; // Take first active org
     const orgSub = orgMembership.organization.subscription!;
-    const plan = getPlanById(orgSub.planId);
+    const planId = (orgSub as any).plan ?? (orgSub as any).planId; // plan field in schema
+    const plan = getPlanById(planId);
 
     // Calculate per-user limits for team plans
-    const scansPerHourPerUser = isTeamPlan(orgSub.planId as any)
+    const scansPerHourPerUser = isTeamPlan(planId as any)
       ? (plan.features as any).scansPerHourPerUser
       : plan.features.scansPerHour;
 
     return {
       hasActiveSubscription: true,
       subscriptionType: "team",
-      planId: orgSub.planId as PlanId,
+      planId: planId as PlanId,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: scansPerHourPerUser,
@@ -93,16 +98,18 @@ export async function getUserSubscriptionInfo(
       },
       organizationId: orgMembership.organizationId,
       organizationName: orgMembership.organization.name,
+      organizationSlug: orgMembership.organization.slug,
       isOrgAdmin: orgMembership.role === "admin",
     };
   } else if (hasPersonalSub) {
     // Use personal subscription
-    const plan = getPlanById(personalSub.planId);
+    const planId = (personalSub as any).plan ?? (personalSub as any).planId; // plan field in schema
+    const plan = getPlanById(planId);
 
     return {
       hasActiveSubscription: true,
       subscriptionType: "personal",
-      planId: personalSub.planId as PlanId,
+      planId: planId as PlanId,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: plan.features.scansPerHour,

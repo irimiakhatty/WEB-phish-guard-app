@@ -8,6 +8,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { analyzePhishing } from "@/app/actions/analyze";
+import Link from "next/link";
 import { uploadScanImage } from "@/app/actions/upload";
 import { extractTextFromImage } from "@/lib/ocr";
 
@@ -41,6 +42,12 @@ export default function ManualAnalysis() {
   const [uploading, setUploading] = useState(false);
   const [extractingText, setExtractingText] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [limitInfo, setLimitInfo] = useState<{
+    message: string;
+    planId?: string;
+    organizationSlug?: string;
+    limits?: { monthly: { used: number; limit: number }; hourly: { used: number; limit: number } };
+  } | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -197,6 +204,7 @@ export default function ManualAnalysis() {
 
     setAnalyzing(true);
     setResult(null);
+    setLimitInfo(null);
 
     try {
       const data = await analyzePhishing({
@@ -209,8 +217,27 @@ export default function ManualAnalysis() {
 
       setResult(data);
       toast.success("Analysis complete");
-    } catch (error) {
-      toast.error("Analysis failed");
+    } catch (error: any) {
+      let message = error?.message || "Analysis failed";
+
+      // Decode serialized limit error
+      if (typeof message === "string" && message.startsWith("PG_LIMIT:")) {
+        const json = message.replace("PG_LIMIT:", "");
+        try {
+          const payload = JSON.parse(json);
+          setLimitInfo({
+            message: payload.message || "Scan limit reached",
+            planId: payload.planId,
+            organizationSlug: payload.organizationSlug,
+            limits: payload.limits,
+          });
+          message = payload.message || message;
+        } catch (e) {
+          console.warn("Failed to parse limit payload", e);
+        }
+      }
+
+      toast.error(message);
       console.error(error);
     } finally {
       setAnalyzing(false);
@@ -252,6 +279,33 @@ export default function ManualAnalysis() {
             Analyze URLs, text content, and images for potential phishing threats
           </p>
         </div>
+
+        {limitInfo && (
+          <div className="mb-6 border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/70 dark:bg-amber-500/10 dark:text-amber-100 rounded-md p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-500 dark:text-amber-300" />
+              <div className="flex-1">
+                <div className="font-semibold">Scan limit reached</div>
+                <p className="text-sm">{limitInfo.message}</p>
+                {limitInfo.limits && (
+                  <p className="text-xs mt-1">
+                    Monthly {limitInfo.limits.monthly.used}/{limitInfo.limits.monthly.limit} · Hourly {limitInfo.limits.hourly.used}/{limitInfo.limits.hourly.limit}
+                  </p>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setLimitInfo(null)}>
+                    Dismiss
+                  </Button>
+                  <Button size="sm" asChild>
+                    <Link href={limitInfo.organizationSlug ? `/org/${limitInfo.organizationSlug}` : "/pricing"}>
+                      Upgrade or Request More
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-8 flex-wrap">

@@ -433,10 +433,24 @@ function calculateRiskLevel(score: number): "safe" | "low" | "medium" | "high" |
 export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResult> {
   const session = await requireAuth();
 
-  // Check scan limits based on subscription
-  const limitsCheck = await checkScanLimits(session.user.id);
-  if (!limitsCheck.allowed) {
-    throw new Error(limitsCheck.reason || "Scan limit exceeded");
+  // Check scan limits based on subscription (can be bypassed in dev)
+  const disableLimits = process.env.DISABLE_SCAN_LIMITS === "true";
+  if (!disableLimits) {
+    const limitsCheck = await checkScanLimits(session.user.id);
+    if (!limitsCheck.allowed) {
+      // Attach context so the client can show an upgrade CTA
+      const subInfo = await getUserSubscriptionInfo(session.user.id);
+      const payload = {
+        code: "SCAN_LIMIT_REACHED",
+        message: limitsCheck.reason || "Scan limit exceeded",
+        limits: limitsCheck.limits,
+        planId: subInfo.planId,
+        subscriptionType: subInfo.subscriptionType,
+        organizationSlug: subInfo.organizationSlug,
+      };
+      // Serialize into message so it survives Server Action transport
+      throw new Error(`PG_LIMIT:${JSON.stringify(payload)}`);
+    }
   }
 
   let urlScore = 0;

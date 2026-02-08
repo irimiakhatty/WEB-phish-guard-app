@@ -4,6 +4,7 @@ import prisma from "@phish-guard-app/db";
 import { requireAuth } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+import { getPlanById, isTeamPlan } from "@/lib/subscription-plans";
 
 // ==========================================
 // ORGANIZATION CRUD
@@ -58,11 +59,13 @@ export async function createOrganization(data: {
         slug: data.slug,
         subscription: {
           create: {
-            planId: "team_free",
+            plan: "team_free",
+            status: "active",
             maxMembers: 3,
             scansPerMonth: 500,
             scansPerHourPerUser: 25,
             maxApiTokens: 1,
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 zile
           },
         },
         members: {
@@ -174,6 +177,66 @@ export async function deleteOrganization(organizationId: string) {
       error: "Failed to delete organization",
     };
   }
+}
+
+// ==========================================
+// PLAN UPGRADE
+// ==========================================
+
+export async function upgradeOrganizationPlan(
+  organizationId: string,
+  targetPlanId: string
+) {
+  const { user } = await requireAuth();
+
+  // Ensure requester is admin of org
+  const membership = await prisma.organizationMember.findFirst({
+    where: {
+      organizationId,
+      userId: user.id,
+      role: "admin",
+    },
+  });
+
+  if (!membership) {
+    return {
+      success: false,
+      error: "You don't have permission to upgrade this organization",
+    };
+  }
+
+  // Validate plan
+  if (!isTeamPlan(targetPlanId as any)) {
+    return { success: false, error: "Invalid team plan" };
+  }
+
+  const plan = getPlanById(targetPlanId as any);
+
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { slug: true },
+  });
+
+  // Apply plan to subscription
+  await prisma.subscription.update({
+    where: { organizationId },
+    data: {
+      plan: targetPlanId,
+      status: "active",
+      maxMembers: (plan.features as any).maxMembers ?? 3,
+      scansPerMonth: (plan.features as any).scansPerMonth ?? 500,
+      scansPerHourPerUser: (plan.features as any).scansPerHourPerUser ?? 25,
+      maxApiTokens: (plan.features as any).maxApiTokens ?? 1,
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 days
+    },
+  });
+
+  revalidatePath("/dashboard");
+  if (org?.slug) {
+    revalidatePath(`/org/${org.slug}`);
+  }
+
+  return { success: true, plan: targetPlanId };
 }
 
 // ==========================================

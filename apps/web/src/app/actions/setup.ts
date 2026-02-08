@@ -72,6 +72,8 @@ export async function createFirstAdmin(data: {
     // We can't easily transaction with auth.api but we can do prisma ops together.
     
     await prisma.$transaction(async (tx) => {
+        const currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 zile
+
         // Update user to admin
         await tx.user.update({
             where: { email: data.email },
@@ -95,6 +97,7 @@ export async function createFirstAdmin(data: {
                         scansPerMonth: 500,
                         scansPerHourPerUser: 25,
                         maxApiTokens: 1,
+                        currentPeriodEnd,
                     }
                 },
                 members: {
