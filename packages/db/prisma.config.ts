@@ -3,11 +3,11 @@ import path from "node:path";
 import { defineConfig, env } from "prisma/config";
 
 dotenv.config({
-  path: "../../apps/web/.env",
+  path: "./.env",
 });
 
 export default defineConfig({
-  schema: path.join("prisma", "schema"),
+  schema: path.join("prisma", "schema", "schema.prisma"),
   migrations: {
     path: path.join("prisma", "migrations"),
   },

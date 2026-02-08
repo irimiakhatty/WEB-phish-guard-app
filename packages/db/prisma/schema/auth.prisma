@@ -23,6 +23,7 @@ model User {
   scans         Scan[]
   dashboardStats DashboardStats?
   apiTokens     ApiToken[]
+  userActions   UserAction[]
 
   @@unique([email])
   @@map("user")
@@ -89,6 +90,7 @@ model Organization {
   invites         OrganizationInvite[]
   apiTokens       ApiToken[]
   scans           Scan[]
+  userActions     UserAction[]
   
   settings        Json?
   

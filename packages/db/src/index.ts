@@ -1,6 +1,7 @@
 import { env } from "@phish-guard-app/env/server";
 import { PrismaPg } from "@prisma/adapter-pg";
 
+// Reverting import path to point to the generated client file
 import { PrismaClient } from "../prisma/generated/client";
 
 const adapter = new PrismaPg({
@@ -15,7 +16,7 @@ export default prisma;
 export type { 
   User, 
   Scan, 
-  DashboardStats, 
+  DashboardStats,
   ScanActivity, 
   Subscription 
 } from "../prisma/generated/client";
