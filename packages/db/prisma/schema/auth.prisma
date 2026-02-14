@@ -1,29 +1,31 @@
 model User {
-  id            String    @id
+  id            String  @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean @default(false)
   image         String?
-  role          String    @default("user") // "super_admin" for platform admin, "user" for regular users
-  
+  role          String  @default("user") // "super_admin" for platform admin, "user" for regular users
+
   // Personal subscription (B2C)
   personalSubscription PersonalSubscription?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  sessions    Session[]
+  accounts    Account[]
+  departments Department[] @relation("DepartmentUsers")
+
   // Organization relations (B2B)
-  memberships   OrganizationMember[]
-  createdOrganizations Organization[] @relation("OrganizationCreator")
-  sentInvites   OrganizationInvite[]
-  
+  memberships          OrganizationMember[]
+  createdOrganizations Organization[]       @relation("OrganizationCreator")
+  sentInvites          OrganizationInvite[]
+
   // PhishGuard relations
-  scans         Scan[]
+  scans          Scan[]
+  emailScans     EmailScan[]
   dashboardStats DashboardStats?
-  apiTokens     ApiToken[]
-  userActions   UserAction[]
+  apiTokens      ApiToken[]
+  userActions    UserAction[]
 
   @@unique([email])
   @@map("user")
@@ -79,25 +81,24 @@ model Verification {
 
 // Organizations
 model Organization {
-  id              String   @id @default(cuid())
-  name            String
-  slug            String   @unique
-  domain          String?  @unique
-  logo            String?
-  
-  subscription    Subscription?
-  members         OrganizationMember[]
-  invites         OrganizationInvite[]
-  apiTokens       ApiToken[]
-  scans           Scan[]
-  userActions     UserAction[]
-  
-  settings        Json?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  createdById     String
-  createdBy       User     @relation("OrganizationCreator", fields: [createdById], references: [id])
+  id     String  @id @default(cuid())
+  name   String
+  slug   String  @unique
+  domain String? @unique
+  logo   String?
+
+  subscription Subscription?
+  members      OrganizationMember[]
+  invites      OrganizationInvite[]
+  apiTokens    ApiToken[]
+  scans        Scan[]
+
+  settings Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation("OrganizationCreator", fields: [createdById], references: [id])
 
   @@index([slug])
   @@index([domain])
@@ -105,14 +106,14 @@ model Organization {
 }
 
 model OrganizationMember {
-  id              String   @id @default(cuid())
-  organizationId  String
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role            String   // "admin", "member", "viewer"
-  joinedAt        DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String // "admin", "member", "viewer"
+  joinedAt       DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -121,18 +122,18 @@ model OrganizationMember {
 }
 
 model OrganizationInvite {
-  id              String   @id @default(cuid())
-  organizationId  String
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  email           String
-  role            String   @default("member")
-  token           String   @unique
-  invitedById     String
-  invitedBy       User     @relation(fields: [invitedById], references: [id])
-  status          String   @default("pending")
-  expiresAt       DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String       @default("member")
+  token          String       @unique
+  invitedById    String
+  invitedBy      User         @relation(fields: [invitedById], references: [id])
+  status         String       @default("pending")
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([organizationId])
   @@index([email])
@@ -142,31 +143,31 @@ model OrganizationInvite {
 
 // Personal Subscription (B2C - Individual Users)
 model PersonalSubscription {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  plan            String   @default("free") // "free", "personal_plus", "personal_pro"
-  status          String   @default("active")
-  
-  stripeCustomerId     String?  @unique
-  stripeSubscriptionId String?  @unique
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan   String @default("free") // "free", "personal_plus", "personal_pro"
+  status String @default("active")
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
   stripePriceId        String?
-  
-  currentPeriodStart   DateTime @default(now())
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean  @default(false)
-  canceledAt           DateTime?
-  
+
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+
   // Personal limits
-  scansPerMonth        Int      @default(100)
-  scansPerHour         Int      @default(25)
-  maxApiTokens         Int      @default(1)
-  
-  features             Json?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  scansPerMonth Int @default(100)
+  scansPerHour  Int @default(25)
+  maxApiTokens  Int @default(1)
+
+  features Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([stripeCustomerId])
@@ -175,32 +176,32 @@ model PersonalSubscription {
 
 // Organization Subscription (B2B - Teams/Companies)
 model Subscription {
-  id              String   @id @default(cuid())
-  organizationId  String   @unique
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  plan            String   @default("free") // "team_free", "team_startup", "team_business", "team_enterprise"
-  status          String   @default("active")
-  
-  stripeCustomerId     String?  @unique
-  stripeSubscriptionId String?  @unique
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  plan   String @default("free") // "team_free", "team_startup", "team_business", "team_enterprise"
+  status String @default("active")
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
   stripePriceId        String?
-  
-  currentPeriodStart   DateTime @default(now())
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean  @default(false)
-  canceledAt           DateTime?
-  
+
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+
   // Team limits
-  maxMembers           Int      @default(3)
-  scansPerMonth        Int      @default(500)
-  scansPerHourPerUser  Int      @default(25)
-  maxApiTokens         Int      @default(1)
-  
-  features             Json?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  maxMembers          Int @default(3)
+  scansPerMonth       Int @default(500)
+  scansPerHourPerUser Int @default(25)
+  maxApiTokens        Int @default(1)
+
+  features Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@index([stripeCustomerId])
@@ -209,25 +210,25 @@ model Subscription {
 
 // API Tokens (User or Organization)
 model ApiToken {
-  id              String   @id @default(cuid())
-  token           String   @unique
-  name            String   @default("API Token")
-  
-  organizationId  String?
-  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  userId          String?
-  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdById     String
-  expiresAt       DateTime?
-  lastUsedAt      DateTime?
-  requestCount    Int      @default(0)
-  hourlyLimit     Int      @default(100)
-  isActive        Boolean  @default(true)
-  lastResetAt     DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id    String @id @default(cuid())
+  token String @unique
+  name  String @default("API Token")
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdById  String
+  expiresAt    DateTime?
+  lastUsedAt   DateTime?
+  requestCount Int       @default(0)
+  hourlyLimit  Int       @default(100)
+  isActive     Boolean   @default(true)
+  lastResetAt  DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([organizationId])
   @@index([userId])

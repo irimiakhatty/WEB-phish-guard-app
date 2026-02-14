@@ -108,8 +108,10 @@ export default function AdminUsersClient({
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    {user.role === "admin" ? (
+                    {user.role === "super_admin" ? (
                       <Crown className="w-6 h-6 text-yellow-600" />
+                    ) : user.role === "admin" ? (
+                      <Shield className="w-6 h-6 text-yellow-600" />
                     ) : (
                       <UserIcon className="w-6 h-6 text-blue-600" />
                     )}
@@ -137,7 +139,7 @@ export default function AdminUsersClient({
                     size="sm"
                     variant="destructive"
                     onClick={() => handleDeleteClick(user)}
-                    disabled={updatingId === user.id}
+                    disabled={updatingId === user.id || user.role === "super_admin"}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete
@@ -152,10 +154,12 @@ export default function AdminUsersClient({
                         user.role === "admin" ? "user" : "admin"
                       )
                     }
-                    disabled={updatingId === user.id}
+                    disabled={updatingId === user.id || user.role === "super_admin"}
                   >
                     <Shield className="w-4 h-4 mr-2" />
-                    Make {user.role === "admin" ? "User" : "Admin"}
+                    {user.role === "super_admin"
+                      ? "Super Admin"
+                      : `Make ${user.role === "admin" ? "User" : "Admin"}`}
                   </Button>
                 </div>
               </div>

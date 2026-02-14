@@ -1,29 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Copy, Check, Chrome } from "lucide-react";
+import { Loader2, Check, Chrome, ShieldCheck } from "lucide-react";
 import { getExtensionAuthData } from "@/app/actions/extension-auth";
+
+// Extension ID should be coming from env or constant
+const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID || "oghgegpcicfejldagldkflbcoljbejaa"; // Replace with your actual ID during dev/prod
 
 export default function ExtAuthPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"loading" | "connecting" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  
+  // Prevent double-execution in React strict mode
+  const didInit = useRef(false);
 
   useEffect(() => {
-    checkAuth();
+    if (!didInit.current) {
+        didInit.current = true;
+        checkAuthAndConnect();
+    }
   }, []);
 
-  async function checkAuth() {
+  async function checkAuthAndConnect() {
     try {
+      // 1. Check Session
       const response = await fetch("/api/auth/get-session", {
         credentials: "include",
       });
@@ -34,226 +41,218 @@ export default function ExtAuthPage() {
       }
       
       const data = await response.json();
-      
       if (!data?.user) {
         router.push("/login?redirect=/ext-auth");
         return;
       }
       
       setUser(data.user);
-      setLoading(false);
+      setStatus("connecting");
+
+      // 2. Find or Create Token
+      await findOrCreateToken();
+
     } catch (error) {
-      console.error("Auth check failed:", error);
-      router.push("/login?redirect=/ext-auth");
+      console.error("Auth flow failed:", error);
+      // Only redirect on auth failure, not connection failure (allow retry)
+      setStatus("error");
+      setError("Failed to verify authentication.");
     }
   }
 
-  async function generateToken() {
-    setGenerating(true);
-    setError(null);
-
+  async function findOrCreateToken() {
     try {
-      const response = await fetch("/api/v1/auth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "Chrome Extension",
-          expiresInDays: 365, // 1 year
-        }),
-      });
+        // A. List existing tokens
+        const listRes = await fetch("/api/v1/auth/token");
+        const listData = await listRes.json();
+        
+        let targetToken = null;
 
-      const data = await response.json();
+        if (listData.success && Array.isArray(listData.data)) {
+            // Look for existing 'Chrome Extension' token or just pick the latest valid one
+            const existing = listData.data.find((t: any) => t.name === "Chrome Extension");
+            if (existing) {
+                targetToken = existing.token;
+            }
+        }
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to generate token");
-      }
+        // B. If no token, create one
+        if (!targetToken) {
+            const createRes = await fetch("/api/v1/auth/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: "Chrome Extension",
+                    expiresInDays: 365,
+                }),
+            });
+            const createData = await createRes.json();
+            
+            if (!createData.success) {
+                throw new Error(createData.error || "Failed to generate token");
+            }
+            targetToken = createData.data.token;
+        }
 
-      setToken(data.data.token);
+        // C. Handoff to Extension
+        if (targetToken) {
+            setGeneratedToken(targetToken);
+            await sendTokenToExtension(targetToken);
+            setStatus("success");
+        } else {
+            throw new Error("Could not retrieve a valid token.");
+        }
 
-      // Get extended info
-      try {
-        const authData = await getExtensionAuthData();
-        // Send token to extension
-        sendTokenToExtension(data.data.token, authData);
-      } catch (e) {
-        console.error("Failed to fetch extension auth data:", e);
-        // Fallback
-        sendTokenToExtension(data.data.token);
-      }
-    } catch (error: any) {
-      console.error("Token generation failed:", error);
-      setError(error.message || "Failed to generate token");
-    } finally {
-      setGenerating(false);
+    } catch (err: any) {
+        console.error("Connection failed:", err);
+        setStatus("error");
+        setError(err.message || "Failed to connect to extension.");
     }
   }
 
-  function sendTokenToExtension(token: string, authData: any = null) {
-    // Try to send message to extension
-    if (typeof chrome !== "undefined" && chrome.runtime) {
+  async function sendTokenToExtension(token: string) {
       try {
+        // Fetch rich user data for the extension (plan, limits, etc.)
+        const authData = await getExtensionAuthData();
+        
         const message = {
             action: "AUTH_HANDOFF",
             token,
             user: authData ? authData.user : {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              plan: "free", // Default plan
+                id: user?.id,
+                email: user?.email,
+                name: user?.name,
+                plan: "free",
             },
             subscription: authData?.subscription
         };
 
-        chrome.runtime.sendMessage(
-          process.env.NEXT_PUBLIC_EXTENSION_ID || "",
-          message,
-          (response) => {
-            if (chrome.runtime.lastError) {
-              console.warn("Extension not found:", chrome.runtime.lastError);
-            } else {
-              console.log("Token sent to extension:", response);
-            }
-          }
-        );
-      } catch (error) {
-        console.warn("Could not send to extension:", error);
+        // Try standard runtime messaging
+        if (typeof chrome !== "undefined" && chrome.runtime) {
+            chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
+                if (chrome.runtime.lastError) {
+                   console.log("Extension not reachable via standard ID, trying self...");
+                   // Fallback: If we are not whitelisted in the extension manifest externally_connectable,
+                   // this might fail. But for local dev it's tricky.
+                }
+            });
+        }
+        
+        // Also try window.postMessage for content script pickup (if we implement that later)
+        // Send multiple times to ensure the content script is ready and listening
+        const msg = { type: "PHISHGUARD_AUTH_SUCCESS", ...message };
+        window.postMessage(msg, "*");
+        
+        // Retry a few times for race conditions
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            window.postMessage(msg, "*");
+            if (attempts >= 5) clearInterval(interval);
+        }, 500);
+
+      } catch (e) {
+        console.warn("Error preparing extension data:", e);
       }
-    }
   }
 
-  async function copyToClipboard() {
-    if (!token) return;
+  const handleRetry = () => {
+    setStatus("connecting");
+    findOrCreateToken();
+  };
 
-    try {
-      await navigator.clipboard.writeText(token);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Copy failed:", error);
-    }
-  }
-
-  if (loading) {
+  if (status === "loading" || status === "connecting") {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+        <Card className="w-full max-w-md border-0 shadow-lg">
+            <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 dark:bg-blue-900/30"></div>
+                    <div className="relative bg-white dark:bg-slate-900 p-4 rounded-full border-2 border-blue-100 dark:border-blue-800">
+                        <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+                    </div>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Connecting PhishGuard...</h2>
+                <p className="text-muted-foreground">
+                    {status === "loading" ? "Verifying your account" : "Syncing with extension"}
+                </p>
+            </CardContent>
+        </Card>
       </div>
     );
   }
 
+  if (status === "error") {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+            <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-red-500">
+                <CardHeader>
+                    <CardTitle className="text-red-600">Connection Failed</CardTitle>
+                    <CardDescription>We couldn't connect to the extension.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Alert variant="destructive">
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                    <Button onClick={handleRetry} className="w-full">
+                        Try Again
+                    </Button>
+                    <Button variant="ghost" className="w-full" onClick={() => router.push("/dashboard")}>
+                        Go to Dashboard
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+      );
+  }
+
+  // Success State
   return (
-    <div className="container mx-auto max-w-2xl py-12 px-4">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Chrome className="h-8 w-8 text-blue-600" />
-            <div>
-              <CardTitle>Chrome Extension Authentication</CardTitle>
-              <CardDescription>
-                Generate an API token to connect your PhishGuard Chrome extension
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {!token ? (
-            <>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Logged in as: <strong>{user?.email}</strong>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Click the button below to generate an API token for your Chrome extension.
-                  This token will be valid for 1 year.
-                </p>
-              </div>
-
-              <Button
-                onClick={generateToken}
-                disabled={generating}
-                className="w-full"
-                size="lg"
-              >
-                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Generate API Token
-              </Button>
-            </>
-          ) : (
-            <>
-              <Alert>
-                <AlertDescription>
-                  ✅ Token generated successfully! Copy it to your extension settings or it
-                  will be automatically sent if the extension is installed.
-                </AlertDescription>
-              </Alert>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Your API Token:</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={token}
-                    readOnly
-                    className="flex-1 px-3 py-2 text-sm border rounded-md bg-muted font-mono"
-                  />
-                  <Button
-                    onClick={copyToClipboard}
-                    variant="outline"
-                    size="icon"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+      <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-green-500">
+        <CardContent className="pt-12 pb-8 flex flex-col items-center text-center">
+             <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full mb-6">
+                <ShieldCheck className="h-12 w-12 text-green-600 dark:text-green-400" />
+             </div>
+             <h2 className="text-2xl font-bold mb-2">You set!</h2>
+             <p className="text-muted-foreground mb-8">
+                The PhishGuard extension is now connected to your account. 
+                You can close this tab.
+             </p>
+             
+             <div className="flex gap-3 w-full">
+                 <Button variant="outline" className="flex-1" onClick={() => window.close()}>
+                    Close Tab
+                 </Button>
+                 <Button className="flex-1" onClick={() => router.push("/dashboard")}>
+                    Dashboard
+                 </Button>
+             </div>
+             
+             <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-sm text-muted-foreground mb-2">Trouble connecting automatically?</p>
+                <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-md">
+                     <p className="text-xs text-muted-foreground mb-2">1. Copy this token:</p>
+                     <div className="flex gap-2">
+                        <input type="text" readOnly value={generatedToken || "No token generated yet..."} className="flex-1 text-xs font-mono bg-white dark:bg-black border rounded px-2 py-1" />
+                        <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
+                            if (generatedToken) navigator.clipboard.writeText(generatedToken);
+                        }}>
+                             <Check className="h-3 w-3" />
+                        </Button>
+                     </div>
+                     <p className="text-xs text-muted-foreground mt-2 mb-1">2. Open extension popup click "Have trouble?"</p>
+                     <p className="text-xs text-muted-foreground">3. Paste token and click Save.</p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Keep this token secure. It grants access to your PhishGuard account.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">Next Steps:</h3>
-                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Open your PhishGuard Chrome extension</li>
-                  <li>Go to extension settings (click the gear icon)</li>
-                  <li>Paste the token in the "API Token" field</li>
-                  <li>Save and start protecting yourself from phishing!</li>
-                </ol>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => router.push("/dashboard")}
-                  variant="default"
-                  className="flex-1"
-                >
-                  Go to Dashboard
-                </Button>
-                <Button
-                  onClick={() => {
-                    setToken(null);
-                    setError(null);
-                  }}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Generate Another Token
-                </Button>
-              </div>
-            </>
-          )}
+             </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+// Add getStatus wrapper just to satisfy type checker if needed or reuse checkAuthAndConnect logic partially
+// Actually simpler to just call sendTokenToExtension if we have token stored in a ref or state
+// Let's modify the component to store token in state for the retry button.
+
+

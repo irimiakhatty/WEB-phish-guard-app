@@ -114,7 +114,7 @@ export default function NewOrganizationPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, slug: e.target.value })
                   }
-                  pattern="[a-z0-9-]+"
+                  pattern="[a-z0-9]+(-[a-z0-9]+)*"
                   required
                   disabled={loading}
                   className="flex-1"

@@ -1,44 +1,44 @@
 // PhishGuard specific models
 
 model Scan {
-  id         String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Organization context (nullable for personal scans)
-  organizationId  String?
-  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Scan input
-  url        String?  @db.Text
+  url         String? @db.Text
   textContent String? @db.Text
-  imageUrl   String?
-  
+  imageUrl    String?
+
   // Scan results
-  textScore    Float    @default(0)
-  urlScore     Float    @default(0)
-  overallScore Float    @default(0)
-  riskLevel    String   // "safe", "low", "medium", "high", "critical"
-  isPhishing   Boolean  @default(false)
-  confidence   Float    @default(0)
-  
+  textScore    Float   @default(0)
+  urlScore     Float   @default(0)
+  overallScore Float   @default(0)
+  riskLevel    String // "safe", "low", "medium", "high", "critical"
+  isPhishing   Boolean @default(false)
+  confidence   Float   @default(0)
+
   // Analysis details
   detectedThreats String[] @default([])
   analysis        String?  @db.Text
-  
+
   // Source tracking
-  source          String?  // "web", "extension", "api"
-  
+  source String? // "web", "extension", "api"
+
   // Admin actions
-  isDeleted    Boolean  @default(false)
-  deletedAt    DateTime?
-  deletedBy    String?
-  
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String?
+
   // Metadata
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([organizationId])
   @@index([userId])
   @@index([createdAt])
@@ -48,21 +48,21 @@ model Scan {
 }
 
 model DashboardStats {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  totalScans      Int      @default(0)
-  threatsBlocked  Int      @default(0)
-  safeSites       Int      @default(0)
-  
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalScans     Int @default(0)
+  threatsBlocked Int @default(0)
+  safeSites      Int @default(0)
+
   // Weekly/monthly tracking
-  scansThisWeek   Int      @default(0)
-  scansThisMonth  Int      @default(0)
-  
-  lastScanAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  scansThisWeek  Int @default(0)
+  scansThisMonth Int @default(0)
+
+  lastScanAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
   @@map("dashboard_stats")
 }

@@ -10,7 +10,7 @@ async function resetUsers() {
     console.log(`✅ Deleted ${result.count} users successfully!`);
     console.log("\n📝 Next steps:");
     console.log("   1. Go to http://localhost:3001/setup");
-    console.log("   2. Create your first admin account");
+    console.log("   2. Create your first organization admin account");
     console.log("   3. Or use the sign-up page to create regular users");
   } catch (error) {
     console.error("❌ Error deleting users:", error);

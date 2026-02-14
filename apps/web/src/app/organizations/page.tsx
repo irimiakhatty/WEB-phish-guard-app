@@ -13,7 +13,7 @@ export default async function OrganizationsPage() {
   const organizations = await getUserOrganizations();
 
   // Non-super admins should only see their organization in settings
-  if (user.role !== "admin" && organizations.length > 0) {
+  if (user.role !== "super_admin" && organizations.length > 0) {
     redirect(`/org/${organizations[0].slug}`);
   }
 
@@ -104,7 +104,7 @@ export default async function OrganizationsPage() {
                       ) : org.role === "Super Admin" ? (
                         <>
                           <Shield className="w-3 h-3 mr-1" />
-                          Viewer
+                          Super Admin
                         </>
                       ) : (
                         "Member"

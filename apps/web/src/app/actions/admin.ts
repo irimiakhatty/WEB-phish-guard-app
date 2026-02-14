@@ -10,7 +10,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 export async function requireSuperAdmin() {
   const { user } = await requireAuth();
 
-  if (user.role !== "admin") {
+  if (user.role !== "super_admin") {
     throw new Error("Unauthorized: Super admin access required");
   }
 
@@ -150,6 +150,19 @@ export async function getAllUsers(page = 1, limit = 50) {
 export async function updateUserRole(userId: string, role: "user" | "admin") {
   await requireSuperAdmin();
 
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!targetUser) {
+    throw new Error("User not found");
+  }
+
+  if (targetUser.role === "super_admin") {
+    throw new Error("You cannot modify the super admin role");
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: { role },
@@ -160,6 +173,19 @@ export async function updateUserRole(userId: string, role: "user" | "admin") {
 
 export async function deleteUser(userId: string) {
   await requireSuperAdmin();
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!targetUser) {
+    throw new Error("User not found");
+  }
+
+  if (targetUser.role === "super_admin") {
+    throw new Error("You cannot delete the super admin account");
+  }
 
   // Delete user (cascade will handle related data)
   await prisma.user.delete({
@@ -187,14 +213,13 @@ export async function getAllOrganizations(page = 1, limit = 50) {
         subscription: true,
         _count: {
           select: {
-            members: { where: { status: "active" } },
+            members: true,
             scans: true,
           },
         },
         members: {
           where: {
             role: "admin",
-            status: "active",
           },
           take: 1,
           include: {
@@ -222,7 +247,7 @@ export async function getAllOrganizations(page = 1, limit = 50) {
 export async function updateOrganizationSubscription(
   organizationId: string,
   data: {
-    planId: string;
+    plan: string;
     maxMembers: number;
     scansPerMonth: number;
     scansPerHourPerUser: number;

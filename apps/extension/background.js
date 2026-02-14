@@ -148,8 +148,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "scan_page") {
 
         // --- SUBSCRIPTION CHECK ---
-        chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'scansRemaining'], async (items) => {
-            const { userPlan, scansRemaining } = items;
+        chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining'], async (items) => {
+            const { userPlan, userRole, scansRemaining } = items;
             const authToken = items.apiToken || items.authToken;
 
             // 1. Auth Check
@@ -164,6 +164,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
 
             // 2. Quota Check
+            // Admins bypass limits
+            if (userRole === 'admin' || userRole === 'super_admin') {
+                 processScan(request, sender, sendResponse, undefined);
+                 return;
+            }
+
             if (userPlan === 'free') {
                 if (scansRemaining <= 0) {
                     // If auto-scan, silent fail (don't spam user)
@@ -190,6 +196,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         return true; // Keep channel open for async response
     }
+    
+        // --- TRACK USER CLICK ON SUSPICIOUS LINK ---
+        if (request.action === "user_action_click_suspicious_link") {
+            chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole'], async (items) => {
+                const authToken = items.apiToken || items.authToken;
+                if (!authToken) return;
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'http://localhost:3001' });
+                try {
+                    await fetch(`${apiUrl}/api/v1/user-actions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            actionType: 'clicked_suspicious_link',
+                            link: request.link,
+                            actionAt: new Date().toISOString(),
+                            // emailScanId: poate fi adăugat dacă este disponibil
+                            // Se poate adăuga și emailUrl pentru context
+                            emailUrl: request.emailUrl
+                        })
+                    });
+                } catch (e) {
+                    console.error('Failed to log user action:', e);
+                }
+            });
+            return;
+        }
 });
 
 async function processScan(request, sender, sendResponse, remainingScans) {
@@ -234,25 +269,70 @@ async function processScan(request, sender, sendResponse, remainingScans) {
 }
 
 // --- 5. EXTERNAL MESSAGING (AUTH HANDOFF) ---
-chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+function handleAuthHandoff(request, sender, sendResponse) {
+	// DEBUG LOG
+	console.log("Background: Message Received", request);
+userRole', '
+    // LOGOUT ACTION
+    if (request.action === "LOGOUT") {
+        console.log("Background: LOGOUT ACTION TRIGGERED");
+        
+        // Clear everything
+        const keys = ['authToken', 'apiToken', 'userPlan', 'scansRemaining'];
+        
+        chrome.storage.sync.remove(keys, () => {
+             console.log("Background: Sync storage cleared");
+        });
+        
+        chrome.storage.local.remove(keys, () => {
+             console.log("Background: Local storage cleared");
+             sendResponse({ success: true });
+        });
+        
+        // Also badge update
+        chrome.action.setBadgeText({ text: "" });
+        
+        return true; 
+    }
+
+    // AUTH HANDOFF ACTION
     if (request.action === "AUTH_HANDOFF") {
-        console.log("Background: Received Auth Token from Web App");
+        console.log("Background: Received Auth Token");
 
-        const { token, user } = request;
+        const { token, user, subscription } = request;
 
-        // Save to Storage
-        chrome.storage.sync.set({
+        // Save to Storage (Both Sync and Local for reliability)
+        const data = {
             authToken: token,
-            apiToken: token, // Save as both for compatibility
+            apiToken: token,
             userPlan: user.plan || 'free',
-            scansRemaining: 10 // Reset or fetch from API in future
-        }, () => {
-            sendResponse({ success: true });
+            userRole: user.role || 'user',
+            scansRemaining: subscription ? subscription.scansRemaining : 10
+        };
+
+        chrome.storage.sync.set(data);
+        chrome.storage.local.set(data, () => {
+             console.log("Background: Token saved to storage.");
+             sendResponse({ success: true });
         });
 
         return true; // Async response
     }
-});
+}
+
+chrome.runtime.onMessageExternal.addListener(handleAuthHandoff);
+chrome.runtime.onMessage.addListener(handleAuthHandoff);
 
 // Initialize on load
 loadResources();
+
+// --- INSTALL/UPDATE HANDLER ---
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install' || details.reason === 'update') {
+        console.log("Background: Extension installed/updated. Clearing storage to prevent compatibility issues.");
+        const keys = ['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining', 'apiUrl'];
+        
+        chrome.storage.local.remove(keys);
+        chrome.storage.sync.remove(keys);
+    }
+});

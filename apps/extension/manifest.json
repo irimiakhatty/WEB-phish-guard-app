@@ -1,4 +1,4 @@
-{
+﻿{
   "manifest_version": 3,
   "name": "PhishGuard - AI Phishing Detector",
   "version": "1.0",
@@ -12,9 +12,9 @@
     "default_popup": "popup.html",
     "default_title": "Scan for Phishing",
     "default_icon": {
-      "16": "assets/logo.png",
-      "48": "assets/logo.png",
-      "128": "assets/logo.png"
+      "16": "assets/logo-16.png",
+      "48": "assets/logo-48.png",
+      "128": "assets/logo-128.png"
     }
   },
   "options_ui": {
@@ -22,9 +22,9 @@
     "open_in_tab": false
   },
   "icons": {
-    "16": "assets/logo.png",
-    "48": "assets/logo.png",
-    "128": "assets/logo.png"
+    "16": "assets/logo-16.png",
+    "48": "assets/logo-48.png",
+    "128": "assets/logo-128.png"
   },
   "background": {
     "service_worker": "background.js"
@@ -35,7 +35,9 @@
         "*://mail.google.com/*",
         "*://outlook.live.com/*",
         "*://outlook.office.com/*",
-        "*://outlook.office365.com/*"
+        "*://outlook.office365.com/*",
+        "http://localhost:3001/*",
+        "https://phish-guard-rho.vercel.app/*"
       ],
       "js": [
         "content.js"

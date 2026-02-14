@@ -1,59 +1,46 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated"
+  provider     = "prisma-client"
+  output       = "../generated"
   moduleFormat = "esm"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model EmailScan {
-  id           String   @id @default(uuid())
+  id           String       @id @default(uuid())
   userId       String
   departmentId String
   emailSubject String
   emailSender  String
-  detectedAt   DateTime @default(now())
+  detectedAt   DateTime     @default(now())
   isPhishing   Boolean
   detectedBy   String
   links        String[]
-  user         User     @relation(fields: [userId], references: [id])
-  department   Department @relation(fields: [departmentId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
   actions      UserAction[]
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  role      String
-  name      String?
-  emailVerified Boolean? @default(false)
-  scans     EmailScan[]
-  actions   UserAction[]
-  departments Department[] @relation("DepartmentUsers")
-  @@map("user")
-}
-
 model UserAction {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   userId       String
   departmentId String
   emailScanId  String
   actionType   String
-  @@map("account")
   link         String?
-  actionAt     DateTime @default(now())
-  user         User     @relation(fields: [userId], references: [id])
+  actionAt     DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id])
   department   Department @relation(fields: [departmentId], references: [id])
-  emailScan    EmailScan @relation(fields: [emailScanId], references: [id])
+  emailScan    EmailScan  @relation(fields: [emailScanId], references: [id])
 }
 
 model Department {
-  id     String   @id @default(uuid())
-  name   String   @unique
-  users  User[] @relation("DepartmentUsers")
-  scans  EmailScan[]
+  id      String       @id @default(uuid())
+  name    String       @unique
+  users   User[]       @relation("DepartmentUsers")
+  scans   EmailScan[]
   actions UserAction[]
 }
-

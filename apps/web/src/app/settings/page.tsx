@@ -18,7 +18,9 @@ export default async function SettingsPage() {
   }
 
   const organizations = await getUserOrganizations();
-  const isSuperAdmin = (session.user as any).role === "admin";
+  const userRole = (session.user as any).role || "user";
+  const isSuperAdmin = userRole === "super_admin";
+  const roleLabel = userRole === "super_admin" ? "Super Admin" : userRole;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -48,7 +50,7 @@ export default async function SettingsPage() {
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Account Role</h3>
               <p className="text-sm text-muted-foreground capitalize">
-                {(session.user as any).role || "user"}
+                {roleLabel}
               </p>
             </div>
           </CardContent>

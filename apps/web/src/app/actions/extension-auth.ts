@@ -8,7 +8,7 @@ export async function getExtensionAuthData() {
   const { user } = await requireAuth();
   
   // Get detailed subscription info
-  const subInfo = await getUserSubscriptionInfo(user.id);
+  let subInfo = await getUserSubscriptionInfo(user.id);
 
   // Calculate usage for current period
   const now = new Date();
@@ -43,6 +43,7 @@ export async function getExtensionAuthData() {
         id: user.id,
         email: user.email, 
         name: user.name,
+        role: user.role,
         plan: subInfo.planId,
     },
     subscription: {

@@ -17,7 +17,6 @@ export type {
   User, 
   Scan, 
   DashboardStats,
-  ScanActivity, 
   Subscription 
 } from "../prisma/generated/client";
 

@@ -6,6 +6,9 @@ import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+import dynamic from "next/dynamic";
+const AdminRiskReport = dynamic(() => import("./AdminRiskReport"), { ssr: false });
+
 type UserStats = {
   totalScans: number;
   threatsDetected: number;
@@ -28,8 +31,8 @@ export default function Dashboard({
   session: typeof authClient.$Infer.Session;
   stats: UserStats | AdminStats;
 }) {
-  const isAdmin = session.user.role === "admin";
-  const adminStats = isAdmin ? (stats as AdminStats) : null;
+  const isSuperAdmin = session.user.role === "super_admin";
+  const adminStats = isSuperAdmin ? (stats as AdminStats) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -38,14 +41,14 @@ export default function Dashboard({
         <div className="mb-12">
           <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
             Welcome back, {session.user.name}!
-            {isAdmin && (
+            {isSuperAdmin && (
               <span className="ml-3 text-base font-normal text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                Admin
+                Super Admin
               </span>
             )}
           </h1>
           <p className="text-base text-gray-600 dark:text-gray-400">
-            {isAdmin 
+            {isSuperAdmin 
               ? "Monitor platform activity and manage security."
               : "Monitor your security activity and stay protected."
             }
@@ -100,7 +103,7 @@ export default function Dashboard({
         {/* Stats Overview */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-            {isAdmin ? "Platform Statistics" : "Your Statistics"}
+            {isSuperAdmin ? "Platform Statistics" : "Your Statistics"}
           </h2>
         </div>
 
@@ -108,7 +111,7 @@ export default function Dashboard({
           <Card className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {isAdmin ? "Total Platform Scans" : "Your Scans"}
+                {isSuperAdmin ? "Total Platform Scans" : "Your Scans"}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -126,7 +129,7 @@ export default function Dashboard({
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600" />
-                  Threats {isAdmin ? "Detected" : "Blocked"}
+                  Threats {isSuperAdmin ? "Detected" : "Blocked"}
                 </div>
               </CardTitle>
             </CardHeader>
@@ -145,7 +148,7 @@ export default function Dashboard({
               <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  Safe {isAdmin ? "Scans" : "Sites"}
+                  Safe {isSuperAdmin ? "Scans" : "Sites"}
                 </div>
               </CardTitle>
             </CardHeader>
@@ -161,7 +164,7 @@ export default function Dashboard({
         </div>
 
         {/* Admin-only statistics */}
-        {isAdmin && (
+        {isSuperAdmin && (
           <>
             <div className="mt-12 mb-8">
               <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
@@ -229,6 +232,9 @@ export default function Dashboard({
                 </CardContent>
               </Card>
             </div>
+
+              {/* Raport de risc pentru admini */}
+              <AdminRiskReport />
           </>
         )}
       </div>

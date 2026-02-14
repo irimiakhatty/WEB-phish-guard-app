@@ -40,7 +40,7 @@ export async function createOrganization(data: {
   }
 
   // Constraint: One organization per user (unless platform admin)
-  if (user.role !== "admin") {
+  if (user.role !== "super_admin") {
     const orgCount = await prisma.organization.count({
       where: { createdById: user.id },
     });
@@ -107,21 +107,24 @@ export async function updateOrganization(
   data: { name: string }
 ) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   // Check if user is admin of this organization
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId,
-      userId: user.id,
-      role: "admin",
-    },
-  });
+  if (!isSuperAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId: user.id,
+        role: "admin",
+      },
+    });
 
-  if (!membership) {
-    return {
-      success: false,
-      error: "You don't have permission to update this organization",
-    };
+    if (!membership) {
+      return {
+        success: false,
+        error: "You don't have permission to update this organization",
+      };
+    }
   }
 
   try {
@@ -145,21 +148,24 @@ export async function updateOrganization(
 
 export async function deleteOrganization(organizationId: string) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   // Check if user is admin
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId,
-      userId: user.id,
-      role: "admin",
-    },
-  });
+  if (!isSuperAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId: user.id,
+        role: "admin",
+      },
+    });
 
-  if (!membership) {
-    return {
-      success: false,
-      error: "You don't have permission to delete this organization",
-    };
+    if (!membership) {
+      return {
+        success: false,
+        error: "You don't have permission to delete this organization",
+      };
+    }
   }
 
   try {
@@ -250,21 +256,24 @@ export async function inviteMember(
   data: { email: string; role: "admin" | "member" }
 ) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   // Check if user is admin
-  const membership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId,
-      userId: user.id,
-      role: "admin",
-    },
-  });
+  if (!isSuperAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId: user.id,
+        role: "admin",
+      },
+    });
 
-  if (!membership) {
-    return {
-      success: false,
-      error: "You don't have permission to invite members",
-    };
+    if (!membership) {
+      return {
+        success: false,
+        error: "You don't have permission to invite members",
+      };
+    }
   }
 
   // Check organization subscription limits
@@ -462,17 +471,20 @@ export async function removeMember(
   memberId: string
 ) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   // Check if user is admin
-  const adminMembership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId,
-      userId: user.id,
-      role: "admin",
-    },
-  });
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
 
-  if (!adminMembership) {
+  if (!isSuperAdmin && !adminMembership) {
     return {
       success: false,
       error: "You don't have permission to remove members",
@@ -480,7 +492,7 @@ export async function removeMember(
   }
 
   // Can't remove yourself if you're the last admin
-  if (memberId === adminMembership.id) {
+  if (!isSuperAdmin && adminMembership && memberId === adminMembership.id) {
     const adminCount = await prisma.organizationMember.count({
       where: {
         organizationId,
@@ -519,17 +531,20 @@ export async function updateMemberRole(
   role: "admin" | "member"
 ) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   // Check if user is admin
-  const adminMembership = await prisma.organizationMember.findFirst({
-    where: {
-      organizationId,
-      userId: user.id,
-      role: "admin",
-    },
-  });
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
 
-  if (!adminMembership) {
+  if (!isSuperAdmin && !adminMembership) {
     return {
       success: false,
       error: "You don't have permission to change member roles",
@@ -537,7 +552,7 @@ export async function updateMemberRole(
   }
 
   // If demoting yourself from admin, check if there's another admin
-  if (memberId === adminMembership.id && role === "member") {
+  if (!isSuperAdmin && adminMembership && memberId === adminMembership.id && role === "member") {
     const adminCount = await prisma.organizationMember.count({
       where: {
         organizationId,
@@ -655,6 +670,7 @@ export async function acceptInvite(token: string) {
 
 export async function cancelInvite(inviteId: string) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   const invite = await prisma.organizationInvite.findUnique({
     where: { id: inviteId },
@@ -679,7 +695,7 @@ export async function cancelInvite(inviteId: string) {
     };
   }
 
-  if (invite.organization.members.length === 0) {
+  if (!isSuperAdmin && invite.organization.members.length === 0) {
     return {
       success: false,
       error: "You don't have permission to cancel this invite",
@@ -709,6 +725,7 @@ export async function cancelInvite(inviteId: string) {
 
 export async function getOrganization(slug: string) {
   const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
 
   const organization = await prisma.organization.findUnique({
     where: { slug },
@@ -745,10 +762,10 @@ export async function getOrganization(slug: string) {
     return null;
   }
 
-  // Check if user is a member
+  // Check if user is a member (super admin can access any organization)
   const isMember = organization.members.some((m) => m.userId === user.id);
 
-  if (!isMember) {
+  if (!isSuperAdmin && !isMember) {
     return null;
   }
 
@@ -758,7 +775,7 @@ export async function getOrganization(slug: string) {
 export async function getUserOrganizations() {
   const { user } = await requireAuth();
 
-  if (user.role === "admin") {
+  if (user.role === "super_admin") {
     const organizations = await prisma.organization.findMany({
       include: {
         subscription: true,

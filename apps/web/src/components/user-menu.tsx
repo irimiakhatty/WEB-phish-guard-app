@@ -44,10 +44,21 @@ export default function UserMenu() {
           <DropdownMenuItem
             variant="destructive"
             onClick={() => {
+              // 1. Send logout signal first
+              if (typeof window !== "undefined") {
+                  window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*");
+                  // Backup try for slower scripts
+                  setTimeout(() => window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*"), 100);
+              }
+
+              // 2. Perform sign out
               authClient.signOut({
                 fetchOptions: {
                   onSuccess: () => {
-                    router.push("/");
+                    // Small delay to ensure extension gets the message before page unload
+                    setTimeout(() => {
+                        router.push("/");
+                    }, 500);
                   },
                 },
               });

@@ -152,6 +152,10 @@ export async function updateUserRole(userId: string, role: "user" | "admin") {
     throw new Error("User not found");
   }
 
+  if (targetUser.role === "super_admin") {
+    throw new Error("You cannot modify the super admin role");
+  }
+
   // Prevent admin from changing their own role
   if (userId === session.user.id) {
     throw new Error("You cannot modify your own role. Please ask another administrator for assistance.");
@@ -191,6 +195,10 @@ export async function deleteUser(userId: string) {
 
   if (!user) {
     throw new Error("User not found");
+  }
+
+  if (user.role === "super_admin") {
+    throw new Error("You cannot delete the super admin account");
   }
 
   // Delete user (cascade will handle related records)

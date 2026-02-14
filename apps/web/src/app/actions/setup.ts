@@ -5,7 +5,7 @@ import { auth } from "@phish-guard-app/auth";
 import { revalidatePath } from "next/cache";
 
 /**
- * Check if any admin user exists in the system
+ * Check if any organization admin exists in the system
  */
 export async function checkAdminExists(): Promise<boolean> {
   const adminCount = await prisma.user.count({
@@ -16,7 +16,7 @@ export async function checkAdminExists(): Promise<boolean> {
 }
 
 /**
- * Create the first admin user - only works if no admin exists
+ * Create the first organization admin - only works if no org admin exists
  */
 export async function createFirstAdmin(data: {
   email: string;
@@ -28,7 +28,7 @@ export async function createFirstAdmin(data: {
   const adminExists = await checkAdminExists();
   
   if (adminExists) {
-    throw new Error("An admin user already exists. Please contact your system administrator.");
+    throw new Error("An organization admin already exists. Please contact your system administrator.");
   }
 
   // Validate input
@@ -115,7 +115,7 @@ export async function createFirstAdmin(data: {
     
     return {
       success: true,
-      message: "Admin account and organization created successfully! You can now login.",
+      message: "Organization admin account and organization created successfully! You can now login.",
     };
   } catch (error: any) {
     console.error("Error creating admin:", error);

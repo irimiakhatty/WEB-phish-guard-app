@@ -25,9 +25,9 @@ export default function SetupLogoutPrompt() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
+      <Card className="w-full max-w-md border-gray-200/70 dark:border-gray-800/70 shadow-xl bg-white/90 dark:bg-gray-900/80 backdrop-blur">
+        <CardHeader className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-lg">
               <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
@@ -35,7 +35,7 @@ export default function SetupLogoutPrompt() {
             <div>
               <CardTitle>Already Logged In</CardTitle>
               <CardDescription>
-                You need to logout to access the setup page
+                Logout before accessing the setup page.
               </CardDescription>
             </div>
           </div>
@@ -44,7 +44,7 @@ export default function SetupLogoutPrompt() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             You are currently logged in. To create a new admin account, please logout first.
           </p>
-          
+
           <div className="flex gap-3">
             <Button
               onClick={handleLogout}

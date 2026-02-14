@@ -9,5 +9,9 @@ export default async function AnalyzePage() {
     redirect("/login");
   }
 
+  if (session.user.role === "super_admin") {
+    redirect("/admin");
+  }
+
   return <ManualAnalysis />;
 }

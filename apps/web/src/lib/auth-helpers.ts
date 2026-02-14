@@ -28,27 +28,27 @@ export async function requireAuth() {
 }
 
 /**
- * Require admin role, throw error if user is not admin
- * @throws Error if user is not authenticated or not admin
+ * Require super admin role, throw error if user is not super admin
+ * @throws Error if user is not authenticated or not super admin
  * @returns Session object
  */
 export async function requireAdmin() {
   const session = await requireAuth();
 
-  if (session.user.role !== "admin") {
-    throw new Error("Forbidden - Admin access required");
+  if (session.user.role !== "super_admin") {
+    throw new Error("Forbidden - Super admin access required");
   }
 
   return session;
 }
 
 /**
- * Check if a role is admin
+ * Check if a role is super admin
  * @param role - User role to check
- * @returns true if role is admin
+ * @returns true if role is super admin
  */
 export function isAdmin(role?: string) {
-  return role === "admin";
+  return role === "super_admin";
 }
 
 /**

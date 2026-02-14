@@ -63,6 +63,7 @@ export default function AdminUsers() {
   };
 
   const handleRoleChange = async (userId: string, currentRole: string) => {
+    if (currentRole === "super_admin") return;
     const newRole = currentRole === "admin" ? "user" : "admin";
     await updateUserRole(userId, newRole);
     loadUsers();
@@ -122,12 +123,17 @@ export default function AdminUsers() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-semibold">{user.name || "Unnamed User"}</p>
-                    {user.role === "admin" && (
+                    {user.role === "super_admin" ? (
+                      <Badge variant="default">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Super Admin
+                      </Badge>
+                    ) : user.role === "admin" ? (
                       <Badge variant="default">
                         <Shield className="w-3 h-3 mr-1" />
                         Admin
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                   <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
@@ -146,21 +152,25 @@ export default function AdminUsers() {
               </div>
 
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  }
+                />
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     onClick={() => handleRoleChange(user.id, user.role)}
+                    disabled={user.role === "super_admin"}
                   >
                     <UserCog className="w-4 h-4 mr-2" />
-                    Make {user.role === "admin" ? "User" : "Admin"}
+                    Make {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "User" : "Admin"}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setUserToDelete(user)}
                     className="text-destructive"
+                    disabled={user.role === "super_admin"}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete User

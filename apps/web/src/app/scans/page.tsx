@@ -10,6 +10,10 @@ export default async function ScansPage() {
     redirect("/login");
   }
 
+  if (session.user.role === "super_admin") {
+    redirect("/admin");
+  }
+
   const scans = await getMyScans();
 
   return <ScansClient scans={scans} />;

@@ -11,8 +11,11 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const isAdmin = session.user.role === "admin";
-  const stats = isAdmin ? await getAdminStats() : await getUserStats();
+  const isSuperAdmin = session.user.role === "super_admin";
+  if (isSuperAdmin) {
+    redirect("/admin");
+  }
+  const stats = isSuperAdmin ? await getAdminStats() : await getUserStats();
 
   return <Dashboard session={session} stats={stats} />;
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 import { Geist, Geist_Mono } from "next/font/google";
 
@@ -19,6 +19,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PhishGuard",
   description: "Advanced phishing detection and protection platform",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.png", type: "image/png", sizes: "64x64" },
+    ],
+    shortcut: ["/icon.png"],
+  },
 };
 
 export default function RootLayout({

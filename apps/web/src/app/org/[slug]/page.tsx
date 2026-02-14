@@ -25,10 +25,11 @@ export default async function OrganizationPage({ params }: PageProps) {
     notFound();
   }
 
+  const isSuperAdmin = user.role === "super_admin";
   const currentUserMembership = organization.members.find(
     (m) => m.userId === user.id
   );
-  const isAdmin = currentUserMembership?.role === "admin";
+  const isAdmin = isSuperAdmin || currentUserMembership?.role === "admin";
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
@@ -50,7 +51,12 @@ export default async function OrganizationPage({ params }: PageProps) {
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold">{organization.name}</h1>
                 <Badge variant={isAdmin ? "default" : "secondary"}>
-                  {isAdmin ? (
+                  {isSuperAdmin ? (
+                    <>
+                      <Shield className="w-3 h-3 mr-1" />
+                      Super Admin
+                    </>
+                  ) : isAdmin ? (
                     <>
                       <Shield className="w-3 h-3 mr-1" />
                       Admin
@@ -119,7 +125,7 @@ export default async function OrganizationPage({ params }: PageProps) {
           <OrganizationMembers
             organization={organization}
             isAdmin={isAdmin}
-            currentUserId={(await requireAuth()).user.id}
+            currentUserId={user.id}
           />
         </TabsContent>
 

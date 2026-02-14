@@ -1,80 +1,74 @@
 import prisma from "./src/index";
-import { hash } from "@node-rs/argon2";
-
-// const prisma = new PrismaClient();
+import { auth } from "@phish-guard-app/auth";
 
 async function main() {
-  console.log("🌱 Starting database seed...");
+  console.log("[seed] Starting database seed...");
 
-  // Check if any admin exists
-  const existingAdmin = await prisma.user.findFirst({
-    where: { role: "admin" },
-  });
-
-  if (existingAdmin) {
-    console.log("✅ Admin user already exists:", existingAdmin.email);
-    return;
-  }
-
-  // Create default admin user
   const adminEmail = process.env.ADMIN_EMAIL || "admin@phishguard.com";
   const adminPassword = process.env.ADMIN_PASSWORD || "Admin@123456";
   const adminName = process.env.ADMIN_NAME || "Admin User";
+  const reset = process.env.ADMIN_RESET === "true";
 
-  // Check if user with this email already exists
+  const existingSuperAdmin = await prisma.user.findFirst({
+    where: { role: "super_admin" },
+  });
+
   const existingUser = await prisma.user.findUnique({
     where: { email: adminEmail },
   });
 
-  if (existingUser) {
-    // Update existing user to admin
-    await prisma.user.update({
-      where: { id: existingUser.id },
-      data: { role: "admin" },
-    });
-    console.log("✅ Updated existing user to admin:", adminEmail);
-  } else {
-    // Create new admin user
-    const hashedPassword = await hash(adminPassword, {
-      memoryCost: 19456,
-      timeCost: 2,
-      outputLen: 32,
-      parallelism: 1,
-    });
-
-    // Generate a unique ID for the user
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const admin = await prisma.user.create({
-      data: {
-        id: userId,
-        email: adminEmail,
-        name: adminName,
-        role: "admin",
-        emailVerified: true,
-        accounts: {
-          create: {
-            id: `account_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            accountId: userId,
-            providerId: "credential",
-            password: hashedPassword,
-          },
-        },
-      },
-    });
-
-    console.log("✅ Created admin user:", admin.email);
-    console.log("📧 Email:", adminEmail);
-    console.log("🔑 Password:", adminPassword);
-    console.log("\n⚠️  Please change the password after first login!");
+  if (
+    existingSuperAdmin &&
+    !reset &&
+    (!existingUser || existingSuperAdmin.id !== existingUser.id)
+  ) {
+    console.log(`[seed] Super admin already exists: ${existingSuperAdmin.email}`);
+    console.log("[seed] Set ADMIN_RESET=true to replace the super admin.");
+    return;
   }
 
-  console.log("\n🎉 Database seed completed!");
+  if (existingUser) {
+    if (reset) {
+      console.log(`[seed] ADMIN_RESET=true: deleting ${existingUser.email}...`);
+      await prisma.user.delete({ where: { id: existingUser.id } });
+    } else {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { role: "super_admin", emailVerified: true },
+      });
+      console.log(`[seed] Updated existing user to super admin: ${adminEmail}`);
+      console.log("[seed] If login fails, rerun with ADMIN_RESET=true.");
+      return;
+    }
+  }
+
+  const result = await auth.api.signUpEmail({
+    body: {
+      email: adminEmail,
+      password: adminPassword,
+      name: adminName,
+    },
+  });
+
+  if (!result) {
+    throw new Error("Failed to create super admin user");
+  }
+
+  await prisma.user.update({
+    where: { email: adminEmail },
+    data: { role: "super_admin", emailVerified: true },
+  });
+
+  console.log(`[seed] Created super admin: ${adminEmail}`);
+  console.log(`[seed] Email: ${adminEmail}`);
+  console.log(`[seed] Password: ${adminPassword}`);
+  console.log("[seed] Please change the password after first login.");
+  console.log("[seed] Database seed completed.");
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Error seeding database:", e);
+  .catch((error) => {
+    console.error("[seed] Error seeding database:", error);
     process.exit(1);
   })
   .finally(async () => {

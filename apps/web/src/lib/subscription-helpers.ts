@@ -302,7 +302,6 @@ export async function isOrganizationMember(userId: string): Promise<boolean> {
   const count = await prisma.organizationMember.count({
     where: {
       userId,
-      status: "active",
     },
   });
   return count > 0;
@@ -316,7 +315,6 @@ export async function isOrganizationAdmin(userId: string): Promise<boolean> {
     where: {
       userId,
       role: "admin",
-      status: "active",
     },
   });
   return count > 0;
@@ -382,7 +380,6 @@ export async function getUserOrganizations(userId: string) {
   const memberships = await prisma.organizationMember.findMany({
     where: {
       userId,
-      status: "active",
     },
     include: {
       organization: {

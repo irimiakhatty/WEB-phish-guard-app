@@ -2,7 +2,7 @@ import prisma from "./src/index";
 
 async function main() {
   const email = "admin@phishguard.com";
-  console.log(`Checking user: ${email}`);
+  console.log(`Checking super admin: ${email}`);
 
   const user = await prisma.user.findUnique({
     where: { email },

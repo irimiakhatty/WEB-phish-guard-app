@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import z from "zod";
+import { Eye, EyeOff, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,8 @@ import { authClient } from "@/lib/auth-client";
 export default function SetupAdminForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -39,23 +42,24 @@ export default function SetupAdminForm() {
           password: value.password,
         });
 
-        toast.success("Admin account created successfully! Logging in...");
-        
-        // Auto-login after creating admin account
-        await authClient.signIn.email({
-          email: value.email,
-          password: value.password,
-        }, {
-          onSuccess: () => {
-            router.push("/dashboard");
+        toast.success("Organization admin created successfully! Logging in...");
+
+        await authClient.signIn.email(
+          {
+            email: value.email,
+            password: value.password,
           },
-          onError: () => {
-            // If auto-login fails, redirect to login page
-            router.push("/login");
-          }
-        });
+          {
+            onSuccess: () => {
+              router.push("/dashboard");
+            },
+            onError: () => {
+              router.push("/login");
+            },
+          },
+        );
       } catch (error: any) {
-        toast.error(error.message || "Failed to create admin account");
+        toast.error(error.message || "Failed to create organization admin account");
         setIsSubmitting(false);
       }
     },
@@ -71,11 +75,16 @@ export default function SetupAdminForm() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create Admin Account</CardTitle>
-        <CardDescription>
-          This will be the first administrator of the system
+    <Card className="border-gray-200/70 dark:border-gray-800/70 shadow-xl bg-white/90 dark:bg-gray-900/80 backdrop-blur">
+      <CardHeader className="space-y-3 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg">
+          <Shield className="h-6 w-6" />
+        </div>
+        <CardTitle className="text-2xl font-semibold text-gray-900 dark:text-white">
+          Create organization admin
+        </CardTitle>
+        <CardDescription className="text-sm">
+          Set up the first admin for your organization workspace
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -130,6 +139,9 @@ export default function SetupAdminForm() {
                       {error?.message}
                     </p>
                   ))}
+                  <p className="text-xs text-muted-foreground">
+                    This creates the organization and assigns you as its admin.
+                  </p>
                 </div>
               )}
             </form.Field>
@@ -165,16 +177,27 @@ export default function SetupAdminForm() {
               {(field) => (
                 <div className="space-y-2">
                   <Label htmlFor={field.name}>Password</Label>
-                  <Input
-                    id={field.name}
-                    name={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="••••••••"
-                    disabled={isSubmitting}
-                  />
+                  <div className="relative">
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type={showPassword ? "text" : "password"}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="********"
+                      disabled={isSubmitting}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   {field.state.meta.errors.map((error) => (
                     <p key={error?.message} className="text-sm text-red-500">
                       {error?.message}
@@ -190,16 +213,27 @@ export default function SetupAdminForm() {
               {(field) => (
                 <div className="space-y-2">
                   <Label htmlFor={field.name}>Confirm Password</Label>
-                  <Input
-                    id={field.name}
-                    name={field.name}
-                    type="password"
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="••••••••"
-                    disabled={isSubmitting}
-                  />
+                  <div className="relative">
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="********"
+                      disabled={isSubmitting}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   {field.state.meta.errors.map((error) => (
                     <p key={error?.message} className="text-sm text-red-500">
                       {error?.message}
@@ -212,10 +246,10 @@ export default function SetupAdminForm() {
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Creating Admin..." : "Create Admin Account"}
+            {isSubmitting ? "Creating Admin..." : "Create Org Admin Account"}
           </Button>
         </form>
       </CardContent>

@@ -133,17 +133,21 @@ export default function AdminOrganizations() {
               </div>
 
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <Button variant="ghost" size="sm">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  }
+                />
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
-                    <Link href={`/org/${org.slug}`}>
-                      View Organization
-                    </Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={
+                      <Link href={`/org/${org.slug}`}>
+                        View Organization
+                      </Link>
+                    }
+                  />
                   <DropdownMenuItem
                     onClick={() => setOrgToDelete(org)}
                     className="text-destructive"
