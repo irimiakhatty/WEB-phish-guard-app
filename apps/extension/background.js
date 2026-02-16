@@ -5,7 +5,92 @@ const TEXT_MAX_LEN = 150;
 const URL_MAX_LEN = 150;
 const TEXT_OOV = "<OOV>";
 const URL_OOV = "<OOV>";
-const PHISHING_THRESHOLD = 0.5;
+const RISK_THRESHOLDS = {
+    low: 0.2,
+    medium: 0.4,
+    high: 0.6,
+    critical: 0.8
+};
+
+const DEEP_SCAN_MAX_CHARS = 5000;
+
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+}
+
+function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function pemToArrayBuffer(pem) {
+    const clean = pem.replace(/-----BEGIN PUBLIC KEY-----/g, "")
+        .replace(/-----END PUBLIC KEY-----/g, "")
+        .replace(/\s+/g, "");
+    return base64ToArrayBuffer(clean);
+}
+
+async function importRsaPublicKey(pem) {
+    const keyData = pemToArrayBuffer(pem);
+    return crypto.subtle.importKey(
+        "spki",
+        keyData,
+        { name: "RSA-OAEP", hash: "SHA-256" },
+        false,
+        ["encrypt"]
+    );
+}
+
+async function hashTextSha256(text) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function encryptDeepScanText(text, publicKeyPem) {
+    const encoder = new TextEncoder();
+    const payload = encoder.encode(text);
+    const aesKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        payload
+    );
+    const rawKey = await crypto.subtle.exportKey("raw", aesKey);
+    const publicKey = await importRsaPublicKey(publicKeyPem);
+    const wrappedKey = await crypto.subtle.encrypt(
+        { name: "RSA-OAEP" },
+        publicKey,
+        rawKey
+    );
+
+    // Best-effort wipe
+    payload.fill(0);
+
+    return {
+        iv: arrayBufferToBase64(iv.buffer),
+        ciphertext: arrayBufferToBase64(ciphertext),
+        wrappedKey: arrayBufferToBase64(wrappedKey),
+        alg: "AES-GCM",
+        keyAlg: "RSA-OAEP-256"
+    };
+}
 
 // Heuristic Keywords (Must match WebApp)
 const SUSPICIOUS_KEYWORDS = {
@@ -13,6 +98,36 @@ const SUSPICIOUS_KEYWORDS = {
     action: ["verify", "login", "click here", "update", "confirm"],
     generic: ["dear customer", "dear user", "valued customer"]
 };
+
+function getRiskLevel(score) {
+    if (score < RISK_THRESHOLDS.low) return "safe";
+    if (score < RISK_THRESHOLDS.medium) return "low";
+    if (score < RISK_THRESHOLDS.high) return "medium";
+    if (score < RISK_THRESHOLDS.critical) return "high";
+    return "critical";
+}
+
+function isPhishingScore(score) {
+    return score >= RISK_THRESHOLDS.high;
+}
+
+function classifyAttackType(text) {
+    const normalized = (text || "").toLowerCase();
+    const rules = [
+        { type: "CEO Fraud", keywords: ["ceo", "cfo", "director", "executive", "urgent request", "wire transfer", "gift card", "payment approval", "director general", "transfer bancar", "plata urgenta"] },
+        { type: "Credential Harvesting", keywords: ["login", "sign in", "password", "verify", "account", "confirm", "reset", "autentificare", "parola", "verifica", "cont"] },
+        { type: "Invoice/Payment", keywords: ["invoice", "payment", "bank", "iban", "swift", "ach", "factura", "plata", "transfer", "remittance"] },
+        { type: "Account Suspension", keywords: ["suspend", "locked", "disabled", "deactivate", "account limited", "suspendat", "blocat", "dezactivat"] },
+        { type: "Delivery/Logistics", keywords: ["delivery", "package", "shipment", "tracking", "dhl", "fedex", "ups", "livrare", "colet"] }
+    ];
+
+    for (const rule of rules) {
+        if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+            return rule.type;
+        }
+    }
+    return "Other";
+}
 
 let textModel, urlModel;
 let textVocab, urlVocab;
@@ -134,6 +249,9 @@ async function logIncident(data) {
                 url: data.url,
                 textScore: data.textScore,
                 urlScore: data.urlScore,
+                heuristicScore: data.heuristicScore,
+                overallScore: data.overallScore,
+                attackType: data.attackType,
                 timestamp: new Date().toISOString(),
                 source: 'extension'
             })
@@ -197,6 +315,67 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true; // Keep channel open for async response
     }
     
+    // --- DEEP SCAN (PAID ONLY) ---
+    if (request.action === "deep_scan") {
+        chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole', 'deepScanPublicKey'], async (items) => {
+            const { userPlan } = items;
+            const authToken = items.apiToken || items.authToken;
+            const deepScanPublicKey = items.deepScanPublicKey;
+
+            if (!authToken) {
+                sendResponse({ error: "UNAUTHORIZED" });
+                return;
+            }
+
+            if (!userPlan || userPlan === "free" || userPlan === "team_free") {
+                sendResponse({ error: "PAYWALL" });
+                return;
+            }
+
+            if (!request.text && !request.url) {
+                sendResponse({ error: "EMPTY_INPUT" });
+                return;
+            }
+
+            try {
+                if (!deepScanPublicKey) {
+                    sendResponse({ error: "NO_PUBLIC_KEY" });
+                    return;
+                }
+
+                const truncatedText = String(request.text || "").slice(0, DEEP_SCAN_MAX_CHARS);
+                const textHash = await hashTextSha256(truncatedText);
+                const encryptedPayload = await encryptDeepScanText(truncatedText, deepScanPublicKey);
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'http://localhost:3001' });
+
+                const response = await fetch(`${apiUrl}/api/v1/deep-scan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        url: request.url,
+                        textHash,
+                        encryptedPayload
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data?.success) {
+                    sendResponse({ error: data?.error || "ANALYZE_FAILED" });
+                    return;
+                }
+
+                sendResponse({ success: true, data: data.data });
+            } catch (e) {
+                console.error("Deep scan failed:", e);
+                sendResponse({ error: "NETWORK_ERROR" });
+            }
+        });
+        return true;
+    }
+
         // --- TRACK USER CLICK ON SUSPICIOUS LINK ---
         if (request.action === "user_action_click_suspicious_link") {
             chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole'], async (items) => {
@@ -228,41 +407,61 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function processScan(request, sender, sendResponse, remainingScans) {
+    const start = performance.now();
     predict(request.text, request.url).then(result => {
+        const durationMs = performance.now() - start;
         // Update Badge
         // Hybrid Scoring: Max of AI scores and Heuristic score
         const finalScore = Math.max(result.textScore, result.urlScore, result.heuristicScore);
-        const isPhish = finalScore > PHISHING_THRESHOLD;
+        const riskLevel = getRiskLevel(finalScore);
+        const isPhish = isPhishingScore(finalScore);
+        const attackType = classifyAttackType(request.text || "");
+
+        if (durationMs > 200) {
+            console.warn(`PhishGuard: scan exceeded 200ms (${durationMs.toFixed(0)}ms)`);
+        }
+
+        let badgeText = "SAFE";
+        let badgeColor = "#22C55E";
+        if (riskLevel === "medium") {
+            badgeText = "RISK";
+            badgeColor = "#F59E0B";
+        } else if (riskLevel === "high" || riskLevel === "critical") {
+            badgeText = "WARN";
+            badgeColor = "#DC2626";
+        }
+
+        chrome.action.setBadgeText({ text: badgeText, tabId: sender.tab.id });
+        chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId: sender.tab.id });
+
+        // Log scan to backend (for BI & org analytics)
+        logIncident({
+            url: request.url,
+            textScore: result.textScore,
+            urlScore: result.urlScore,
+            heuristicScore: result.heuristicScore,
+            overallScore: finalScore,
+            attackType
+        });
 
         if (isPhish) {
-            // ALWAYS Alert on Phishing (Auto or Manual)
-            chrome.action.setBadgeText({ text: "WARN", tabId: sender.tab.id });
-            chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: sender.tab.id });
-
-            // Log Incident to Backend
-            logIncident({
-                url: request.url,
-                textScore: result.textScore,
-                urlScore: result.urlScore
-            });
-
             // System Notification (Crucial for Auto-Scan)
             chrome.notifications.create({
                 type: 'basic',
-                iconUrl: 'assets/icon128.png',
-                title: '⚠️ Phishing Detected!',
-                message: `PhishGuard detected a threat in this email.\nText Score: ${result.textScore.toFixed(2)}`,
+                iconUrl: 'assets/logo-128.png',
+                title: 'Phishing detected',
+                message: `PhishGuard detected a threat in this email.\nRisk score: ${(finalScore * 100).toFixed(0)}%`,
                 priority: 2
             });
-        } else {
-            // Safe
-            chrome.action.setBadgeText({ text: "SAFE", tabId: sender.tab.id });
-            chrome.action.setBadgeBackgroundColor({ color: "#00FF00", tabId: sender.tab.id });
         }
 
         // Return result + updated quota
         sendResponse({
             ...result,
+            overallScore: finalScore,
+            riskLevel,
+            attackType,
+            durationMs,
             scansRemaining: remainingScans
         });
     });
@@ -272,13 +471,12 @@ async function processScan(request, sender, sendResponse, remainingScans) {
 function handleAuthHandoff(request, sender, sendResponse) {
 	// DEBUG LOG
 	console.log("Background: Message Received", request);
-userRole', '
     // LOGOUT ACTION
     if (request.action === "LOGOUT") {
         console.log("Background: LOGOUT ACTION TRIGGERED");
         
         // Clear everything
-        const keys = ['authToken', 'apiToken', 'userPlan', 'scansRemaining'];
+        const keys = ['authToken', 'apiToken', 'userPlan', 'scansRemaining', 'deepScanPublicKey'];
         
         chrome.storage.sync.remove(keys, () => {
              console.log("Background: Sync storage cleared");
@@ -299,7 +497,7 @@ userRole', '
     if (request.action === "AUTH_HANDOFF") {
         console.log("Background: Received Auth Token");
 
-        const { token, user, subscription } = request;
+        const { token, user, subscription, deepScanPublicKey } = request;
 
         // Save to Storage (Both Sync and Local for reliability)
         const data = {
@@ -307,7 +505,8 @@ userRole', '
             apiToken: token,
             userPlan: user.plan || 'free',
             userRole: user.role || 'user',
-            scansRemaining: subscription ? subscription.scansRemaining : 10
+            scansRemaining: subscription ? subscription.scansRemaining : 10,
+            deepScanPublicKey: deepScanPublicKey || null
         };
 
         chrome.storage.sync.set(data);
@@ -330,7 +529,7 @@ loadResources();
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install' || details.reason === 'update') {
         console.log("Background: Extension installed/updated. Clearing storage to prevent compatibility issues.");
-        const keys = ['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining', 'apiUrl'];
+        const keys = ['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining', 'apiUrl', 'deepScanPublicKey'];
         
         chrome.storage.local.remove(keys);
         chrome.storage.sync.remove(keys);

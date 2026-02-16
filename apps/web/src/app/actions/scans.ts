@@ -2,6 +2,8 @@
 
 import prisma from "@phish-guard-app/db";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
+import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import { ATTACK_TYPES, classifyAttackType } from "@/lib/attack-types";
 import { revalidatePath } from "next/cache";
 
 // Get user's own scans
@@ -306,5 +308,113 @@ export async function getUserStats() {
     totalScans,
     threatsDetected,
     safeScans: totalScans - threatsDetected,
+  };
+}
+
+// ORG ADMIN: Get organization BI stats for dashboard
+export async function getOrgAdminStats() {
+  const session = await requireAuth();
+  const subInfo = await getUserSubscriptionInfo(session.user.id);
+
+  if (!subInfo.organizationId || !subInfo.isOrgAdmin) {
+    return null;
+  }
+
+  const organizationId = subInfo.organizationId;
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [threatsThisMonth, scansThisMonth, recentScans] = await Promise.all([
+    prisma.scan.count({
+      where: {
+        organizationId,
+        isDeleted: false,
+        isPhishing: true,
+        createdAt: { gte: startOfMonth },
+      },
+    }),
+    prisma.scan.count({
+      where: {
+        organizationId,
+        isDeleted: false,
+        createdAt: { gte: startOfMonth },
+      },
+    }),
+    prisma.scan.findMany({
+      where: {
+        organizationId,
+        isDeleted: false,
+        createdAt: { gte: since },
+      },
+      select: {
+        id: true,
+        detectedThreats: true,
+        analysis: true,
+        riskLevel: true,
+      },
+    }),
+  ]);
+
+  const attackTypeCounts = new Map<string, number>();
+  ATTACK_TYPES.forEach((type) => attackTypeCounts.set(type, 0));
+
+  for (const scan of recentScans) {
+    const attackTypeHint = scan.detectedThreats?.find((t) =>
+      t.startsWith("attack_type:")
+    );
+    const attackType = attackTypeHint
+      ? attackTypeHint.replace("attack_type:", "")
+      : classifyAttackType(
+          `${scan.analysis || ""} ${scan.detectedThreats?.join(" ") || ""}`
+        );
+    attackTypeCounts.set(
+      attackType,
+      (attackTypeCounts.get(attackType) || 0) + 1
+    );
+  }
+
+  const attackHeatmap = Array.from(attackTypeCounts.entries()).map(
+    ([type, count]) => ({ type, count })
+  );
+
+  const riskyUserAgg = await prisma.scan.groupBy({
+    by: ["userId"],
+    where: {
+      organizationId,
+      isDeleted: false,
+      riskLevel: { in: ["high", "critical"] },
+    },
+    _count: { id: true },
+    orderBy: { _count: { id: "desc" } },
+    take: 5,
+  });
+
+  const riskyUserIds = riskyUserAgg.map((row) => row.userId);
+  const riskyUsersDetails = riskyUserIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: riskyUserIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+
+  const riskyUsers = riskyUserAgg.map((row) => {
+    const user = riskyUsersDetails.find((u) => u.id === row.userId);
+    return {
+      id: row.userId,
+      name: user?.name || "Unknown",
+      email: user?.email || "",
+      riskyCount: row._count.id,
+    };
+  });
+
+  return {
+    organizationId,
+    organizationName: subInfo.organizationName || "",
+    organizationSlug: subInfo.organizationSlug || "",
+    threatsThisMonth,
+    scansThisMonth,
+    attackHeatmap,
+    riskyUsers,
   };
 }

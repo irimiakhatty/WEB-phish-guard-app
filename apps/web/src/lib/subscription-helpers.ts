@@ -16,6 +16,9 @@ export interface UserSubscriptionInfo {
   hasActiveSubscription: boolean;
   subscriptionType: "personal" | "team" | "none";
   planId: PlanId;
+  status?: string;
+  currentPeriodEnd?: Date | null;
+  cancelAtPeriodEnd?: boolean;
   limits: {
     scansPerMonth: number;
     scansPerHour: number;
@@ -88,6 +91,9 @@ export async function getUserSubscriptionInfo(
       hasActiveSubscription: true,
       subscriptionType: "team",
       planId: planId as PlanId,
+      status: orgSub.status,
+      currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: orgSub.cancelAtPeriodEnd ?? false,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: scansPerHourPerUser,
@@ -110,6 +116,9 @@ export async function getUserSubscriptionInfo(
       hasActiveSubscription: true,
       subscriptionType: "personal",
       planId: planId as PlanId,
+      status: personalSub.status,
+      currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: personalSub.cancelAtPeriodEnd ?? false,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: plan.features.scansPerHour,
@@ -127,6 +136,7 @@ export async function getUserSubscriptionInfo(
       hasActiveSubscription: false,
       subscriptionType: "none",
       planId: "free",
+      status: "free",
       limits: {
         scansPerMonth: freePlan.features.scansPerMonth,
         scansPerHour: freePlan.features.scansPerHour,

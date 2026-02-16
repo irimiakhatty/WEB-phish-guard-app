@@ -3,11 +3,10 @@
 import { useTransition, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { upgradeOrganizationPlan } from "@/app/actions/organizations";
 import { TEAM_PLANS, type TeamPlanId, canUpgrade, canDowngrade } from "@/lib/subscription-plans";
 
 type Props = {
-  organizationId: string;
+  organizationSlug: string;
   currentPlan: string;
 };
 
@@ -16,7 +15,7 @@ const teamPlanOptions = Object.values(TEAM_PLANS).map((plan) => ({
   label: `${plan.name} — ${plan.features.scansPerMonth} scans/mo, ${plan.features.scansPerHourPerUser} scans/hr/user`,
 }));
 
-export default function UpgradePlanForm({ organizationId, currentPlan }: Props) {
+export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props) {
   const [selectedPlan, setSelectedPlan] = useState<TeamPlanId>(
     (currentPlan as TeamPlanId) || "team_startup"
   );
@@ -32,12 +31,26 @@ export default function UpgradePlanForm({ organizationId, currentPlan }: Props) 
   const handleUpgrade = () => {
     startTransition(async () => {
       try {
-        const res = await upgradeOrganizationPlan(organizationId, selectedPlan);
-        if (!res?.success) {
-          toast.error(res?.error || "Upgrade failed");
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planId: selectedPlan,
+            organizationSlug,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error || "Checkout failed");
           return;
         }
-        toast.success(`Plan changed to ${selectedPlan.replace("team_", "").toUpperCase()}`);
+
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          toast.error("Stripe session missing redirect URL.");
+        }
       } catch (err: any) {
         toast.error(err?.message || "Upgrade failed");
         console.error(err);

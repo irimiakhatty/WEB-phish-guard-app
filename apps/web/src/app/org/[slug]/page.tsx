@@ -32,7 +32,8 @@ export default async function OrganizationPage({ params }: PageProps) {
   const isAdmin = isSuperAdmin || currentUserMembership?.role === "admin";
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+      <div className="container mx-auto py-10 px-4 max-w-7xl">
       <Link href="/organizations">
         <Button variant="ghost" className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -69,11 +70,19 @@ export default async function OrganizationPage({ params }: PageProps) {
               <p className="text-muted-foreground mt-1">@{organization.slug}</p>
             </div>
           </div>
+          {isAdmin && (
+            <Link href={`/org/${organization.slug}/members`}>
+              <Button variant="outline" className="mt-2">
+                <Users className="w-4 h-4 mr-2" />
+                Members Dashboard
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <Card>
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="pb-3">
               <CardDescription>Current Plan</CardDescription>
               <CardTitle className="text-2xl">
@@ -83,7 +92,7 @@ export default async function OrganizationPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="pb-3">
               <CardDescription>Team Members</CardDescription>
               <CardTitle className="text-2xl">
@@ -91,7 +100,7 @@ export default async function OrganizationPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card>
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="pb-3">
               <CardDescription>Total Scans</CardDescription>
               <CardTitle className="text-2xl">{organization._count.scans}</CardTitle>
@@ -102,7 +111,7 @@ export default async function OrganizationPage({ params }: PageProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="members" className="space-y-6">
-        <TabsList>
+        <TabsList className="bg-white/80 dark:bg-gray-900/80 border border-gray-200/80 dark:border-gray-800/80">
           <TabsTrigger value="members">
             <Users className="w-4 h-4 mr-2" />
             Members
@@ -136,7 +145,7 @@ export default async function OrganizationPage({ params }: PageProps) {
             </TabsContent>
 
             <TabsContent value="billing">
-              <Card>
+              <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
                 <CardHeader>
                   <CardTitle>Billing & Subscription</CardTitle>
                   <CardDescription>
@@ -145,7 +154,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center justify-between p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60">
                       <div>
                         <p className="font-semibold">
                           {(organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free")
@@ -158,12 +167,12 @@ export default async function OrganizationPage({ params }: PageProps) {
                         </p>
                       </div>
                       <UpgradePlanForm
-                        organizationId={organization.id}
+                        organizationSlug={organization.slug}
                         currentPlan={organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free"}
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Stripe integration coming soon. You'll be able to upgrade to paid plans and manage billing here.
+                      Stripe checkout is enabled in test mode. Complete payment to activate the new plan.
                     </p>
                   </div>
                 </CardContent>
@@ -172,6 +181,7 @@ export default async function OrganizationPage({ params }: PageProps) {
           </>
         )}
       </Tabs>
+    </div>
     </div>
   );
 }

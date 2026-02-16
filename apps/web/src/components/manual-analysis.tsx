@@ -268,7 +268,7 @@ export default function ManualAnalysis() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
       <div className="container mx-auto max-w-6xl px-4 py-12">
         {/* Welcome Section */}
         <div className="mb-12">
@@ -336,7 +336,7 @@ export default function ManualAnalysis() {
         </div>
 
         {/* Input Section */}
-        <Card className="mb-8 hover:shadow-lg transition-shadow">
+        <Card className="mb-8 hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader>
             <CardTitle className="text-xl">
               {activeTab === "url" && "Enter URL"}
@@ -501,8 +501,8 @@ export default function ManualAnalysis() {
       </Card>
 
       {/* Results Section */}
-      {result && (
-        <Card>
+        {result && (
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader>
             <CardTitle>Analysis Results</CardTitle>
           </CardHeader>

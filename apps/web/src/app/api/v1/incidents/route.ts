@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/api-auth";
+import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
 import { db } from "@repo/db";
 
 export const runtime = "nodejs";
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { url, textScore, urlScore, timestamp, source } = body;
+    const { url, textScore, urlScore, heuristicScore, overallScore, timestamp, source, attackType } = body;
 
     // Validate required fields
     if (!url) {
@@ -41,33 +43,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Create scan record
-    const overallScore = Math.max(textScore || 0, urlScore || 0);
-    const isPhishing = overallScore >= 0.5;
+    const computedOverall = Math.max(
+      overallScore || 0,
+      textScore || 0,
+      urlScore || 0,
+      heuristicScore || 0
+    );
+    const riskLevel = getRiskLevel(computedOverall);
+    const isPhishing = isPhishingScore(computedOverall);
 
-    let riskLevel: "safe" | "low" | "medium" | "high" | "critical";
-    if (overallScore >= 0.8) riskLevel = "critical";
-    else if (overallScore >= 0.6) riskLevel = "high";
-    else if (overallScore >= 0.4) riskLevel = "medium";
-    else if (overallScore >= 0.2) riskLevel = "low";
-    else riskLevel = "safe";
+    const subInfo = await getUserSubscriptionInfo(authResult.user.id);
 
     const scan = await db.scan.create({
       data: {
         userId: authResult.user.id,
+        organizationId: subInfo.organizationId || null,
         url,
         textScore: textScore || 0,
         urlScore: urlScore || 0,
-        overallScore,
+        overallScore: computedOverall,
         riskLevel,
         isPhishing,
-        confidence: overallScore,
+        confidence: computedOverall,
         detectedThreats: [
           `Detected by ${source || "extension"}`,
+          attackType ? `attack_type:${attackType}` : "",
           isPhishing ? "Phishing detected" : "No threats detected",
-        ],
+        ].filter(Boolean),
         analysis: `Incident logged from Chrome Extension at ${
           timestamp || new Date().toISOString()
         }`,
+        source: source || "extension",
       },
     });
 

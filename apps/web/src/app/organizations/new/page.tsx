@@ -56,7 +56,8 @@ export default function NewOrganizationPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="container mx-auto py-10 px-4 max-w-2xl">
       <Link href="/organizations">
         <Button variant="ghost" className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -64,7 +65,7 @@ export default function NewOrganizationPage() {
         </Button>
       </Link>
 
-      <Card>
+      <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
         <CardHeader>
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-primary/10 rounded-lg">
@@ -125,7 +126,7 @@ export default function NewOrganizationPage() {
               </p>
             </div>
 
-            <div className="bg-muted p-4 rounded-lg">
+            <div className="bg-white/60 dark:bg-gray-900/60 border border-gray-200/70 dark:border-gray-800/70 p-4 rounded-lg">
               <h4 className="font-semibold mb-2 text-sm">What's included:</h4>
               <ul className="space-y-1 text-sm text-muted-foreground">
                 <li>✓ Free plan with 3 team members</li>
@@ -160,6 +161,7 @@ export default function NewOrganizationPage() {
           </form>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

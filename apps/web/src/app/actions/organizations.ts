@@ -134,7 +134,11 @@ export async function updateOrganization(
     });
 
     revalidatePath("/organizations");
-    revalidatePath(`/org/${organizationId}`);
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { slug: true },
+    });
+    revalidatePath(`/org/${org?.slug || organizationId}`);
 
     return { success: true };
   } catch (error) {
@@ -338,7 +342,8 @@ export async function inviteMember(
       },
     });
 
-    revalidatePath(`/org/${organizationId}/members`);
+    revalidatePath(`/org/${organization.slug}/members`);
+    revalidatePath(`/org/${organization.slug}`);
 
     return {
       success: true,
@@ -374,6 +379,7 @@ export async function inviteMember(
     });
 
     revalidatePath(`/org/${organization.slug}`);
+    revalidatePath(`/org/${organization.slug}/members`);
 
     return {
       success: true,
@@ -388,6 +394,154 @@ export async function inviteMember(
       error: "Failed to create invitation",
     };
   }
+}
+
+export async function bulkInviteMembers(
+  organizationId: string,
+  invites: Array<{ email: string; role?: "admin" | "member"; name?: string; department?: string }>
+) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  if (!isSuperAdmin) {
+    const membership = await prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId: user.id,
+        role: "admin",
+      },
+    });
+
+    if (!membership) {
+      return {
+        success: false,
+        error: "You don't have permission to invite members",
+      };
+    }
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    include: {
+      subscription: true,
+      _count: {
+        select: {
+          members: true,
+        },
+      },
+    },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  let availableSlots = (organization.subscription?.maxMembers || 3) - organization._count.members;
+  const results: Array<{ email: string; status: "invited" | "added" | "skipped"; message: string }> = [];
+
+  const seen = new Set<string>();
+  for (const invite of invites) {
+    const email = (invite.email || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      results.push({ email: invite.email || "", status: "skipped", message: "Invalid email" });
+      continue;
+    }
+    if (seen.has(email)) {
+      results.push({ email, status: "skipped", message: "Duplicate entry" });
+      continue;
+    }
+    seen.add(email);
+
+    if (availableSlots <= 0) {
+      results.push({ email, status: "skipped", message: "Member limit reached" });
+      continue;
+    }
+
+    const role = invite.role === "admin" ? "admin" : "member";
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      const existingMembership = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId,
+          userId: existingUser.id,
+        },
+      });
+
+      if (existingMembership) {
+        results.push({ email, status: "skipped", message: "Already a member" });
+        continue;
+      }
+
+      await prisma.organizationMember.create({
+        data: {
+          organizationId,
+          userId: existingUser.id,
+          role,
+        },
+      });
+
+      availableSlots -= 1;
+      results.push({ email, status: "added", message: "Added existing user" });
+      continue;
+    }
+
+    try {
+      const inviteToken = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      await prisma.organizationInvite.create({
+        data: {
+          organizationId,
+          email,
+          role,
+          invitedById: user.id,
+          token: inviteToken,
+          expiresAt,
+        },
+      });
+
+      const appUrl =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.BETTER_AUTH_URL ||
+        "http://localhost:3001";
+      const inviteLink = `${appUrl}/invite/${inviteToken}`;
+
+      await sendInviteEmail({
+        to: email,
+        link: inviteLink,
+        orgName: organization.name,
+        inviterName: user.name || user.email,
+      });
+
+      availableSlots -= 1;
+      results.push({ email, status: "invited", message: "Invitation sent" });
+    } catch (error) {
+      console.error("Error creating bulk invite:", error);
+      results.push({ email, status: "skipped", message: "Failed to send invite" });
+    }
+  }
+
+  revalidatePath(`/org/${organization.slug}`);
+  revalidatePath(`/org/${organization.slug}/members`);
+
+  return {
+    success: true,
+    summary: {
+      invited: results.filter((r) => r.status === "invited").length,
+      added: results.filter((r) => r.status === "added").length,
+      skipped: results.filter((r) => r.status === "skipped").length,
+      total: results.length,
+    },
+    results,
+  };
 }
 
 // Accept invite with signup (new user)
@@ -513,7 +667,13 @@ export async function removeMember(
       where: { id: memberId },
     });
 
-    revalidatePath(`/org/${organizationId}/members`);
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { slug: true },
+    });
+
+    revalidatePath(`/org/${org?.slug || organizationId}/members`);
+    revalidatePath(`/org/${org?.slug || organizationId}`);
 
     return { success: true };
   } catch (error) {
@@ -574,7 +734,13 @@ export async function updateMemberRole(
       data: { role },
     });
 
-    revalidatePath(`/org/${organizationId}/members`);
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { slug: true },
+    });
+
+    revalidatePath(`/org/${org?.slug || organizationId}/members`);
+    revalidatePath(`/org/${org?.slug || organizationId}`);
 
     return { success: true };
   } catch (error) {
@@ -654,6 +820,7 @@ export async function acceptInvite(token: string) {
 
     revalidatePath("/dashboard");
     revalidatePath(`/org/${invite.organization.slug}`);
+    revalidatePath(`/org/${invite.organization.slug}/members`);
 
     return {
       success: true,
@@ -707,7 +874,7 @@ export async function cancelInvite(inviteId: string) {
       where: { id: inviteId },
     });
 
-    revalidatePath(`/org/${invite.organizationId}/members`);
+    revalidatePath(`/org/${invite.organization.slug}/members`);
 
     return { success: true };
   } catch (error) {

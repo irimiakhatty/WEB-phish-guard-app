@@ -19,8 +19,8 @@ export default async function AdminPage() {
   const stats = await getGlobalStats();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="container mx-auto py-8 px-6 max-w-7xl space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+      <div className="container mx-auto py-10 px-6 max-w-7xl space-y-8">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-lg bg-gradient-to-br from-yellow-400/20 to-orange-500/20">
             <Shield className="w-7 h-7 text-yellow-600 dark:text-yellow-400" />
@@ -36,7 +36,7 @@ export default async function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="dark:bg-gray-900 dark:border-gray-700">
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Total Users
@@ -53,7 +53,7 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-gray-900 dark:border-gray-700">
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Organizations
@@ -70,7 +70,7 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-gray-900 dark:border-gray-700">
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Total Scans
@@ -87,7 +87,7 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
 
-          <Card className="dark:bg-gray-900 dark:border-gray-700">
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Active Subscriptions
@@ -105,7 +105,7 @@ export default async function AdminPage() {
           </Card>
         </div>
 
-        <Card className="dark:bg-gray-900 dark:border-gray-700">
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>

@@ -21,10 +21,10 @@ export const metadata: Metadata = {
   description: "Advanced phishing detection and protection platform",
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/icon.png", type: "image/png", sizes: "64x64" },
+      { url: "/favicon.ico", type: "image/x-icon" },
     ],
-    shortcut: ["/icon.png"],
+    shortcut: ["/favicon.ico"],
   },
 };
 

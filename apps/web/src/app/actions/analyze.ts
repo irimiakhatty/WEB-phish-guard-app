@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { checkSafeBrowsing, getThreatSeverity } from "@/lib/safe-browsing";
 import { analyzeTextML, analyzeUrlML } from "@/lib/ml-service";
 import { checkScanLimits, getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
 
 type AnalyzeInput = {
   url?: string;
@@ -422,14 +423,6 @@ function analyzeTextHeuristic(text: string): { score: number; threats: string[] 
   return { score, threats };
 }
 
-function calculateRiskLevel(score: number): "safe" | "low" | "medium" | "high" | "critical" {
-  if (score < 0.15) return "safe";
-  if (score < 0.3) return "low";
-  if (score < 0.5) return "medium";
-  if (score < 0.75) return "high";
-  return "critical";
-}
-
 export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResult> {
   const session = await requireAuth();
 
@@ -557,8 +550,8 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
       ? (urlScore + textScore) / 2 
       : urlScore || textScore;
 
-  const riskLevel = calculateRiskLevel(overallScore);
-  const isPhishing = overallScore > 0.5;
+  const riskLevel = getRiskLevel(overallScore);
+  const isPhishing = isPhishingScore(overallScore);
   
   // Confidence calculation based on detection methods used
   let confidence = 0.5; // Base confidence

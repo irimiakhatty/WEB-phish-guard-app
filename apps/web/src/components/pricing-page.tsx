@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { PERSONAL_PLANS, TEAM_PLANS, type PlanId, canUpgrade, canDowngrade } from "@/lib/subscription-plans";
-import { upgradeOrgPlanAction } from "@/app/actions/subscription-upgrade";
 import { toast } from "sonner";
+import PricingCard from "./pricing-card";
+import { Mail, Zap, Eye } from "lucide-react";
 
 type Props = {
   currentPlanId: string;
@@ -22,82 +21,142 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
   const [pending, startTransition] = useTransition();
 
   const plans = useMemo(() => (billing === "team" ? TEAM_PLANS : PERSONAL_PLANS), [billing]);
+  const highlightedPlanId = billing === "team" ? "team_startup" : "personal_plus";
 
-  const handleUpgrade = (planId: PlanId) => {
-    if (billing === "personal") {
-      toast.info("Upgrade/downgrade pentru cont personal va fi disponibil în curând.");
+  const handleCheckout = (planId: PlanId) => {
+    const plan = plans[planId as keyof typeof plans];
+    if (!plan || plan.price === 0 || !plan.stripePriceId) {
+      toast.info("This plan does not require checkout.");
       return;
     }
-    if (!organizationSlug) {
-      toast.error("Creează sau selectează o organizație pentru a face upgrade.");
-      return;
-    }
-    if (!isOrgAdmin) {
-      toast.error("Doar un admin al organizației poate face upgrade.");
-      return;
+
+    if (billing === "team") {
+      if (!organizationSlug) {
+        toast.error("Create or select an organization before upgrading.");
+        return;
+      }
+      if (!isOrgAdmin) {
+        toast.error("Only organization admins can upgrade.");
+        return;
+      }
     }
 
     startTransition(async () => {
-      const res = await upgradeOrgPlanAction({
-        organizationSlug,
-        planId: planId as string,
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          organizationSlug: billing === "team" ? organizationSlug : undefined,
+        }),
       });
-      if (!res?.success) {
-        toast.error(res?.error || "Upgrade failed");
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Checkout failed");
         return;
       }
-      toast.success(`Plan schimbat la ${(planId as string).replace("team_", "").toUpperCase()}`);
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error("Stripe session missing redirect URL.");
+      }
     });
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <Button variant={billing === "personal" ? "default" : "outline"} onClick={() => setBilling("personal")}>
-          Cont personal
-        </Button>
-        <Button variant={billing === "team" ? "default" : "outline"} onClick={() => setBilling("team")}>
-          Echipe / Organizații
-        </Button>
+    <div className="space-y-10">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
+            Choose the plan that fits your team
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
+            Upgrade to unlock advanced phishing defense, organization analytics, and higher scan limits.
+          </p>
+        </div>
+
+        <div className="inline-flex w-fit rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1">
+          <Button
+            variant={billing === "personal" ? "default" : "ghost"}
+            onClick={() => setBilling("personal")}
+            className="rounded-full px-6"
+          >
+            Personal
+          </Button>
+          <Button
+            variant={billing === "team" ? "default" : "ghost"}
+            onClick={() => setBilling("team")}
+            className="rounded-full px-6"
+          >
+            Teams and Organizations
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-6">
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-600 p-3 rounded-xl">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="text-gray-900 dark:text-white">Real-time protection</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                AI scans links, emails, and attachments instantly.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-600 p-3 rounded-xl">
+              <Mail className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="text-gray-900 dark:text-white">Email monitoring</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Protect Gmail and Outlook in-browser with warnings.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-600 p-3 rounded-xl">
+              <Eye className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="text-gray-900 dark:text-white">Business intelligence</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Heatmaps, risky users, and ROI-ready reporting.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {Object.values(plans).map((plan) => {
           const isCurrent = plan.id === currentPlanId;
+          const priceLabel = plan.price === 0 ? "Free" : `$${plan.price}`;
+          const period = plan.price === 0 ? undefined : plan.interval;
+          const buttonText = isCurrent
+            ? "Current plan"
+            : canUpgrade(currentPlanId as any, plan.id as any)
+            ? "Upgrade"
+            : canDowngrade(currentPlanId as any, plan.id as any)
+            ? "Downgrade"
+            : "Change plan";
+
           return (
-            <Card key={plan.id} className={isCurrent ? "border-primary" : ""}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{plan.name}</CardTitle>
-                  {isCurrent && <Badge>Current</Badge>}
-                </div>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-2xl font-semibold">
-                  {plan.price === 0 ? "Free" : `$${plan.price}/${plan.interval}`}
-                </div>
-                <ul className="text-sm space-y-1 text-muted-foreground">
-                  {plan.features.features.map((f: string) => (
-                    <li key={f}>• {f}</li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={isCurrent ? "outline" : "default"}
-                  disabled={pending || isCurrent}
-                  onClick={() => handleUpgrade(plan.id as PlanId)}
-                >
-                  {isCurrent
-                    ? "Current plan"
-                    : canUpgrade(currentPlanId as any, plan.id as any)
-                    ? "Upgrade"
-                    : canDowngrade(currentPlanId as any, plan.id as any)
-                    ? "Downgrade"
-                    : "Change plan"}
-                </Button>
-              </CardContent>
-            </Card>
+            <PricingCard
+              key={plan.id}
+              name={plan.name}
+              price={priceLabel}
+              period={period}
+              description={plan.description}
+              features={plan.features.features}
+              highlighted={plan.id === highlightedPlanId}
+              badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
+              buttonText={buttonText}
+              disabled={pending || isCurrent}
+              onSelect={() => handleCheckout(plan.id as PlanId)}
+            />
           );
         })}
       </div>

@@ -8,8 +8,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Check, Chrome, ShieldCheck } from "lucide-react";
 import { getExtensionAuthData } from "@/app/actions/extension-auth";
 
-// Extension ID should be coming from env or constant
-const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID || "oghgegpcicfejldagldkflbcoljbejaa"; // Replace with your actual ID during dev/prod
+// Extension ID should be coming from env
+const EXTENSION_ID =
+  process.env.NEXT_PUBLIC_EXTENSION_ID || "bgmpigmggkapcphapehhjfmghfcdeloh";
 
 export default function ExtAuthPage() {
   const router = useRouter();
@@ -124,7 +125,8 @@ export default function ExtAuthPage() {
                 name: user?.name,
                 plan: "free",
             },
-            subscription: authData?.subscription
+            subscription: authData?.subscription,
+            deepScanPublicKey: authData?.deepScanPublicKey || null
         };
 
         // Try standard runtime messaging
@@ -163,7 +165,7 @@ export default function ExtAuthPage() {
 
   if (status === "loading" || status === "connecting") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
         <Card className="w-full max-w-md border-0 shadow-lg">
             <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
                 <div className="relative mb-6">
@@ -184,7 +186,7 @@ export default function ExtAuthPage() {
 
   if (status === "error") {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
             <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-red-500">
                 <CardHeader>
                     <CardTitle className="text-red-600">Connection Failed</CardTitle>
@@ -208,7 +210,7 @@ export default function ExtAuthPage() {
 
   // Success State
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
       <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-green-500">
         <CardContent className="pt-12 pb-8 flex flex-col items-center text-center">
              <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full mb-6">

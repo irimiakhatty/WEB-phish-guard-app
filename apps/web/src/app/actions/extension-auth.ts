@@ -49,6 +49,7 @@ export async function getExtensionAuthData() {
     subscription: {
         scansRemaining, 
         limit
-    }
+    },
+    deepScanPublicKey: process.env.DEEP_SCAN_PUBLIC_KEY || null
   };
 }

@@ -57,16 +57,17 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
   };
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+      <div className="container mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">My Scans</h1>
+        <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">My Scans</h1>
         <p className="text-muted-foreground">
           View and manage your phishing analysis history
         </p>
       </div>
 
       {scans.length === 0 ? (
-        <Card>
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground mb-4">No scans yet</p>
             <Button asChild>
@@ -77,7 +78,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
       ) : (
         <div className="space-y-4">
           {scans.map((scan) => (
-            <Card key={scan.id}>
+            <Card key={scan.id} className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -112,14 +113,14 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
                       {new Date(scan.createdAt).toLocaleString()}
                     </CardDescription>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(scan.id)}
-                    disabled={deletingId === scan.id}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(scan.id)}
+                      disabled={deletingId === scan.id}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -162,6 +163,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }

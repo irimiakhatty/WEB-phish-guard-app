@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzeUrl } from "@/lib/safe-browsing";
 import { predictUrl } from "@/lib/ml-service";
 import { analyzeUrlHeuristics } from "@/lib/phishing-heuristics";
+import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,14 +123,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine risk level
-    let riskLevel: "safe" | "low" | "medium" | "high" | "critical";
-    if (urlScore >= 0.8) riskLevel = "critical";
-    else if (urlScore >= 0.6) riskLevel = "high";
-    else if (urlScore >= 0.4) riskLevel = "medium";
-    else if (urlScore >= 0.2) riskLevel = "low";
-    else riskLevel = "safe";
-
-    const isPhishing = urlScore >= 0.5;
+    const riskLevel = getRiskLevel(urlScore);
+    const isPhishing = isPhishingScore(urlScore);
 
     return NextResponse.json(
       {

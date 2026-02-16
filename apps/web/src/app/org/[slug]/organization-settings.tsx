@@ -74,7 +74,7 @@ export default function OrganizationSettings({
   return (
     <div className="space-y-6">
       {/* General Settings */}
-      <Card>
+      <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
         <CardHeader>
           <CardTitle>General Settings</CardTitle>
           <CardDescription>Update your organization's basic information</CardDescription>
@@ -126,7 +126,7 @@ export default function OrganizationSettings({
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-destructive">
+      <Card className="border-destructive bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
         <CardHeader>
           <CardTitle className="text-destructive flex items-center">
             <AlertTriangle className="w-5 h-5 mr-2" />

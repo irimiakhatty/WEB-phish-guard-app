@@ -18,8 +18,8 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-16 flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full border-red-200 dark:border-red-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 flex items-center justify-center px-4 py-16">
+      <Card className="w-full max-w-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-red-200/80 dark:border-red-800/80">
         <CardContent className="pt-12 pb-12 text-center">
           <div className="mb-6">
             <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />

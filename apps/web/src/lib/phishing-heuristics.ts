@@ -1,3 +1,5 @@
+import { getRiskLevel } from "@/lib/risk-levels";
+
 /**
  * PhishGuard Heuristics Engine
  * Rule-based analysis for detecting high-confidence phishing attempts.
@@ -205,9 +207,10 @@ export function analyzeHeuristics(text: string, url: string): HeuristicResult {
   score = Math.min(score, 1.0);
 
   let riskLevel: HeuristicResult["riskLevel"] = "safe";
-  if (score > 0.8) riskLevel = "critical";
-  else if (score > 0.5) riskLevel = "high";
-  else if (score > 0.2) riskLevel = "warning";
+  const normalized = getRiskLevel(score);
+  if (normalized === "critical") riskLevel = "critical";
+  else if (normalized === "high") riskLevel = "high";
+  else if (normalized === "medium" || normalized === "low") riskLevel = "warning";
 
   return { score, reasons, riskLevel, isSafeDomain };
 }

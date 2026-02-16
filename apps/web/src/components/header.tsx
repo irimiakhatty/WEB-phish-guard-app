@@ -30,7 +30,7 @@ export function Header() {
         { to: "/dashboard", label: "Dashboard" },
         { to: "/analyze", label: "Analyze" },
         { to: "/scans", label: "My Scans" },
-        ...(isOrgAdmin ? [{ to: "/organizations", label: "Organizations" }] : []),
+        ...(isOrgAdmin ? [{ to: "/organization", label: "Organization" }] : []),
         { to: "/settings", label: "Settings" },
       ]) as const;
 
