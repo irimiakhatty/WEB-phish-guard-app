@@ -2,7 +2,6 @@
 
 import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
-import { revalidatePath } from "next/cache";
 
 type SignUpResult =
   | { success: true; message: string }
@@ -65,19 +64,20 @@ export async function signUpWithOrganization(data: {
     };
   }
 
-  // Check user existence
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
-
-  if (existingUser) {
-    return { success: false, error: "User already exists" };
-  }
-
   let createdUserId: string | null = null;
 
   try {
-     // Create user using better-auth API (server-side)
+    // Check user existence first. Keep this inside try so DB errors are returned
+    // as user-friendly messages instead of bubbling as HTTP 500.
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      return { success: false, error: "User already exists" };
+    }
+
+    // Create user using better-auth API (server-side)
     const user = await auth.api.signUpEmail({
       body: {
         email: data.email,
