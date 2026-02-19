@@ -288,32 +288,32 @@ export function getPlanCategory(planId: PlanId): "personal" | "team" {
 }
 
 export function canUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
-  const personalPlans: PersonalPlanId[] = ["free", "personal_plus", "personal_pro"];
-  const teamPlans: TeamPlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
-  
+  const personalPlans: PlanId[] = ["free", "personal_plus", "personal_pro"];
+  const teamPlans: PlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
+
   // Can't cross between personal and team
   const currentCategory = getPlanCategory(currentPlan);
   const targetCategory = getPlanCategory(targetPlan);
   if (currentCategory !== targetCategory) return false;
-  
+
   const plans = currentCategory === "personal" ? personalPlans : teamPlans;
-  const currentIndex = plans.indexOf(currentPlan as any);
-  const targetIndex = plans.indexOf(targetPlan as any);
-  
+  const currentIndex = plans.indexOf(currentPlan);
+  const targetIndex = plans.indexOf(targetPlan);
+
   return targetIndex > currentIndex;
 }
 
 export function canDowngrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
-  const personalPlans: PersonalPlanId[] = ["free", "personal_plus", "personal_pro"];
-  const teamPlans: TeamPlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
-  
+  const personalPlans: PlanId[] = ["free", "personal_plus", "personal_pro"];
+  const teamPlans: PlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
+
   const currentCategory = getPlanCategory(currentPlan);
   const targetCategory = getPlanCategory(targetPlan);
   if (currentCategory !== targetCategory) return false;
-  
+
   const plans = currentCategory === "personal" ? personalPlans : teamPlans;
-  const currentIndex = plans.indexOf(currentPlan as any);
-  const targetIndex = plans.indexOf(targetPlan as any);
-  
+  const currentIndex = plans.indexOf(currentPlan);
+  const targetIndex = plans.indexOf(targetPlan);
+
   return targetIndex < currentIndex;
 }

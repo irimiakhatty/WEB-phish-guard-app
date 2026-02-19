@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, AlertTriangle, CheckCircle, Activity, Shield, TrendingUp } from "lucide-react";
 import { ATTACK_TYPES, classifyAttackType } from "@/lib/attack-types";
+import { getUserTrainingRecommendation } from "@/lib/training-recommendations";
 
 interface PageProps {
   params: Promise<{ slug: string; userId: string }>;
@@ -91,7 +92,16 @@ export default async function MemberProfilePage({ params }: PageProps) {
   const attackWindowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   attackWindowStart.setUTCDate(attackWindowStart.getUTCDate() - 90);
 
-  const [totalScans, riskyCount, avgScoreAgg, recentScans, activityScans, riskLevelAgg, attackScans] =
+  const [
+    totalScans,
+    riskyCount,
+    avgScoreAgg,
+    recentScans,
+    activityScans,
+    riskLevelAgg,
+    attackScans,
+    trainingRecommendation,
+  ] =
     await Promise.all([
     prisma.scan.count({
       where: { organizationId: organization.id, userId, isDeleted: false },
@@ -139,6 +149,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
         analysis: true,
       },
     }),
+    getUserTrainingRecommendation(userId),
   ]);
 
   const avgScore = avgScoreAgg._avg.overallScore ?? 0;
@@ -404,6 +415,31 @@ export default async function MemberProfilePage({ params }: PageProps) {
             </CardContent>
           </Card>
 
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200/80 dark:border-blue-800/80">
+            <CardHeader>
+              <CardTitle>Training recommendation</CardTitle>
+              <CardDescription>
+                Personalized focus based on dominant attack type.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge variant="outline">
+                Dominant attack: {trainingRecommendation.dominantAttackType}
+              </Badge>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                {trainingRecommendation.recommendation}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Based on {trainingRecommendation.incidentsReviewed} high-risk/phishing event
+                {trainingRecommendation.incidentsReviewed === 1 ? "" : "s"} in the last{" "}
+                {trainingRecommendation.windowDays} days.
+              </p>
+            </CardContent>
+          </Card>
+
+        </div>
+
+        <div className="grid grid-cols-1">
           <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
               <CardTitle>Risk distribution</CardTitle>

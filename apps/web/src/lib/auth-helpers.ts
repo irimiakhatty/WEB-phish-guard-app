@@ -6,10 +6,16 @@ import { headers } from "next/headers";
  * @returns Session object or null if not authenticated
  */
 export async function getSession() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  return session;
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    return session;
+  } catch (error) {
+    // Prevent auth lookup errors from crashing public pages.
+    console.error("Failed to load session from better-auth:", error);
+    return null;
+  }
 }
 
 /**

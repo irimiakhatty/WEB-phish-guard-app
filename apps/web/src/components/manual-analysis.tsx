@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, XCircle, Upload, Image as ImageIcon, Loader } from "lucide-react";
 import { toast } from "sonner";
+import type { Route } from "next";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -267,6 +268,10 @@ export default function ManualAnalysis() {
     return <XCircle className="w-16 h-16" />;
   };
 
+  const upgradeHref: Route = limitInfo?.organizationSlug
+    ? (`/org/${limitInfo.organizationSlug}` as Route)
+    : "/subscriptions";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
       <div className="container mx-auto max-w-6xl px-4 py-12">
@@ -297,7 +302,7 @@ export default function ManualAnalysis() {
                     Dismiss
                   </Button>
                   <Button size="sm" asChild>
-                    <Link href={limitInfo.organizationSlug ? `/org/${limitInfo.organizationSlug}` : "/pricing"}>
+                    <Link href={upgradeHref}>
                       Upgrade or Request More
                     </Link>
                   </Button>

@@ -12,6 +12,15 @@ import { getExtensionAuthData } from "@/app/actions/extension-auth";
 const EXTENSION_ID =
   process.env.NEXT_PUBLIC_EXTENSION_ID || "bgmpigmggkapcphapehhjfmghfcdeloh";
 
+type ExtensionRuntime = {
+  sendMessage: (
+    extensionId: string,
+    message: unknown,
+    callback?: (response: unknown) => void
+  ) => void;
+  lastError?: { message?: string };
+};
+
 export default function ExtAuthPage() {
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "connecting" | "success" | "error">("loading");
@@ -130,9 +139,13 @@ export default function ExtAuthPage() {
         };
 
         // Try standard runtime messaging
-        if (typeof chrome !== "undefined" && chrome.runtime) {
-            chrome.runtime.sendMessage(EXTENSION_ID, message, (response) => {
-                if (chrome.runtime.lastError) {
+        const chromeApi = (
+          globalThis as typeof globalThis & { chrome?: { runtime?: ExtensionRuntime } }
+        ).chrome;
+
+        if (chromeApi?.runtime) {
+            chromeApi.runtime.sendMessage(EXTENSION_ID, message, (_response: unknown) => {
+                if (chromeApi.runtime?.lastError) {
                    console.log("Extension not reachable via standard ID, trying self...");
                    // Fallback: If we are not whitelisted in the extension manifest externally_connectable,
                    // this might fail. But for local dev it's tricky.

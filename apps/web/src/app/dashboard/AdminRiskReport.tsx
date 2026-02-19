@@ -6,7 +6,8 @@ import { authClient } from "@/lib/auth-client";
 
 export default function AdminRiskReport() {
   const { data: session, isPending } = authClient.useSession();
-  const isSuperAdmin = session?.user?.role === "super_admin";
+  const userRole = (session?.user as { role?: string } | undefined)?.role;
+  const isSuperAdmin = userRole === "super_admin";
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

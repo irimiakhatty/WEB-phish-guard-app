@@ -14,6 +14,36 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 
+const signUpSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    accountType: z.enum(["personal", "organization"]),
+    organizationName: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.accountType === "organization" &&
+      data.organizationName.trim().length < 2
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Organization name is required",
+        path: ["organizationName"],
+      });
+    }
+  });
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return "Invalid value";
+}
+
 export default function SignUpForm({
   onSwitchToSignIn,
   defaultAccountType = "personal",
@@ -69,26 +99,7 @@ export default function SignUpForm({
       }
     },
     validators: {
-      onSubmit: z
-        .object({
-          name: z.string().min(2, "Name must be at least 2 characters"),
-          email: z.email("Invalid email address"),
-          password: z.string().min(8, "Password must be at least 8 characters"),
-          accountType: z.enum(["personal", "organization"]),
-          organizationName: z.string().optional(),
-        })
-        .superRefine((data, ctx) => {
-          if (
-            data.accountType === "organization" &&
-            (!data.organizationName || data.organizationName.length < 2)
-          ) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Organization name is required",
-              path: ["organizationName"],
-            });
-          }
-        }),
+      onSubmit: signUpSchema,
     },
   });
 
@@ -210,9 +221,9 @@ export default function SignUpForm({
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
-                  {field.state.meta.errors.map((error) => (
-                    <p key={error?.message} className="text-sm text-red-500">
-                      {error?.message}
+                  {field.state.meta.errors.map((error, idx) => (
+                    <p key={idx} className="text-sm text-red-500">
+                      {getErrorMessage(error)}
                     </p>
                   ))}
                 </div>
@@ -236,9 +247,9 @@ export default function SignUpForm({
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
                         />
-                        {field.state.meta.errors.map((error) => (
-                          <p key={error?.message} className="text-sm text-red-500">
-                            {error?.message}
+                        {field.state.meta.errors.map((error, idx) => (
+                          <p key={idx} className="text-sm text-red-500">
+                            {getErrorMessage(error)}
                           </p>
                         ))}
                         <p className="text-xs text-muted-foreground">
@@ -266,9 +277,9 @@ export default function SignUpForm({
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
-                  {field.state.meta.errors.map((error) => (
-                    <p key={error?.message} className="text-sm text-red-500">
-                      {error?.message}
+                  {field.state.meta.errors.map((error, idx) => (
+                    <p key={idx} className="text-sm text-red-500">
+                      {getErrorMessage(error)}
                     </p>
                   ))}
                 </div>
@@ -301,9 +312,9 @@ export default function SignUpForm({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {field.state.meta.errors.map((error) => (
-                    <p key={error?.message} className="text-sm text-red-500">
-                      {error?.message}
+                  {field.state.meta.errors.map((error, idx) => (
+                    <p key={idx} className="text-sm text-red-500">
+                      {getErrorMessage(error)}
                     </p>
                   ))}
                 </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeUrl } from "@/lib/safe-browsing";
-import { predictUrl } from "@/lib/ml-service";
-import { analyzeUrlHeuristics } from "@/lib/phishing-heuristics";
+import { checkSafeBrowsing, getThreatSeverity } from "@/lib/safe-browsing";
+import { analyzeUrlML } from "@/lib/ml-service";
+import { analyzeHeuristics } from "@/lib/phishing-heuristics";
 import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
 
 export const runtime = "nodejs";
@@ -95,9 +95,9 @@ export async function POST(request: NextRequest) {
 
     // Perform quick analysis (parallel)
     const [safeBrowsingResult, mlResult, heuristicResult] = await Promise.all([
-      analyzeUrl(url).catch(() => null),
-      predictUrl(url).catch(() => null),
-      Promise.resolve(analyzeUrlHeuristics(url)),
+      checkSafeBrowsing(url).catch(() => null),
+      analyzeUrlML(url).catch(() => null),
+      Promise.resolve(analyzeHeuristics("", url)),
     ]);
 
     // Calculate scores
@@ -105,21 +105,20 @@ export async function POST(request: NextRequest) {
     const detectedThreats: string[] = [];
 
     // Google Safe Browsing (highest priority)
-    if (safeBrowsingResult?.isThreat) {
-      urlScore = 0.95;
-      detectedThreats.push("Flagged by Google Safe Browsing");
+    if (safeBrowsingResult && !safeBrowsingResult.isSafe) {
+      urlScore = Math.max(urlScore, getThreatSeverity(safeBrowsingResult.threatTypes));
+      detectedThreats.push(...safeBrowsingResult.threats);
     }
 
     // ML prediction
-    if (mlResult?.score) {
-      urlScore = Math.max(urlScore, mlResult.score);
+    if (typeof mlResult === "number") {
+      urlScore = Math.max(urlScore, mlResult);
     }
 
     // Heuristics
-    if (heuristicResult.threatCount > 0) {
-      const heuristicScore = Math.min(heuristicResult.threatCount * 0.2, 0.85);
-      urlScore = Math.max(urlScore, heuristicScore);
-      detectedThreats.push(...heuristicResult.threats);
+    if (heuristicResult.reasons.length > 0) {
+      urlScore = Math.max(urlScore, heuristicResult.score);
+      detectedThreats.push(...heuristicResult.reasons);
     }
 
     // Determine risk level

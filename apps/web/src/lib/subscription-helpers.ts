@@ -2,9 +2,7 @@ import prisma from "@phish-guard-app/db";
 import {
   getPlanById,
   isPersonalPlan,
-  isTeamPlan,
   PERSONAL_PLANS,
-  TEAM_PLANS,
   type PlanId,
 } from "./subscription-plans";
 
@@ -31,6 +29,15 @@ export interface UserSubscriptionInfo {
   organizationName?: string;
   organizationSlug?: string;
   isOrgAdmin?: boolean;
+}
+
+function getScansPerHourLimit(planId: PlanId): number {
+  const features = getPlanById(planId).features as {
+    scansPerHour?: number;
+    scansPerHourPerUser?: number;
+  };
+
+  return features.scansPerHourPerUser ?? features.scansPerHour ?? 25;
 }
 
 /**
@@ -79,24 +86,19 @@ export async function getUserSubscriptionInfo(
     // Use organization subscription (typically higher limits)
     const orgMembership = activeOrgMemberships[0]; // Take first active org
     const orgSub = orgMembership.organization.subscription!;
-    const planId = (orgSub as any).plan ?? (orgSub as any).planId; // plan field in schema
+    const planId = orgSub.plan as PlanId;
     const plan = getPlanById(planId);
-
-    // Calculate per-user limits for team plans
-    const scansPerHourPerUser = isTeamPlan(planId as any)
-      ? (plan.features as any).scansPerHourPerUser
-      : plan.features.scansPerHour;
 
     return {
       hasActiveSubscription: true,
       subscriptionType: "team",
-      planId: planId as PlanId,
+      planId,
       status: orgSub.status,
       currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: orgSub.cancelAtPeriodEnd ?? false,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
-        scansPerHour: scansPerHourPerUser,
+        scansPerHour: getScansPerHourLimit(planId),
         maxApiTokens: plan.features.maxApiTokens,
         advancedAnalytics: plan.limits.advancedAnalytics,
         prioritySupport: plan.limits.prioritySupport,
@@ -109,19 +111,19 @@ export async function getUserSubscriptionInfo(
     };
   } else if (hasPersonalSub) {
     // Use personal subscription
-    const planId = (personalSub as any).plan ?? (personalSub as any).planId; // plan field in schema
+    const planId = personalSub.plan as PlanId;
     const plan = getPlanById(planId);
 
     return {
       hasActiveSubscription: true,
       subscriptionType: "personal",
-      planId: planId as PlanId,
+      planId,
       status: personalSub.status,
       currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: personalSub.cancelAtPeriodEnd ?? false,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
-        scansPerHour: plan.features.scansPerHour,
+        scansPerHour: getScansPerHourLimit(planId),
         maxApiTokens: plan.features.maxApiTokens,
         advancedAnalytics: plan.limits.advancedAnalytics,
         prioritySupport: plan.limits.prioritySupport,
@@ -369,7 +371,7 @@ export async function previewPersonalSubscriptionChange(
     };
   }
 
-  const currentPlan = user.personalSubscription?.planId || "free";
+  const currentPlan = (user.personalSubscription?.plan as PlanId | undefined) || "free";
   const currentPlanPrice = getPlanById(currentPlan).price;
   const newPlanPrice = getPlanById(newPlanId).price;
 
@@ -410,9 +412,9 @@ export async function getUserOrganizations(userId: string) {
     name: m.organization.name,
     slug: m.organization.slug,
     role: m.role,
-    planId: m.organization.subscription?.planId || "team_free",
+    planId: (m.organization.subscription?.plan as PlanId | undefined) || "team_free",
     planName: getPlanById(
-      m.organization.subscription?.planId || "team_free"
+      (m.organization.subscription?.plan as PlanId | undefined) || "team_free"
     ).name,
     memberCount: m.organization._count.members,
     joinedAt: m.joinedAt,

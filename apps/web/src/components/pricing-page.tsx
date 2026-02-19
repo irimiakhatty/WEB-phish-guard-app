@@ -20,11 +20,14 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
   );
   const [pending, startTransition] = useTransition();
 
-  const plans = useMemo(() => (billing === "team" ? TEAM_PLANS : PERSONAL_PLANS), [billing]);
+  const plans = useMemo(
+    () => (billing === "team" ? Object.values(TEAM_PLANS) : Object.values(PERSONAL_PLANS)),
+    [billing]
+  );
   const highlightedPlanId = billing === "team" ? "team_startup" : "personal_plus";
 
   const handleCheckout = (planId: PlanId) => {
-    const plan = plans[planId as keyof typeof plans];
+    const plan = billing === "team" ? TEAM_PLANS[planId as keyof typeof TEAM_PLANS] : PERSONAL_PLANS[planId as keyof typeof PERSONAL_PLANS];
     if (!plan || plan.price === 0 || !plan.stripePriceId) {
       toast.info("This plan does not require checkout.");
       return;
@@ -131,7 +134,7 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
           </div>
         </div>
 
-        {Object.values(plans).map((plan) => {
+        {plans.map((plan) => {
           const isCurrent = plan.id === currentPlanId;
           const priceLabel = plan.price === 0 ? "Free" : `$${plan.price}`;
           const period = plan.price === 0 ? undefined : plan.interval;
@@ -150,7 +153,7 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
               price={priceLabel}
               period={period}
               description={plan.description}
-              features={plan.features.features}
+              features={[...plan.features.features]}
               highlighted={plan.id === highlightedPlanId}
               badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
               buttonText={buttonText}

@@ -39,7 +39,7 @@ import Link from "next/link";
 interface Member {
   id: string;
   userId: string;
-  role: "admin" | "member";
+  role: string;
   joinedAt: Date;
   user: {
     id: string;
@@ -52,7 +52,7 @@ interface Member {
 interface Invite {
   id: string;
   email: string;
-  role: "admin" | "member";
+  role: string;
   createdAt: Date;
   expiresAt: Date;
 }

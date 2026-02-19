@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     }
 
     const plan = getPlanById(planId);
-    if (!plan.stripePriceId || plan.price === 0) {
+    if (!plan.stripePriceId) {
       return NextResponse.json(
         { error: "Selected plan is not available for checkout." },
         { status: 400 }

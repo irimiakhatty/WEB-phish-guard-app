@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/api-auth";
-import { getUserScans } from "@/app/actions/scans";
+import { getMyScans } from "@/app/actions/scans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,29 +28,20 @@ export async function GET(request: NextRequest) {
     // Get limit from query params (default 50, max 100)
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get("limit");
-    const limit = Math.min(parseInt(limitParam || "50"), 100);
+    const parsedLimit = Number.parseInt(limitParam || "50", 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(parsedLimit, 100) : 50;
 
     // Fetch scans
-    const result = await getUserScans();
-
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.error || "Failed to fetch scans",
-        },
-        { status: 500 }
-      );
-    }
+    const scans = await getMyScans();
 
     // Limit the results
-    const scans = result.data.slice(0, limit);
+    const limitedScans = scans.slice(0, limit);
 
     return NextResponse.json(
       {
         success: true,
-        data: scans,
-        count: scans.length,
+        data: limitedScans,
+        count: limitedScans.length,
       },
       {
         status: 200,

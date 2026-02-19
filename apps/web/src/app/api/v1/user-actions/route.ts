@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/api-auth";
-import { db } from "@repo/db";
+import prisma from "@phish-guard-app/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,11 +32,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const emailScan = await prisma.emailScan.findUnique({
+      where: { id: emailScanId },
+      select: { id: true, userId: true, departmentId: true },
+    });
+
+    if (!emailScan || emailScan.userId !== authResult.user.id) {
+      return NextResponse.json(
+        { success: false, error: "Invalid emailScanId for this user" },
+        { status: 400 }
+      );
+    }
+
     // Create user action record
-    const userAction = await db.userAction.create({
+    const userAction = await prisma.userAction.create({
       data: {
         userId: authResult.user.id,
-        departmentId: authResult.user.departmentId,
+        departmentId: emailScan.departmentId,
         emailScanId,
         actionType,
         link,

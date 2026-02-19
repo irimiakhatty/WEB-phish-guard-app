@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/api-auth";
 import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
 import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
-import { db } from "@repo/db";
+import prisma from "@phish-guard-app/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const subInfo = await getUserSubscriptionInfo(authResult.user.id);
 
-    const scan = await db.scan.create({
+    const scan = await prisma.scan.create({
       data: {
         userId: authResult.user.id,
         organizationId: subInfo.organizationId || null,

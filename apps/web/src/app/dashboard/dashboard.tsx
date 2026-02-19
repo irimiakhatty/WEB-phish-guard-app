@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { Shield, Activity, CheckCircle, AlertTriangle, Users, Globe } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import dynamic from "next/dynamic";
 const AdminRiskReport = dynamic(() => import("./AdminRiskReport"), { ssr: false });
@@ -42,22 +44,32 @@ type SubscriptionInfo = {
   cancelAtPeriodEnd?: boolean;
 };
 
+type TrainingRecommendation = {
+  dominantAttackType: string;
+  recommendation: string;
+  incidentsReviewed: number;
+  windowDays: number;
+};
+
 export default function Dashboard({ 
   session, 
   stats,
   orgAdminStats,
   subscriptionInfo,
+  trainingRecommendation,
 }: { 
   session: typeof authClient.$Infer.Session;
   stats: UserStats | AdminStats;
   orgAdminStats: OrgAdminStats | null;
   subscriptionInfo: SubscriptionInfo | null;
+  trainingRecommendation: TrainingRecommendation | null;
 }) {
-  const isSuperAdmin = session.user.role === "super_admin";
+  const userRole = (session.user as { role?: string }).role;
+  const isSuperAdmin = userRole === "super_admin";
   const adminStats = isSuperAdmin ? (stats as AdminStats) : null;
   const isOrgAdmin = Boolean(orgAdminStats);
-  const orgMembersHref = orgAdminStats?.organizationSlug
-    ? `/org/${orgAdminStats.organizationSlug}/members`
+  const orgMembersHref: Route = orgAdminStats?.organizationSlug
+    ? (`/org/${orgAdminStats.organizationSlug}/members` as Route)
     : "/organizations";
   const subscriptionLabel = subscriptionInfo
     ? subscriptionInfo.planId.replace("team_", "").replace("personal_", "").toUpperCase()
@@ -225,6 +237,30 @@ export default function Dashboard({
             </Card>
           )}
         </div>
+
+        {!isSuperAdmin && trainingRecommendation && (
+          <Card className="mt-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200/80 dark:border-blue-800/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="w-4 h-4 text-blue-600" />
+                Training Recommendation
+              </CardTitle>
+              <CardDescription>
+                Based on {trainingRecommendation.incidentsReviewed} high-risk/phishing event
+                {trainingRecommendation.incidentsReviewed === 1 ? "" : "s"} in the last{" "}
+                {trainingRecommendation.windowDays} days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Badge variant="outline">
+                Dominant attack: {trainingRecommendation.dominantAttackType}
+              </Badge>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                {trainingRecommendation.recommendation}
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Admin-only statistics */}
         {isSuperAdmin && (

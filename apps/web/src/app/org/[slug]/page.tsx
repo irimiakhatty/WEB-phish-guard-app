@@ -86,7 +86,7 @@ export default async function OrganizationPage({ params }: PageProps) {
             <CardHeader className="pb-3">
               <CardDescription>Current Plan</CardDescription>
               <CardTitle className="text-2xl">
-                {(organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free")
+                {(organization.subscription?.plan ?? "team_free")
                   .replace("team_", "")
                   .toUpperCase()}
               </CardTitle>
@@ -157,7 +157,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                     <div className="flex items-center justify-between p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60">
                       <div>
                         <p className="font-semibold">
-                          {(organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free")
+                          {(organization.subscription?.plan ?? "team_free")
                             .replace("team_", "")
                             .toUpperCase()}{" "}
                           Plan
@@ -168,7 +168,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                       </div>
                       <UpgradePlanForm
                         organizationSlug={organization.slug}
-                        currentPlan={organization.subscription?.plan ?? organization.subscription?.planId ?? "team_free"}
+                        currentPlan={organization.subscription?.plan ?? "team_free"}
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">

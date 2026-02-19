@@ -58,11 +58,15 @@ export default async function Home() {
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-lg px-8 py-7 group"
                   asChild
                 >
-                  <Link href={CHROME_STORE_URL} target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}>
+                  <a
+                    href={CHROME_STORE_URL}
+                    target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
+                    rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
+                  >
                     <Chrome className="mr-2 h-5 w-5" />
                     Add to Chrome
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Link>
+                  </a>
                 </Button>
                 <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full" asChild>
                   <Link href="/login">Web Dashboard</Link>

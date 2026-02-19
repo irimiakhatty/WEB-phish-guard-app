@@ -67,6 +67,13 @@ export async function verifyApiToken(): Promise<ApiAuthResult> {
       };
     }
 
+    if (!apiToken.user || !apiToken.userId) {
+      return {
+        authorized: false,
+        error: "Invalid token owner",
+      };
+    }
+
     // Check if token is expired
     if (apiToken.expiresAt && apiToken.expiresAt < new Date()) {
       return {

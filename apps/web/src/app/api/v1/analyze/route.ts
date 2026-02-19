@@ -47,29 +47,19 @@ export async function POST(request: NextRequest) {
       imageUrl,
     });
 
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.error || "Analysis failed",
-        },
-        { status: 500 }
-      );
-    }
-
     // Return successful response with rate limit headers
     return NextResponse.json(
       {
         success: true,
         data: {
-          textScore: result.data.textScore,
-          urlScore: result.data.urlScore,
-          overallScore: result.data.overallScore,
-          riskLevel: result.data.riskLevel,
-          isPhishing: result.data.isPhishing,
-          confidence: result.data.confidence,
-          detectedThreats: result.data.detectedThreats,
-          analysis: result.data.analysis,
+          textScore: result.textScore,
+          urlScore: result.urlScore,
+          overallScore: result.overallScore,
+          riskLevel: result.riskLevel,
+          isPhishing: result.isPhishing,
+          confidence: result.confidence,
+          detectedThreats: result.detectedThreats,
+          analysis: result.analysis,
         },
       },
       {

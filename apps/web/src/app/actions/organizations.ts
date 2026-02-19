@@ -59,6 +59,7 @@ export async function createOrganization(data: {
       data: {
         name: data.name,
         slug: data.slug,
+        createdById: user.id,
         subscription: {
           create: {
             plan: "team_free",

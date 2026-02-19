@@ -64,7 +64,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Link href="/admin/organizations">
+        <Link href="/organizations">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
           </Card>
         </Link>
 
-        <Link href="/admin/settings">
+        <Link href="/settings">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
