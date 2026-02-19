@@ -6,6 +6,7 @@ import SignInForm from "../../components/sign-in-form";
 import SignUpForm from "../../components/sign-up-form";
 import { CheckCircle, Shield, Zap, Chrome, Mail } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
+import AuthRedirectGuard from "@/components/auth-redirect-guard";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -31,6 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <AuthRedirectGuard redirectTo="/dashboard" />
       <div className="fixed right-4 top-4 z-50">
         <ModeToggle />
       </div>

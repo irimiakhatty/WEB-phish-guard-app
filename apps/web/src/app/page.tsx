@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, CircleAlert, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, CircleAlert, CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ModeToggle } from "@/components/mode-toggle";
+import AuthRedirectGuard from "@/components/auth-redirect-guard";
 import { getCurrentYear, getSession } from "@/lib/auth-helpers";
 
 const EXTENSION_ID =
@@ -90,6 +91,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-blue-100 to-slate-200 text-slate-900 dark:from-[#061233] dark:via-[#071943] dark:to-[#05122d] dark:text-slate-100">
+      <AuthRedirectGuard redirectTo="/dashboard" />
       <div className="fixed right-4 top-4 z-50">
         <ModeToggle />
       </div>
@@ -158,7 +160,10 @@ export default async function Home() {
                   className="h-11 px-5 text-blue-700 hover:bg-blue-100 dark:text-blue-200 dark:hover:bg-blue-900/35"
                   asChild
                 >
-                  <Link href="/login">Start free scan</Link>
+                  <Link href="/login">
+                    Start free scan
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </div>

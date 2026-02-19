@@ -3,7 +3,7 @@ import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import z from "zod";
-import { Building2, Eye, EyeOff, Shield, User } from "lucide-react";
+import { ArrowLeft, Building2, Eye, EyeOff, Shield, User } from "lucide-react";
 
 import { signUpWithOrganization } from "@/app/actions/auth";
 import { authClient } from "@/lib/auth-client";
@@ -344,8 +344,9 @@ export default function SignUpForm({
           <Button
             variant="outline"
             onClick={onSwitchToSignIn}
-            className="w-full"
+            className="w-full border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-600/60 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/35"
           >
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to sign in
           </Button>
         </div>
