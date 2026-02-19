@@ -157,12 +157,12 @@ export default async function Home() {
                 <Button
                   size="lg"
                   variant="ghost"
-                  className="h-11 px-5 text-blue-700 hover:bg-blue-100 dark:text-blue-200 dark:hover:bg-blue-900/35"
+                  className="group h-11 px-5 text-blue-700 hover:bg-blue-100 dark:text-blue-200 dark:hover:bg-blue-900/35"
                   asChild
                 >
                   <Link href="/login">
                     Start free scan
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </Link>
                 </Button>
               </div>
