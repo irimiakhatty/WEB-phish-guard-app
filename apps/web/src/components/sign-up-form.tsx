@@ -71,13 +71,18 @@ export default function SignUpForm({
     },
     onSubmit: async ({ value }) => {
       try {
-        await signUpWithOrganization({
+        const signUpResult = await signUpWithOrganization({
           email: value.email,
           password: value.password,
           name: value.name,
           organizationName: value.organizationName,
           accountType: value.accountType,
         });
+
+        if (!signUpResult.success) {
+          toast.error(signUpResult.error);
+          return;
+        }
 
         await authClient.signIn.email(
           {
@@ -193,14 +198,14 @@ export default function SignUpForm({
           </div>
 
           <form.Subscribe selector={(state) => state.values.accountType}>
-            {(accountType) =>
-              accountType === "organization" ? (
-                <div className="rounded-lg border border-blue-200/70 bg-blue-50/80 px-4 py-3 text-sm text-blue-900">
+              {(accountType) =>
+                accountType === "organization" ? (
+                <div className="rounded-lg border border-blue-200/70 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-800/70 dark:bg-blue-950/30 dark:text-blue-100">
                   <p className="font-medium">Organization admin setup</p>
-                  <p className="mt-1 text-blue-700">
+                  <p className="mt-1 text-blue-700 dark:text-blue-200">
                     You will create the organization workspace and become its first admin.
                   </p>
-                  <p className="mt-1 text-blue-700">
+                  <p className="mt-1 text-blue-700 dark:text-blue-200">
                     After sign up, you can invite members and manage security settings.
                   </p>
                 </div>

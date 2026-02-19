@@ -1,8 +1,14 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Button } from "./ui/button";
-import { PERSONAL_PLANS, TEAM_PLANS, type PlanId, canUpgrade, canDowngrade } from "@/lib/subscription-plans";
+import { useTransition } from "react";
+import {
+  PERSONAL_PLANS,
+  TEAM_PLANS,
+  SUBSCRIPTION_PLANS,
+  type PlanId,
+  canUpgrade,
+  canDowngrade,
+} from "@/lib/subscription-plans";
 import { toast } from "sonner";
 import PricingCard from "./pricing-card";
 import { Mail, Zap, Eye } from "lucide-react";
@@ -12,28 +18,32 @@ type Props = {
   subscriptionType: "personal" | "team" | "none";
   organizationSlug?: string;
   isOrgAdmin?: boolean;
+  isAuthenticated?: boolean;
 };
 
-export default function PricingPage({ currentPlanId, subscriptionType, organizationSlug, isOrgAdmin }: Props) {
-  const [billing, setBilling] = useState<"personal" | "team">(
-    subscriptionType === "team" ? "team" : "personal"
-  );
+export default function PricingPage({
+  currentPlanId,
+  subscriptionType,
+  organizationSlug,
+  isOrgAdmin,
+  isAuthenticated = true,
+}: Props) {
   const [pending, startTransition] = useTransition();
-
-  const plans = useMemo(
-    () => (billing === "team" ? Object.values(TEAM_PLANS) : Object.values(PERSONAL_PLANS)),
-    [billing]
-  );
-  const highlightedPlanId = billing === "team" ? "team_startup" : "personal_plus";
+  const hasTeamContext = subscriptionType === "team";
 
   const handleCheckout = (planId: PlanId) => {
-    const plan = billing === "team" ? TEAM_PLANS[planId as keyof typeof TEAM_PLANS] : PERSONAL_PLANS[planId as keyof typeof PERSONAL_PLANS];
+    if (!isAuthenticated) {
+      window.location.href = "/login?next=/subscriptions";
+      return;
+    }
+
+    const plan = SUBSCRIPTION_PLANS[planId];
     if (!plan || plan.price === 0 || !plan.stripePriceId) {
       toast.info("This plan does not require checkout.");
       return;
     }
 
-    if (billing === "team") {
+    if (plan.category === "team") {
       if (!organizationSlug) {
         toast.error("Create or select an organization before upgrading.");
         return;
@@ -50,7 +60,7 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planId,
-          organizationSlug: billing === "team" ? organizationSlug : undefined,
+          organizationSlug: plan.category === "team" ? organizationSlug : undefined,
         }),
       });
 
@@ -67,45 +77,70 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
     });
   };
 
+  const getButtonText = (planId: PlanId) => {
+    if (!isAuthenticated) {
+      return "Sign in to continue";
+    }
+    if (planId === currentPlanId) {
+      return "Current plan";
+    }
+    if (canUpgrade(currentPlanId as PlanId, planId)) {
+      return "Upgrade";
+    }
+    if (canDowngrade(currentPlanId as PlanId, planId)) {
+      return "Downgrade";
+    }
+    return "Change plan";
+  };
+
+  const renderPlanCards = (plans: Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>, highlightedPlanId: PlanId) =>
+    plans.map((plan) => (
+      <PricingCard
+        key={plan.id}
+        name={plan.name}
+        price={plan.price === 0 ? "Free" : `$${plan.price}`}
+        period={plan.price === 0 ? undefined : plan.interval ?? undefined}
+        description={plan.description}
+        features={[...plan.features.features]}
+        highlighted={plan.id === highlightedPlanId}
+        badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
+        buttonText={getButtonText(plan.id as PlanId)}
+        disabled={pending || (isAuthenticated && plan.id === currentPlanId)}
+        onSelect={() => handleCheckout(plan.id as PlanId)}
+      />
+    ));
+
+  const personalPlans = Object.values(PERSONAL_PLANS);
+  const teamPlans = Object.values(TEAM_PLANS);
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
-            Choose the plan that fits your team
+            Choose the plan that fits your needs
           </h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
-            Upgrade to unlock advanced phishing defense, organization analytics, and higher scan limits.
+            Compare all available plans below. Personal and Team tiers are displayed together so
+            you can decide faster.
           </p>
-        </div>
-
-        <div className="inline-flex w-fit rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1">
-          <Button
-            variant={billing === "personal" ? "default" : "ghost"}
-            onClick={() => setBilling("personal")}
-            className="rounded-full px-6"
-          >
-            Personal
-          </Button>
-          <Button
-            variant={billing === "team" ? "default" : "ghost"}
-            onClick={() => setBilling("team")}
-            className="rounded-full px-6"
-          >
-            Teams and Organizations
-          </Button>
+          {hasTeamContext ? (
+            <p className="text-sm text-blue-700 dark:text-blue-300">
+              Your account is currently on a team context.
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-6">
+      <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex items-start gap-3">
             <div className="bg-blue-600 p-3 rounded-xl">
               <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
               <h4 className="text-gray-900 dark:text-white">Real-time protection</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-blue-200/80">
                 AI scans links, emails, and attachments instantly.
               </p>
             </div>
@@ -116,7 +151,7 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
             </div>
             <div>
               <h4 className="text-gray-900 dark:text-white">Email monitoring</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-blue-200/80">
                 Protect Gmail and Outlook in-browser with warnings.
               </p>
             </div>
@@ -127,42 +162,39 @@ export default function PricingPage({ currentPlanId, subscriptionType, organizat
             </div>
             <div>
               <h4 className="text-gray-900 dark:text-white">Business intelligence</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-blue-200/80">
                 Heatmaps, risky users, and ROI-ready reporting.
               </p>
             </div>
           </div>
         </div>
-
-        {plans.map((plan) => {
-          const isCurrent = plan.id === currentPlanId;
-          const priceLabel = plan.price === 0 ? "Free" : `$${plan.price}`;
-          const period = plan.price === 0 ? undefined : plan.interval;
-          const buttonText = isCurrent
-            ? "Current plan"
-            : canUpgrade(currentPlanId as any, plan.id as any)
-            ? "Upgrade"
-            : canDowngrade(currentPlanId as any, plan.id as any)
-            ? "Downgrade"
-            : "Change plan";
-
-          return (
-            <PricingCard
-              key={plan.id}
-              name={plan.name}
-              price={priceLabel}
-              period={period}
-              description={plan.description}
-              features={[...plan.features.features]}
-              highlighted={plan.id === highlightedPlanId}
-              badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
-              buttonText={buttonText}
-              disabled={pending || isCurrent}
-              onSelect={() => handleCheckout(plan.id as PlanId)}
-            />
-          );
-        })}
       </div>
+
+      <section className="space-y-5">
+        <div>
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Personal plans</h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            For individuals who want browser-level scam protection.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {renderPlanCards(personalPlans as Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>, "personal_plus")}
+        </div>
+      </section>
+
+      <section className="space-y-5">
+        <div>
+          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Teams and organizations
+          </h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            For admins who need analytics, member controls, and organization visibility.
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {renderPlanCards(teamPlans as Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>, "team_startup")}
+        </div>
+      </section>
     </div>
   );
 }

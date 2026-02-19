@@ -1,9 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Shield, Zap, Lock, Brain, TrendingUp, ArrowRight, Chrome, Mail, CheckCircle, Users, Building, Heart } from "lucide-react";
+import { AlertTriangle, CircleAlert, CheckCircle2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getSession, getCurrentYear } from "@/lib/auth-helpers";
+import { ModeToggle } from "@/components/mode-toggle";
+import { getCurrentYear, getSession } from "@/lib/auth-helpers";
 
 const EXTENSION_ID =
   process.env.NEXT_PUBLIC_EXTENSION_ID || "bgmpigmggkapcphapehhjfmghfcdeloh";
@@ -11,6 +14,72 @@ const EXTENSION_ID =
 const CHROME_STORE_URL =
   process.env.NEXT_PUBLIC_CHROME_STORE_URL ||
   `https://chromewebstore.google.com/detail/phishguard-ai-phishing-de/${EXTENSION_ID}`;
+
+const VERDICT_EXAMPLES = [
+  {
+    level: "High Risk",
+    levelClass:
+      "border-red-200 bg-red-50 text-red-700 dark:border-red-500/40 dark:bg-red-900/25 dark:text-red-300",
+    iconClass: "text-red-600 dark:text-red-300",
+    title: "Credential phishing attempt",
+    example: `"Your Microsoft account is suspended. Verify now at secure-check-login.com"`,
+    action: "Block link and report sender immediately.",
+  },
+  {
+    level: "Warning",
+    levelClass:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/25 dark:text-amber-300",
+    iconClass: "text-amber-600 dark:text-amber-300",
+    title: "Suspicious urgency pattern",
+    example: `"Confirm payment in the next 10 minutes or your access will be locked"`,
+    action: "Verify sender identity before any action.",
+  },
+  {
+    level: "Safe",
+    levelClass:
+      "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/25 dark:text-emerald-300",
+    iconClass: "text-emerald-600 dark:text-emerald-300",
+    title: "Trusted communication",
+    example: `"Monthly security report is ready in your verified workspace."`,
+    action: "No risk signals detected.",
+  },
+] as const;
+
+const EXTENSION_WORKFLOW = [
+  {
+    step: "01",
+    title: "Install",
+    text: "Add PhishGuard from Chrome Web Store and pin it.",
+  },
+  {
+    step: "02",
+    title: "Detect",
+    text: "Live checks run in Gmail, Outlook, and web pages.",
+  },
+  {
+    step: "03",
+    title: "Act",
+    text: "Users receive instant verdicts and clear next actions.",
+  },
+] as const;
+
+const BENEFITS = [
+  {
+    title: "Real-time first",
+    description: "Protection activates at exposure time, not after incident review.",
+    card: "from-cyan-50/90 to-blue-50/80 dark:from-cyan-900/20 dark:to-blue-900/20",
+  },
+  {
+    title: "Built into workflow",
+    description: "No copy-paste flow. Users stay in browser, fully protected.",
+    card: "from-blue-50/90 to-indigo-50/80 dark:from-blue-900/20 dark:to-indigo-900/20",
+  },
+  {
+    title: "Scales with your team",
+    description: "Start personal, then move to organization visibility and controls.",
+    card: "from-indigo-50/90 to-violet-50/80 dark:from-indigo-900/20 dark:to-violet-900/20",
+  },
+] as const;
 
 export default async function Home() {
   const session = await getSession();
@@ -20,42 +89,51 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
-      <section className="min-h-screen relative overflow-hidden flex items-center justify-center px-6 py-20">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 -left-48 w-96 h-96 bg-blue-500/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-1/4 -right-48 w-96 h-96 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-400/5 via-purple-400/5 to-blue-400/5 rounded-full blur-3xl" />
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-blue-100 to-slate-200 text-slate-900 dark:from-[#061233] dark:via-[#071943] dark:to-[#05122d] dark:text-slate-100">
+      <div className="fixed right-4 top-4 z-50">
+        <ModeToggle />
+      </div>
 
-        <div className="max-w-7xl mx-auto w-full relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-10 text-center lg:text-left">
-              <div className="flex items-center gap-3 justify-center lg:justify-start">
-                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2.5 rounded-xl shadow-xl shadow-blue-500/30">
-                  <Shield className="w-8 h-8 text-white" />
-                </div>
-                <span className="text-3xl text-gray-900 dark:text-white">PhishGuard</span>
-              </div>
+      <main className="pb-12">
+        <section className="relative border-b border-slate-200/80 dark:border-slate-800/80">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.20),transparent_36%),radial-gradient(circle_at_top_right,_rgba(30,64,175,0.18),transparent_38%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),transparent_40%),radial-gradient(circle_at_top_right,_rgba(37,99,235,0.16),transparent_42%)]" />
 
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 px-6 py-3 rounded-full border border-blue-200 dark:border-blue-800">
-                <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-blue-700 dark:text-blue-300">Protect Gmail and Outlook in real time</span>
-              </div>
-
-              <div className="space-y-6">
-                <h1 className="text-5xl lg:text-7xl text-gray-900 dark:text-white leading-[1.1] font-semibold">
-                  Secure your inbox with AI precision
-                </h1>
-                <p className="text-xl text-gray-600 dark:text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  Stop phishing before you click. PhishGuard scans every email in your browser and only warns when risk is real.
+          <div className="relative mx-auto grid max-w-6xl gap-8 px-6 pb-10 pt-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center sm:pt-12">
+            <div className="space-y-6 text-left">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/icon.png"
+                  alt="PhishGuard logo"
+                  width={52}
+                  height={52}
+                  className="h-12 w-12 rounded-xl shadow-[0_10px_24px_rgba(37,99,235,0.35)]"
+                />
+                <p className="text-[2rem] font-semibold leading-none tracking-tight text-slate-900 dark:text-blue-100 sm:text-[2.35rem]">
+                  PhishGuard
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <p className="inline-flex rounded-full border border-blue-300/80 bg-blue-100/85 px-4 py-1.5 text-[11px] font-semibold text-blue-900 dark:border-blue-500/40 dark:bg-blue-900/30 dark:text-blue-100">
+                Real-time phishing detection in browser
+              </p>
+
+              <h1 className="text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
+                Live protection that
+                <span className="bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-300 dark:via-blue-300 dark:to-indigo-300">
+                  {" "}
+                  reacts before the click
+                </span>
+              </h1>
+
+              <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300 sm:text-base">
+                PhishGuard monitors suspicious email and web signals in real time and surfaces clear
+                verdicts exactly where users work.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2.5">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-2xl shadow-blue-500/40 text-lg px-8 py-7 group"
+                  className="h-11 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 text-white shadow-[0_10px_24px_rgba(37,99,235,0.35)] hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800"
                   asChild
                 >
                   <a
@@ -63,255 +141,207 @@ export default async function Home() {
                     target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
                     rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
                   >
-                    <Chrome className="mr-2 h-5 w-5" />
                     Add to Chrome
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </a>
                 </Button>
-                <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full" asChild>
-                  <Link href="/login">Web Dashboard</Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-11 border-blue-300 px-6 text-blue-700 hover:bg-blue-100 dark:border-blue-500/60 dark:text-blue-200 dark:hover:bg-blue-900/35"
+                  asChild
+                >
+                  <Link href="/subscriptions">See plans</Link>
                 </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-6 justify-center lg:justify-start pt-4">
-                {["Works with Gmail", "Works with Outlook", "Privacy first"].map((item) => (
-                  <div key={item} className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="text-gray-600 dark:text-gray-400">{item}</span>
-                  </div>
-                ))}
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="h-11 px-5 text-blue-700 hover:bg-blue-100 dark:text-blue-200 dark:hover:bg-blue-900/35"
+                  asChild
+                >
+                  <Link href="/login">Start free scan</Link>
+                </Button>
               </div>
             </div>
 
-            <div className="relative flex items-center justify-center min-h-[560px]">
-              <div className="relative z-20 w-full max-w-[480px] mx-auto">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[360px] h-[360px] bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-blue-500/30 rounded-full blur-3xl animate-pulse" />
+            <div className="relative flex justify-center lg:justify-center">
+              <div className="w-full max-w-[520px] overflow-hidden rounded-3xl border border-blue-200/80 bg-white/92 shadow-[0_22px_55px_rgba(30,64,175,0.24)] dark:border-blue-700/50 dark:bg-[#0a1a46]/82">
+                <div className="flex items-center gap-2 border-b border-blue-200/80 bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2.5 dark:border-blue-700/40 dark:from-blue-900/20 dark:to-indigo-900/20">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                  <p className="ml-2 text-xs font-medium text-slate-500 dark:text-slate-300">
+                    mail.google.com
+                  </p>
                 </div>
 
-                <div className="relative aspect-square transform transition-all duration-700 hover:scale-105 hover:rotate-2">
-                  <div className="relative w-full h-full flex items-center justify-center">
-                    <svg viewBox="0 0 24 24" className="w-full h-full max-w-[320px] max-h-[320px] drop-shadow-2xl">
-                      <defs>
-                        <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#3b82f6" />
-                          <stop offset="50%" stopColor="#8b5cf6" />
-                          <stop offset="100%" stopColor="#3b82f6" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M12 2L4 5v6.09c0 5.29 3.66 10.25 8 11.41 4.34-1.16 8-6.12 8-11.41V5l-8-3z"
-                        fill="url(#shieldGradient)"
-                        stroke="none"
+                <div className="space-y-3 p-4">
+                  <div className="rounded-xl border border-slate-200/90 bg-slate-50/90 p-3 dark:border-slate-700/60 dark:bg-slate-900/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                      Suspicious message
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                      "Your account is suspended. Verify now at secure-check-login.com"
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-red-200/80 bg-red-50/85 p-3 dark:border-red-500/40 dark:bg-red-900/20">
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src="/icon.png"
+                        alt="PhishGuard detection badge"
+                        width={28}
+                        height={28}
+                        className="h-7 w-7 rounded-md"
                       />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-white dark:bg-gray-900 rounded-full p-6 shadow-2xl">
-                        <CheckCircle className="w-16 h-16 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                      <div>
+                        <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                          High Risk detected
+                        </p>
+                        <p className="text-xs text-red-700/80 dark:text-red-200/90">
+                          Likely credential harvesting. Do not open the link.
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="absolute -top-6 -left-12 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-4 rounded-2xl border-2 border-green-200 dark:border-green-800 shadow-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-xl shadow-lg">
-                      <CheckCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-xl text-gray-900 dark:text-white">99.8%</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Detection accuracy</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute -bottom-6 -right-10 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-4 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
-                      <Zap className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-xl text-gray-900 dark:text-white">50K+</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Threats blocked</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="absolute top-1/2 -translate-y-1/2 -right-16 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl p-4 rounded-2xl border-2 border-purple-200 dark:border-purple-800 shadow-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-lg">
-                      <Shield className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-xl text-gray-900 dark:text-white">{"<"}1s</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">Scan latency</div>
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-medium text-white">
+                      Block link
+                    </span>
+                    <span className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:border-blue-600/50 dark:bg-blue-900/30 dark:text-blue-200">
+                      Mark as phishing
+                    </span>
+                    <span className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+                      View reason
+                    </span>
                   </div>
                 </div>
               </div>
+
+              <div className="absolute -right-2 -top-2 rounded-full border border-blue-300 bg-blue-50 px-3 py-1 text-[11px] font-semibold text-blue-700 shadow-sm dark:border-blue-500/40 dark:bg-blue-900/30 dark:text-blue-200">
+                Live scan active
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="py-16 px-6 bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm border-y border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-10 text-center">
-          {[
-            { label: "Threats blocked", value: "50K+" },
-            { label: "Detection accuracy", value: "99.8%" },
-            { label: "Response time", value: "<1s" },
-            { label: "Active users", value: "10K+" },
-          ].map((stat) => (
-            <div key={stat.label} className="space-y-2">
-              <div className="text-4xl md:text-5xl font-semibold bg-gradient-to-br from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {stat.value}
-              </div>
-              <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="py-24 px-6 bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-4 mb-16">
-            <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-950/50 px-6 py-3 rounded-full">
-              <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-blue-700 dark:text-blue-300">How it works</span>
-            </div>
-            <h2 className="text-4xl lg:text-5xl text-gray-900 dark:text-white">
-              Protect every email in seconds
-            </h2>
+        <section className="mx-auto max-w-6xl px-6 py-7">
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold sm:text-3xl">Real examples: red, yellow, green</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              How verdicts look in day-to-day usage.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { icon: Zap, title: "Instant analysis", desc: "Real-time AI scoring of email text and URLs." },
-              { icon: Brain, title: "Edge + AI", desc: "Local TensorFlow.js plus optional deep scan." },
-              { icon: Lock, title: "Silent when safe", desc: "Warnings only when risk is critical." },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <Card key={item.title} className="group relative overflow-hidden border-2 border-transparent hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/20 bg-white dark:bg-gray-900">
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <CardContent className="pt-10 pb-8 space-y-5 relative">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-2xl w-fit shadow-xl shadow-blue-500/40">
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-2xl text-gray-900 dark:text-white">{item.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{item.desc}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 px-6 bg-white dark:bg-gray-950">
-        <div className="max-w-6xl mx-auto text-center space-y-4 mb-14">
-          <h2 className="text-4xl lg:text-5xl text-gray-900 dark:text-white">Built for teams and individuals</h2>
-          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            PhishGuard serves security leaders and everyday users with the same silent protection philosophy.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          <Card className="group hover:shadow-2xl transition-all duration-500 border-2 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-900 dark:to-purple-950/30">
-            <CardContent className="pt-12 pb-10 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-2xl shadow-xl shadow-purple-500/40">
-                  <Building className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-2xl text-gray-900 dark:text-white">Organizations (B2B)</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Security intelligence for admins</p>
-                </div>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400">
-                Give admins clear reports on who is most targeted, what attack types dominate, and which employees are vulnerable so you can prove ROI and focus training.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "Most-targeted employees overview",
-                  "Attack-type heatmap to spot trends fast",
-                  "Risky users list with clear prioritization",
-                  "ROI-ready reporting to justify investment",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <div className="mt-1 p-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
-                      <CheckCircle className="w-4 h-4" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="group hover:shadow-2xl transition-all duration-500 border-2 border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 bg-gradient-to-br from-white to-green-50/30 dark:from-gray-900 dark:to-green-950/30">
-            <CardContent className="pt-12 pb-10 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-2xl shadow-xl shadow-green-500/40">
-                  <Users className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-2xl text-gray-900 dark:text-white">Individuals (B2C)</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Silence is golden</p>
-                </div>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400">
-                For everyday users, PhishGuard stays quiet and steps in only when risk is imminent. Simple, fast protection against credential harvesting.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "Instant detection of credential-harvesting attacks",
-                  "Minimal, high-signal warnings only when necessary",
-                  "One-click actions to stay safe and move on",
-                  "No noise, no friction, just protection",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <div className="mt-1 p-1 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
-                      <CheckCircle className="w-4 h-4" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0 shadow-2xl">
-            <CardContent className="pt-12 pb-12 text-center text-white space-y-6">
-              <div className="bg-white/20 p-5 rounded-full w-fit mx-auto">
-                <Shield className="w-12 h-12 text-white" />
-              </div>
-              <h2 className="text-3xl font-semibold">Ready to stay safe online?</h2>
-              <p className="text-blue-100 text-lg">
-                Join thousands of users protecting themselves from phishing attacks every day.
-              </p>
-              <Button
-                size="lg"
-                variant="secondary"
-                className="text-base px-8 py-6 bg-white text-blue-600 hover:bg-blue-50"
-                asChild
+          <div className="grid gap-4 md:grid-cols-3">
+            {VERDICT_EXAMPLES.map((example) => (
+              <Card
+                key={example.level}
+                className="overflow-hidden border-blue-200/80 bg-white/90 dark:border-blue-700/50 dark:bg-[#0a1a46]/75"
               >
-                <Link href="/login">
-                  Get started free
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-              </Button>
+                <CardContent className="space-y-3 p-4">
+                  <div className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 ${example.levelClass}`}>
+                    {example.level === "High Risk" ? (
+                      <AlertTriangle className={`h-4 w-4 ${example.iconClass}`} />
+                    ) : example.level === "Warning" ? (
+                      <CircleAlert className={`h-4 w-4 ${example.iconClass}`} />
+                    ) : (
+                      <CheckCircle2 className={`h-4 w-4 ${example.iconClass}`} />
+                    )}
+                    <p className="text-sm font-semibold">{example.level}</p>
+                  </div>
+                  <p className="text-base font-semibold">{example.title}</p>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm text-slate-700 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-200">
+                    {example.example}
+                  </p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {example.action}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 py-4">
+          <Card className="border-indigo-200/80 bg-white/90 dark:border-indigo-700/50 dark:bg-[#0a1a46]/75">
+            <CardContent className="p-0">
+              <div className="border-b border-indigo-200/80 bg-gradient-to-r from-indigo-50/90 to-blue-50/90 px-5 py-4 dark:border-indigo-700/50 dark:from-indigo-900/20 dark:to-blue-900/20">
+                <h2 className="text-2xl font-semibold">Extension workflow</h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  Three steps from installation to live protection.
+                </p>
+              </div>
+
+              <div className="grid gap-3 px-4 py-4 md:grid-cols-3">
+                {EXTENSION_WORKFLOW.map((item) => (
+                  <div
+                    key={item.step}
+                    className="rounded-2xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 to-blue-50/60 p-4 dark:border-indigo-700/40 dark:from-indigo-900/20 dark:to-blue-900/20"
+                  >
+                    <p className="text-xs font-semibold tracking-[0.12em] text-indigo-700 dark:text-indigo-300">
+                      {item.step}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold">{item.title}</p>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.text}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
-        </div>
-      </section>
+        </section>
 
-      <footer className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400 border-t border-gray-200 dark:border-gray-800">
-        <p className="text-sm">© {getCurrentYear()} PhishGuard. All rights reserved.</p>
+        <section className="mx-auto max-w-6xl px-6 py-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            {BENEFITS.map((benefit) => (
+              <Card
+                key={benefit.title}
+                className={`border-blue-200/80 bg-gradient-to-br ${benefit.card} dark:border-blue-700/50`}
+              >
+                <CardContent className="pt-6">
+                  <p className="text-lg font-semibold text-slate-900 dark:text-blue-100">
+                    {benefit.title}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    {benefit.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-6 pt-10">
+          <Card className="border-blue-200/80 bg-gradient-to-r from-blue-50/95 via-indigo-50/90 to-blue-100/90 dark:border-blue-700/50 dark:from-blue-900/22 dark:via-indigo-900/18 dark:to-blue-900/22">
+            <CardContent className="py-8 text-left sm:text-center">
+              <h3 className="text-2xl font-semibold">Start with live protection today</h3>
+              <p className="mt-3 max-w-xl text-sm text-slate-600 dark:text-slate-300 sm:mx-auto">
+                Install fast. Detect in real time. Scale when ready.
+              </p>
+              <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-center">
+                <Button
+                  className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800"
+                  asChild
+                >
+                  <a
+                    href={CHROME_STORE_URL}
+                    target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
+                    rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
+                  >
+                    Install extension
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/subscriptions">See all plans</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
+
+      <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400">
+        <p>(c) {getCurrentYear()} PhishGuard. All rights reserved.</p>
       </footer>
     </div>
   );

@@ -4,20 +4,65 @@ import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
 import { revalidatePath } from "next/cache";
 
+type SignUpResult =
+  | { success: true; message: string }
+  | { success: false; error: string; code?: string };
+
+function toFriendlySignUpError(error: unknown): SignUpResult {
+  const err = error as {
+    code?: string;
+    message?: string;
+    meta?: { table?: string };
+  };
+
+  if (err?.code === "P2021" || err?.code === "P2022") {
+    return {
+      success: false,
+      code: err.code,
+      error:
+        "Database schema is not initialized in production. Run Prisma db push/migrations, then redeploy.",
+    };
+  }
+
+  if (err?.code === "P1001") {
+    return {
+      success: false,
+      code: err.code,
+      error: "Cannot connect to database. Verify DATABASE_URL in Vercel.",
+    };
+  }
+
+  if (typeof err?.message === "string" && err.message.length > 0) {
+    return {
+      success: false,
+      error: err.message,
+      code: err.code,
+    };
+  }
+
+  return {
+    success: false,
+    error: "Failed to create account. Please try again.",
+  };
+}
+
 export async function signUpWithOrganization(data: {
   email: string;
   password: string;
   name: string;
   organizationName?: string;
   accountType: "personal" | "organization";
-}) {
+}): Promise<SignUpResult> {
   // Common validations
   if (!data.email || !data.password || !data.name) {
-    throw new Error("All fields are required");
+    return { success: false, error: "All fields are required" };
   }
 
   if (data.accountType === "organization" && !data.organizationName) {
-    throw new Error("Organization name is required for business accounts");
+    return {
+      success: false,
+      error: "Organization name is required for business accounts",
+    };
   }
 
   // Check user existence
@@ -26,7 +71,7 @@ export async function signUpWithOrganization(data: {
   });
 
   if (existingUser) {
-    throw new Error("User already exists");
+    return { success: false, error: "User already exists" };
   }
 
   let createdUserId: string | null = null;
@@ -90,8 +135,8 @@ export async function signUpWithOrganization(data: {
     }
     
     return {
-        success: true,
-        message: "Account created successfully"
+      success: true,
+      message: "Account created successfully",
     };
 
   } catch (error: any) {
@@ -105,6 +150,6 @@ export async function signUpWithOrganization(data: {
     }
 
     console.error("Sign up error:", error);
-    throw new Error(error.message || "Failed to create account");
+    return toFriendlySignUpError(error);
   }
 }

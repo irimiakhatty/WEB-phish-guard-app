@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import SignInForm from "../../components/sign-in-form";
 import SignUpForm from "../../components/sign-up-form";
 import { CheckCircle, Shield, Zap, Chrome, Mail } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
@@ -30,6 +31,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="fixed right-4 top-4 z-50">
+        <ModeToggle />
+      </div>
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
         <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-700 px-10 py-12 text-white">
           <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />

@@ -31,8 +31,8 @@ export default function PricingCard({
     <div
       className={`relative rounded-2xl p-8 border-2 transition-all hover:scale-[1.01] ${
         highlighted
-          ? "border-blue-500 bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/30 dark:to-gray-900 shadow-xl dark:border-blue-600"
-          : "border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900"
+          ? "border-blue-500 bg-gradient-to-br from-blue-50 to-white shadow-xl dark:border-blue-600 dark:from-blue-900/25 dark:to-[#08163a]"
+          : "border-gray-200 bg-white dark:border-blue-900/40 dark:bg-[#08163a]/80"
       }`}
     >
       {badge && (
@@ -59,7 +59,7 @@ export default function PricingCard({
           className={`w-full ${
             highlighted
               ? "bg-blue-600 hover:bg-blue-700"
-              : "bg-gray-900 hover:bg-gray-800 dark:bg-gray-100 dark:hover:bg-gray-200 dark:text-gray-900"
+              : "bg-gray-900 hover:bg-gray-800 dark:bg-blue-100 dark:text-blue-950 dark:hover:bg-blue-200"
           }`}
           onClick={onSelect}
           disabled={disabled}
@@ -67,17 +67,21 @@ export default function PricingCard({
           {buttonText}
         </Button>
 
-        <div className="pt-6 space-y-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="pt-6 space-y-3 border-t border-gray-200 dark:border-blue-900/50">
           {features.map((feature) => (
             <div key={feature} className="flex items-start gap-3">
               <div
                 className={`rounded-full p-1 flex-shrink-0 ${
-                  highlighted ? "bg-blue-100 dark:bg-blue-900/50" : "bg-gray-100 dark:bg-gray-800"
+                  highlighted
+                    ? "bg-blue-100 dark:bg-blue-900/50"
+                    : "bg-gray-100 dark:bg-blue-900/40"
                 }`}
               >
                 <Check
                   className={`w-3 h-3 ${
-                    highlighted ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
+                    highlighted
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-gray-600 dark:text-blue-300"
                   }`}
                 />
               </div>
