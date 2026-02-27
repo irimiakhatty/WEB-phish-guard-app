@@ -155,15 +155,15 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-700/80 dark:bg-gray-900/80 md:hidden">
+      <header className="sticky top-0 z-50 border-b border-zinc-200/80 bg-white/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/80 md:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-2 shadow-sm">
-              <Shield className="h-5 w-5 text-white" />
+            <div className="rounded-xl bg-zinc-900 p-2 shadow-sm dark:bg-zinc-100">
+              <Shield className="h-5 w-5 text-white dark:text-zinc-900" />
             </div>
             <div className="leading-tight">
-              <div className="font-semibold text-gray-900 dark:text-white">PhishGuard</div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Security Console</p>
+              <div className="font-semibold text-zinc-900 dark:text-zinc-50">PhishGuard</div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Security Console</p>
             </div>
           </Link>
           <div className="flex items-center gap-2">
@@ -171,11 +171,11 @@ export function Header() {
             <UserMenu />
           </div>
         </div>
-        <div className="border-t border-gray-200/80 px-4 py-2 dark:border-gray-700/80">
+        <div className="border-t border-zinc-200/80 px-4 py-2 dark:border-zinc-800/80">
           <div className="mb-2">
             <Badge
               variant="outline"
-              className="inline-flex border-blue-200 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+              className="inline-flex border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
             >
               Plan: {planLabel}
             </Badge>
@@ -189,7 +189,7 @@ export function Header() {
                     variant={active ? "secondary" : "ghost"}
                     size="sm"
                     className={cn(
-                      "shrink-0 dark:text-gray-300",
+                      "shrink-0 dark:text-zinc-300",
                       accent === "yellow" && !active && "text-yellow-600 dark:text-yellow-500",
                     )}
                   >
@@ -205,7 +205,7 @@ export function Header() {
 
       <aside
         className={cn(
-          "hidden h-svh shrink-0 border-r border-gray-200/80 bg-white/85 backdrop-blur-xl transition-[width,padding] duration-300 dark:border-gray-700/80 dark:bg-gray-900/80 md:sticky md:top-0 md:flex md:flex-col",
+          "hidden h-svh shrink-0 border-r border-zinc-200/80 bg-white/85 backdrop-blur-xl transition-[width,padding] duration-300 dark:border-zinc-800/80 dark:bg-zinc-950/80 md:sticky md:top-0 md:flex md:flex-col",
           isCollapsed ? "w-20" : "w-72",
         )}
       >
@@ -216,13 +216,13 @@ export function Header() {
               className={cn("flex items-center gap-3", isCollapsed && "justify-center")}
               title={isCollapsed ? "PhishGuard" : undefined}
             >
-              <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-2.5 shadow-sm">
-                <Shield className="h-5 w-5 text-white" />
+              <div className="rounded-xl bg-zinc-900 p-2.5 shadow-sm dark:bg-zinc-100">
+                <Shield className="h-5 w-5 text-white dark:text-zinc-900" />
               </div>
               {!isCollapsed ? (
                 <div className="leading-tight">
-                  <div className="font-semibold text-gray-900 dark:text-white">PhishGuard</div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Security Console</p>
+                  <div className="font-semibold text-zinc-900 dark:text-zinc-50">PhishGuard</div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Security Console</p>
                 </div>
               ) : null}
             </Link>
@@ -231,7 +231,7 @@ export function Header() {
               variant="ghost"
               size="icon-sm"
               onClick={toggleSidebar}
-              className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+              className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
             >
               {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
               <span className="sr-only">Toggle sidebar</span>
@@ -246,7 +246,7 @@ export function Header() {
                   <Button
                     variant={active ? "secondary" : "ghost"}
                     className={cn(
-                      "h-10 w-full dark:text-gray-300",
+                      "h-10 w-full dark:text-zinc-300",
                       isCollapsed ? "justify-center px-0" : "justify-start px-3",
                       accent === "yellow" && !active && "text-yellow-600 dark:text-yellow-500",
                     )}
@@ -262,7 +262,7 @@ export function Header() {
           <div className={cn("space-y-3 pt-6", isCollapsed && "space-y-2")}>
             <Badge
               variant="outline"
-              className="inline-flex w-full justify-center border-blue-200 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+              className="inline-flex w-full justify-center border-zinc-300 text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
             >
               {isCollapsed ? compactPlanLabel : `Plan: ${planLabel}`}
             </Badge>

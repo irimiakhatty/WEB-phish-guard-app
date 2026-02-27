@@ -17,7 +17,8 @@ type Props = {
   currentPlanId: string;
   subscriptionType: "personal" | "team" | "none";
   organizationSlug?: string;
-  isOrgAdmin?: boolean;
+  canManageTeamBilling?: boolean;
+  canManageCurrentSubscription?: boolean;
   isAuthenticated?: boolean;
 };
 
@@ -25,15 +26,21 @@ export default function PricingPage({
   currentPlanId,
   subscriptionType,
   organizationSlug,
-  isOrgAdmin,
+  canManageTeamBilling = false,
+  canManageCurrentSubscription = true,
   isAuthenticated = true,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const hasTeamContext = subscriptionType === "team";
+  const isLockedTeamMember = hasTeamContext && !canManageCurrentSubscription;
 
   const handleCheckout = (planId: PlanId) => {
     if (!isAuthenticated) {
       window.location.href = "/login?next=/subscriptions";
+      return;
+    }
+    if (isLockedTeamMember) {
+      toast.error("Only organization admins can modify this team subscription.");
       return;
     }
 
@@ -48,7 +55,7 @@ export default function PricingPage({
         toast.error("Create or select an organization before upgrading.");
         return;
       }
-      if (!isOrgAdmin) {
+      if (!canManageTeamBilling) {
         toast.error("Only organization admins can upgrade.");
         return;
       }
@@ -84,6 +91,9 @@ export default function PricingPage({
     if (!isAuthenticated) {
       return "Sign in to continue";
     }
+    if (isLockedTeamMember) {
+      return "Admin only";
+    }
     if (planId === currentPlanId) {
       return "Current plan";
     }
@@ -108,7 +118,11 @@ export default function PricingPage({
         highlighted={plan.id === highlightedPlanId}
         badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
         buttonText={getButtonText(plan.id as PlanId)}
-        disabled={pending || (isAuthenticated && plan.id === currentPlanId)}
+        disabled={
+          pending ||
+          isLockedTeamMember ||
+          (isAuthenticated && plan.id === currentPlanId)
+        }
         onSelect={() => handleCheckout(plan.id as PlanId)}
       />
     ));
@@ -127,45 +141,50 @@ export default function PricingPage({
             Compare all available plans below. Personal and Team tiers are displayed together so
             you can decide faster.
           </p>
-          {hasTeamContext ? (
-            <p className="text-sm text-blue-700 dark:text-blue-300">
+          {isLockedTeamMember ? (
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              You are a member of this organization. Only organization admins can change the team
+              subscription.
+            </p>
+          ) : hasTeamContext ? (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
               Your account is currently on a team context.
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-6">
+      <div className="rounded-2xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-white p-6 dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/60">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex items-start gap-3">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Zap className="w-5 h-5 text-white" />
+            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
+              <Zap className="w-5 h-5 text-white dark:text-zinc-900" />
             </div>
             <div>
-              <h4 className="text-gray-900 dark:text-white">Real-time protection</h4>
-              <p className="text-sm text-gray-600 dark:text-blue-200/80">
+              <h4 className="text-zinc-900 dark:text-zinc-100">Real-time protection</h4>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 AI scans links, emails, and attachments instantly.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Mail className="w-5 h-5 text-white" />
+            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
+              <Mail className="w-5 h-5 text-white dark:text-zinc-900" />
             </div>
             <div>
-              <h4 className="text-gray-900 dark:text-white">Email monitoring</h4>
-              <p className="text-sm text-gray-600 dark:text-blue-200/80">
+              <h4 className="text-zinc-900 dark:text-zinc-100">Email monitoring</h4>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Protect Gmail and Outlook in-browser with warnings.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-3">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Eye className="w-5 h-5 text-white" />
+            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
+              <Eye className="w-5 h-5 text-white dark:text-zinc-900" />
             </div>
             <div>
-              <h4 className="text-gray-900 dark:text-white">Business intelligence</h4>
-              <p className="text-sm text-gray-600 dark:text-blue-200/80">
+              <h4 className="text-zinc-900 dark:text-zinc-100">Business intelligence</h4>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 Heatmaps, risky users, and ROI-ready reporting.
               </p>
             </div>

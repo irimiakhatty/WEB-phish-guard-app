@@ -31,12 +31,12 @@ export default function PricingCard({
     <div
       className={`relative rounded-2xl p-8 border-2 transition-all hover:scale-[1.01] ${
         highlighted
-          ? "border-blue-500 bg-gradient-to-br from-blue-50 to-white shadow-xl dark:border-blue-600 dark:from-blue-900/25 dark:to-[#08163a]"
-          : "border-gray-200 bg-white dark:border-blue-900/40 dark:bg-[#08163a]/80"
+          ? "border-zinc-900 bg-gradient-to-br from-zinc-100 to-white shadow-xl dark:border-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
+          : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/80"
       }`}
     >
       {badge && (
-        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0">
+        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 border-0 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
           <Sparkles className="w-3 h-3 mr-1" />
           {badge}
         </Badge>
@@ -58,8 +58,8 @@ export default function PricingCard({
         <Button
           className={`w-full ${
             highlighted
-              ? "bg-blue-600 hover:bg-blue-700"
-              : "bg-gray-900 hover:bg-gray-800 dark:bg-blue-100 dark:text-blue-950 dark:hover:bg-blue-200"
+              ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           }`}
           onClick={onSelect}
           disabled={disabled}
@@ -67,21 +67,21 @@ export default function PricingCard({
           {buttonText}
         </Button>
 
-        <div className="pt-6 space-y-3 border-t border-gray-200 dark:border-blue-900/50">
+        <div className="pt-6 space-y-3 border-t border-zinc-200 dark:border-zinc-800">
           {features.map((feature) => (
             <div key={feature} className="flex items-start gap-3">
               <div
                 className={`rounded-full p-1 flex-shrink-0 ${
                   highlighted
-                    ? "bg-blue-100 dark:bg-blue-900/50"
-                    : "bg-gray-100 dark:bg-blue-900/40"
+                    ? "bg-zinc-200 dark:bg-zinc-700"
+                    : "bg-zinc-100 dark:bg-zinc-800"
                 }`}
               >
                 <Check
                   className={`w-3 h-3 ${
                     highlighted
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-600 dark:text-blue-300"
+                      ? "text-zinc-900 dark:text-zinc-100"
+                      : "text-zinc-600 dark:text-zinc-300"
                   }`}
                 />
               </div>

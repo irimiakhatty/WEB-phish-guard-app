@@ -28,30 +28,37 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const currentPlan = getPlanById(subInfo.planId);
   const userRole = (session.user as any).role || "user";
   const isSuperAdmin = userRole === "super_admin";
-  const isOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
-  const roleLabel = isSuperAdmin ? "Super Admin" : isOrgAdmin ? "Organization's Admin" : "User";
+  const isAnyOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
+  const isTeamContext = subInfo.subscriptionType === "team";
+  const isTeamAdmin = isSuperAdmin || subInfo.isOrgAdmin === true;
+  const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
   const stripePortalHref =
     subInfo.subscriptionType === "team" && subInfo.organizationSlug
       ? `/api/stripe/portal?organizationSlug=${encodeURIComponent(subInfo.organizationSlug)}`
       : "/api/stripe/portal";
+  const canChangePlan = !isTeamContext || isTeamAdmin;
   const canOpenStripePortal =
     (subInfo.subscriptionType === "personal" && subInfo.planId !== "free") ||
-    (subInfo.subscriptionType === "team" && subInfo.planId !== "team_free");
+    (subInfo.subscriptionType === "team" && subInfo.planId !== "team_free" && isTeamAdmin);
+  const billingAccessNotice =
+    isTeamContext && !isTeamAdmin
+      ? "Doar adminul organizatiei poate modifica planul sau billing-ul Stripe pentru acest abonament."
+      : undefined;
   const billingError =
     typeof searchParams?.billingError === "string"
       ? searchParams.billingError
       : undefined;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-950 dark:to-black">
       <div className="container mx-auto max-w-4xl px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Settings</h1>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage your account settings and preferences</p>
         </div>
 
         <div className="space-y-6">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
             <CardHeader>
               <CardTitle>Subscription & Billing</CardTitle>
               <CardDescription>
@@ -83,59 +90,74 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                  <Link href="/subscriptions">Change plan</Link>
-                </Button>
+                {canChangePlan ? (
+                  <Button
+                    asChild
+                    className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  >
+                    <Link href="/subscriptions">Change plan</Link>
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    className="bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                  >
+                    Change plan
+                  </Button>
+                )}
                 {canOpenStripePortal ? (
                   <Button variant="outline" asChild>
                     <a href={stripePortalHref}>Open Stripe billing portal</a>
                   </Button>
                 ) : null}
               </div>
+              {billingAccessNotice ? (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  {billingAccessNotice}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
 
-          {/* Profile Section */}
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your profile picture and personal details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-sm font-medium mb-4">Profile Picture</h3>
-              <AvatarUpload currentImageUrl={session.user.image} />
-            </div>
+          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle>Profile Information</CardTitle>
+              <CardDescription>Update your profile picture and personal details</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <h3 className="mb-4 text-sm font-medium">Profile Picture</h3>
+                <AvatarUpload currentImageUrl={session.user.image} />
+              </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Email</h3>
-              <p className="text-sm text-muted-foreground">{session.user.email}</p>
-            </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Email</h3>
+                <p className="text-sm text-muted-foreground">{session.user.email}</p>
+              </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Account Role</h3>
-              <p className="text-sm text-muted-foreground capitalize">
-                {roleLabel}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Account Role</h3>
+                <p className="text-sm capitalize text-muted-foreground">
+                  {roleLabel}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Security Section */}
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
-          <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>Manage your account security settings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Password</h3>
-              <p className="text-sm text-muted-foreground">
-                Last changed: Never (Better-Auth handles password management)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle>Security</CardTitle>
+              <CardDescription>Manage your account security settings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Password</h3>
+                <p className="text-sm text-muted-foreground">
+                  Last changed: Never (Better-Auth handles password management)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
