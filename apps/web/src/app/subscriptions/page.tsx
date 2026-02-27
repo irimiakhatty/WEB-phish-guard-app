@@ -8,6 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 
 export default async function SubscriptionsPage() {
   const session = await getSession();
+  const backHref = session?.user ? "/settings" : "/";
   const subInfo = session?.user
     ? await getUserSubscriptionInfo(session.user.id)
     : {
@@ -26,9 +27,9 @@ export default async function SubscriptionsPage() {
       <div className="container mx-auto max-w-7xl px-4 py-10 space-y-10">
         <div className="flex items-center justify-start">
           <Button variant="outline" asChild>
-            <Link href="/">
+            <Link href={backHref}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to landing page
+              Back
             </Link>
           </Button>
         </div>
