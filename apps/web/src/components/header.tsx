@@ -16,6 +16,8 @@ type HeaderPlanResponse = {
   planId: string;
   planLabel: string;
   status?: string;
+  organizationSlug?: string | null;
+  isOrgAdmin?: boolean;
 };
 
 type HeaderLink = {
@@ -31,7 +33,9 @@ export function Header() {
   const userId = session?.user?.id;
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isSuperAdmin = userRole === "super_admin";
-  const isOrgAdmin = userRole === "admin";
+  const isOrgAdmin = userRole === "admin" || planData?.isOrgAdmin === true;
+  const hasOrganization = Boolean(planData?.organizationSlug);
+  const showOrganizationLink = !isSuperAdmin && (hasOrganization || isOrgAdmin);
 
   useEffect(() => {
     if (!userId) {
@@ -88,7 +92,7 @@ export function Header() {
         { to: "/dashboard" as Route, label: "Dashboard" },
         { to: "/analyze" as Route, label: "Analyze" },
         { to: "/scans" as Route, label: "My Scans" },
-        ...(isOrgAdmin ? [{ to: "/organization" as Route, label: "Organization" }] : []),
+        ...(showOrganizationLink ? [{ to: "/organization" as Route, label: "Organization" }] : []),
         { to: "/settings" as Route, label: "Settings" },
       ];
 

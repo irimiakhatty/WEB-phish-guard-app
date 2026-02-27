@@ -21,6 +21,8 @@ export async function GET(req: Request) {
         planId: "super_admin",
         planLabel: "Super Admin",
         status: "active",
+        organizationSlug: null,
+        isOrgAdmin: false,
       });
     }
 
@@ -31,6 +33,8 @@ export async function GET(req: Request) {
       planId: subInfo.planId,
       planLabel: plan.name,
       status: subInfo.status ?? "active",
+      organizationSlug: subInfo.organizationSlug ?? null,
+      isOrgAdmin: subInfo.isOrgAdmin ?? false,
     });
   } catch (error: any) {
     return NextResponse.json(
