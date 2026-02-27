@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LogIn } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -15,26 +16,47 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 
-export default function UserMenu() {
+type UserMenuProps = {
+  compact?: boolean;
+};
+
+export default function UserMenu({ compact = false }: UserMenuProps) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
+    return <Skeleton className={compact ? "size-9 rounded-md" : "h-9 w-24"} />;
   }
 
   if (!session) {
     return (
       <Link href="/login">
-        <Button variant="outline">Sign In</Button>
+        {compact ? (
+          <Button variant="outline" size="icon" aria-label="Sign In">
+            <LogIn className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button variant="outline">Sign In</Button>
+        )}
       </Link>
     );
   }
 
+  const userInitial = session.user.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
-        {session.user.name}
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size={compact ? "icon" : "default"} />}
+      >
+        {compact ? (
+          <>
+            <span className="font-semibold">{userInitial}</span>
+            <span className="sr-only">Open account menu</span>
+          </>
+        ) : (
+          session.user.name
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card">
         <DropdownMenuGroup>

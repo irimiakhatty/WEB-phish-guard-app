@@ -41,9 +41,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 dark:bg-[#061233] dark:text-slate-100`}
       >
         <Providers>
-          <div className="grid min-h-svh grid-rows-[auto_1fr]">
+          <div className="flex min-h-svh flex-col md:flex-row">
             <Header />
-            {children}
+            <main className="min-w-0 flex-1">{children}</main>
           </div>
         </Providers>
       </body>
