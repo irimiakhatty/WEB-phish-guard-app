@@ -13,13 +13,24 @@ type InviteEmailPayload = {
   inviterName?: string;
 };
 
+export type InviteEmailSendResult = {
+  sent: boolean;
+  status: "sent" | "failed" | "skipped";
+  messageId?: string | null;
+  error?: string;
+};
+
 export async function sendInviteEmail(payload: InviteEmailPayload) {
   const { to, link, orgName, inviterName } = payload;
   const from = process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@phishguard.local";
 
   if (!hasEmailConfig()) {
     console.warn("[email] Missing SMTP config, skipping send. Invite link:", link);
-    return { sent: false, skipped: true };
+    return {
+      sent: false,
+      status: "skipped",
+      error: "SMTP is not configured",
+    } satisfies InviteEmailSendResult;
   }
 
   const transporter = nodemailer.createTransport({
@@ -41,13 +52,27 @@ export async function sendInviteEmail(payload: InviteEmailPayload) {
   `;
   const text = `Hi,\n${inviterName || "A teammate"} has invited you to join ${orgName || "PhishGuard"}.\n\nAccept invitation: ${link}\n\nIf you weren't expecting this, you can ignore this email.`;
 
-  await transporter.sendMail({
-    from,
-    to,
-    subject,
-    text,
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+    });
 
-  return { sent: true };
+    return {
+      sent: true,
+      status: "sent",
+      messageId: info.messageId ?? null,
+    } satisfies InviteEmailSendResult;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown SMTP error";
+    console.error("[email] Failed to send invite email:", message);
+    return {
+      sent: false,
+      status: "failed",
+      error: message,
+    } satisfies InviteEmailSendResult;
+  }
 }

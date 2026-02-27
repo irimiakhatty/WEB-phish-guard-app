@@ -21,6 +21,23 @@ type Props = {
 
 export default function AcceptInviteForm({ token, email, orgSlug, orgName, role }: Props) {
   const router = useRouter();
+  const formatInviteError = (message?: string) => {
+    if (!message) return "Failed to accept invite";
+    const normalized = message.toLowerCase();
+    if (normalized.includes("expired")) {
+      return "Invitation expired. Ask your admin to resend it.";
+    }
+    if (normalized.includes("canceled")) {
+      return "Invitation canceled by an admin.";
+    }
+    if (normalized.includes("already been accepted")) {
+      return "Invitation already used. Please sign in.";
+    }
+    if (normalized.includes("different email")) {
+      return "This invitation is bound to a different email address.";
+    }
+    return message;
+  };
 
   const form = useForm({
     defaultValues: {
@@ -46,7 +63,7 @@ export default function AcceptInviteForm({ token, email, orgSlug, orgName, role 
             router.push(`/login?email=${encodeURIComponent(email)}&invite=${token}`);
             return;
           }
-          toast.error(res.error || "Failed to accept invite");
+          toast.error(formatInviteError(res.error));
           return;
         }
 
@@ -65,7 +82,7 @@ export default function AcceptInviteForm({ token, email, orgSlug, orgName, role 
           }
         );
       } catch (err: any) {
-        toast.error(err?.message || "Failed to accept invite");
+        toast.error(formatInviteError(err?.message));
         console.error(err);
       }
     },

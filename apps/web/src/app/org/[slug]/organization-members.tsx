@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { inviteMember, removeMember, updateMemberRole, cancelInvite, bulkInviteMembers } from "@/app/actions/organizations";
+import {
+  inviteMember,
+  removeMember,
+  updateMemberRole,
+  cancelInvite,
+  bulkInviteMembers,
+  resendInvite,
+  copyInviteLink,
+} from "@/app/actions/organizations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface Member {
   id: string;
@@ -53,6 +62,10 @@ interface Invite {
   id: string;
   email: string;
   role: string;
+  status?: "pending" | "sent" | "failed" | "accepted" | "canceled" | "expired";
+  sendAttempts?: number | null;
+  lastSentAt?: Date | null;
+  lastError?: string | null;
   createdAt: Date;
   expiresAt: Date;
 }
@@ -89,6 +102,17 @@ export default function OrganizationMembers({
   const [bulkLoading, setBulkLoading] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [inviteActionType, setInviteActionType] = useState<"resend" | "copy" | "cancel" | null>(null);
+
+  const inviteStatusClass: Record<NonNullable<Invite["status"]>, string> = {
+    pending: "bg-gray-100 text-gray-700 border-gray-200",
+    sent: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    failed: "bg-red-100 text-red-700 border-red-200",
+    accepted: "bg-blue-100 text-blue-700 border-blue-200",
+    canceled: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    expired: "bg-amber-100 text-amber-700 border-amber-200",
+  };
 
   const parseCsvLine = (line: string) => {
     const result: string[] = [];
@@ -199,6 +223,9 @@ export default function OrganizationMembers({
 
     if (!result.success) {
       setInviteError(result.error || "Failed to send invite");
+      if ("inviteLink" in result && result.inviteLink) {
+        setInviteSuccess("Invite created. Email failed, but you can copy the invite link from pending invites.");
+      }
       return;
     }
 
@@ -219,7 +246,7 @@ export default function OrganizationMembers({
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error);
+      toast.error(result.error || "Failed to remove member");
     }
   };
 
@@ -228,16 +255,58 @@ export default function OrganizationMembers({
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error);
+      toast.error(result.error || "Failed to change role");
     }
   };
 
   const handleCancelInvite = async (inviteId: string) => {
+    setInviteActionId(inviteId);
+    setInviteActionType("cancel");
     const result = await cancelInvite(inviteId);
+    setInviteActionId(null);
+    setInviteActionType(null);
     if (result.success) {
+      toast.success("Invite canceled");
       router.refresh();
     } else {
-      alert(result.error);
+      toast.error(result.error || "Failed to cancel invite");
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string) => {
+    setInviteActionId(inviteId);
+    setInviteActionType("resend");
+    const result = await resendInvite(inviteId);
+    setInviteActionId(null);
+    setInviteActionType(null);
+
+    if (result.success) {
+      toast.success(result.message || "Invitation resent");
+      router.refresh();
+      return;
+    }
+
+    toast.error(result.error || "Email could not be sent");
+  };
+
+  const handleCopyInviteLink = async (inviteId: string) => {
+    setInviteActionId(inviteId);
+    setInviteActionType("copy");
+    const result = await copyInviteLink(inviteId);
+    setInviteActionId(null);
+    setInviteActionType(null);
+
+    if (!result.success || !result.inviteLink) {
+      toast.error(result.error || "Could not generate invite link");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(result.inviteLink);
+      toast.success("Invite link copied");
+    } catch {
+      window.prompt("Copy invite link:", result.inviteLink);
+      toast("Copy the invite link manually");
     }
   };
 
@@ -503,40 +572,87 @@ export default function OrganizationMembers({
         <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader>
             <CardTitle>Pending Invitations</CardTitle>
-            <CardDescription>{organization.invites.length} pending invites</CardDescription>
+            <CardDescription>{organization.invites.length} active invites</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {organization.invites.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-muted rounded-full">
-                      <Mail className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-semibold">{invite.email}</p>
-                      <p className="text-sm text-muted-foreground">
-                        <Clock className="w-3 h-3 inline mr-1" />
-                        Expires {new Date(invite.expiresAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+              {organization.invites.map((invite) => {
+                const actionLoading = inviteActionId === invite.id;
+                const inviteStatus = (invite.status || "pending") as NonNullable<Invite["status"]>;
 
-                  <div className="flex items-center gap-3">
-                    <Badge variant="secondary">{invite.role}</Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCancelInvite(invite.id)}
-                    >
-                      Cancel
-                    </Button>
+                return (
+                  <div
+                    key={invite.id}
+                    className="flex flex-col gap-4 p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-2 bg-muted rounded-full">
+                          <Mail className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{invite.email}</p>
+                          <p className="text-sm text-muted-foreground">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                          </p>
+                          {invite.lastError ? (
+                            <p className="text-xs text-red-600 mt-1">{invite.lastError}</p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{invite.role}</Badge>
+                        <span
+                          className={`text-xs font-medium px-2 py-1 rounded-full border ${inviteStatusClass[inviteStatus]}`}
+                        >
+                          {inviteStatus}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleResendInvite(invite.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading && inviteActionType === "resend" ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        Resend
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyInviteLink(invite.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading && inviteActionType === "copy" ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        Copy link
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCancelInvite(invite.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading && inviteActionType === "cancel" ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        Cancel
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        Attempts: {invite.sendAttempts ?? 0}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

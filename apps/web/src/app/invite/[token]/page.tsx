@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import prisma from "@phish-guard-app/db";
 import AcceptInviteForm from "@/components/accept-invite-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,16 +23,14 @@ export default async function InvitePage({ params }: PageProps) {
     notFound();
   }
 
-  if (invite.expiresAt < new Date()) {
+  const renderInactiveInvite = (title: string, description: string) => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
         <div className="container mx-auto max-w-xl py-16 px-4">
           <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
-              <CardTitle>Invitation expired</CardTitle>
-              <CardDescription>
-                This invitation link has expired. Please ask the admin to send a new invite.
-              </CardDescription>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-gray-600 dark:text-gray-400">
               You can close this page now.
@@ -40,6 +38,34 @@ export default async function InvitePage({ params }: PageProps) {
           </Card>
         </div>
       </div>
+    );
+  };
+
+  if (invite.status === "accepted") {
+    return renderInactiveInvite(
+      "Invitation already accepted",
+      "This invitation was already used. Please sign in to continue."
+    );
+  }
+
+  if (invite.status === "canceled") {
+    return renderInactiveInvite(
+      "Invitation canceled",
+      "This invitation has been canceled by an organization admin."
+    );
+  }
+
+  if (invite.expiresAt < new Date() || invite.status === "expired") {
+    if (invite.status !== "expired") {
+      await prisma.organizationInvite.update({
+        where: { id: invite.id },
+        data: { status: "expired" },
+      });
+    }
+
+    return renderInactiveInvite(
+      "Invitation expired",
+      "This invitation link has expired. Please ask the admin to send a new invite."
     );
   }
 

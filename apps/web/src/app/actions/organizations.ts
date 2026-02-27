@@ -10,6 +10,116 @@ import { auth } from "@phish-guard-app/auth";
 import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
 import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/organization-name";
 
+const INVITE_TTL_DAYS = Number(process.env.INVITE_LINK_TTL_DAYS || 7);
+const prismaAny = prisma as any;
+
+const ACTIVE_INVITE_STATUSES: Array<"pending" | "sent" | "failed"> = [
+  "pending",
+  "sent",
+  "failed",
+];
+
+function getInviteExpiryDate() {
+  const expiresAt = new Date();
+  expiresAt.setDate(
+    expiresAt.getDate() + (Number.isFinite(INVITE_TTL_DAYS) && INVITE_TTL_DAYS > 0 ? INVITE_TTL_DAYS : 7)
+  );
+  return expiresAt;
+}
+
+function getAppBaseUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3001";
+}
+
+function buildInviteLink(token: string) {
+  return `${getAppBaseUrl()}/invite/${token}`;
+}
+
+async function logInviteDelivery(params: {
+  inviteId: string;
+  organizationId: string;
+  recipientEmail: string;
+  status: "sent" | "failed" | "skipped";
+  providerMessageId?: string | null;
+  error?: string | null;
+  metadata?: unknown;
+}) {
+  const { inviteId, organizationId, recipientEmail, status, providerMessageId, error, metadata } = params;
+
+  await prismaAny.emailDeliveryLog.create({
+    data: {
+      inviteId,
+      organizationId,
+      recipientEmail,
+      status,
+      providerMessageId: providerMessageId || null,
+      error: error || null,
+      metadata: metadata ? (metadata as any) : undefined,
+    },
+  });
+}
+
+async function markInviteExpired(inviteId: string) {
+  await prismaAny.organizationInvite.updateMany({
+    where: {
+      id: inviteId,
+      status: { in: ACTIVE_INVITE_STATUSES },
+    },
+    data: {
+      status: "expired",
+    },
+  });
+}
+
+async function dispatchInviteEmail(params: {
+  inviteId: string;
+  organizationId: string;
+  email: string;
+  token: string;
+  orgName: string;
+  inviterName?: string | null;
+}) {
+  const { inviteId, organizationId, email, token, orgName, inviterName } = params;
+  const inviteLink = buildInviteLink(token);
+  const now = new Date();
+
+  const emailResult = await sendInviteEmail({
+    to: email,
+    link: inviteLink,
+    orgName,
+    inviterName: inviterName || undefined,
+  });
+
+  const nextInviteStatus = emailResult.status === "sent" ? "sent" : "failed";
+
+  await prismaAny.organizationInvite.update({
+    where: { id: inviteId },
+    data: {
+      status: nextInviteStatus,
+      sendAttempts: { increment: 1 },
+      lastSentAt: now,
+      lastError: emailResult.error ?? null,
+    },
+  });
+
+  await logInviteDelivery({
+    inviteId,
+    organizationId,
+    recipientEmail: email,
+    status: emailResult.status,
+    providerMessageId: emailResult.messageId ?? null,
+    error: emailResult.error ?? null,
+    metadata: {
+      inviteLink,
+    },
+  });
+
+  return {
+    inviteLink,
+    emailResult,
+  };
+}
+
 // ==========================================
 // ORGANIZATION CRUD
 // ==========================================
@@ -322,6 +432,7 @@ export async function inviteMember(
 ) {
   const { user } = await requireAuth();
   const isSuperAdmin = user.role === "super_admin";
+  const normalizedEmail = data.email.trim().toLowerCase();
 
   // Check if user is admin
   if (!isSuperAdmin) {
@@ -373,9 +484,29 @@ export async function inviteMember(
     };
   }
 
+  const existingActiveInvite = await prisma.organizationInvite.findFirst({
+    where: {
+      organizationId,
+      email: normalizedEmail,
+      status: { in: ACTIVE_INVITE_STATUSES },
+      expiresAt: { gte: new Date() },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingActiveInvite) {
+    return {
+      success: false,
+      error: "An active invite already exists for this email. Use resend instead.",
+      inviteId: existingActiveInvite.id,
+    };
+  }
+
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
+    where: { email: normalizedEmail },
   });
 
   if (existingUser) {
@@ -415,13 +546,12 @@ export async function inviteMember(
   // Create invite for non-existing user
   try {
     const inviteToken = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    const expiresAt = getInviteExpiryDate();
 
     const invite = await prisma.organizationInvite.create({
       data: {
         organizationId,
-        email: data.email,
+        email: normalizedEmail,
         role: data.role,
         invitedById: user.id,
         token: inviteToken,
@@ -429,18 +559,27 @@ export async function inviteMember(
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "http://localhost:3001";
-    const inviteLink = `${appUrl}/invite/${inviteToken}`;
-
-    await sendInviteEmail({
-      to: data.email,
-      link: inviteLink,
+    const { inviteLink, emailResult } = await dispatchInviteEmail({
+      inviteId: invite.id,
+      organizationId,
+      email: normalizedEmail,
+      token: inviteToken,
       orgName: organization.name,
       inviterName: user.name || user.email,
     });
 
     revalidatePath(`/org/${organization.slug}`);
     revalidatePath(`/org/${organization.slug}/members`);
+
+    if (!emailResult.sent) {
+      return {
+        success: false,
+        error:
+          "Invite created, but email could not be delivered. Use copy invite link to share it manually.",
+        inviteLink,
+        inviteId: invite.id,
+      };
+    }
 
     return {
       success: true,
@@ -523,6 +662,21 @@ export async function bulkInviteMembers(
 
     const role = invite.role === "admin" ? "admin" : "member";
 
+    const existingActiveInvite = await prisma.organizationInvite.findFirst({
+      where: {
+        organizationId,
+        email,
+        status: { in: ACTIVE_INVITE_STATUSES },
+        expiresAt: { gte: new Date() },
+      },
+      select: { id: true },
+    });
+
+    if (existingActiveInvite) {
+      results.push({ email, status: "skipped", message: "Active invite already exists" });
+      continue;
+    }
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -555,10 +709,9 @@ export async function bulkInviteMembers(
 
     try {
       const inviteToken = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      const expiresAt = getInviteExpiryDate();
 
-      await prisma.organizationInvite.create({
+      const createdInvite = await prisma.organizationInvite.create({
         data: {
           organizationId,
           email,
@@ -569,21 +722,26 @@ export async function bulkInviteMembers(
         },
       });
 
-      const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        process.env.BETTER_AUTH_URL ||
-        "http://localhost:3001";
-      const inviteLink = `${appUrl}/invite/${inviteToken}`;
-
-      await sendInviteEmail({
-        to: email,
-        link: inviteLink,
+      const { emailResult } = await dispatchInviteEmail({
+        inviteId: createdInvite.id,
+        organizationId,
+        email,
+        token: inviteToken,
         orgName: organization.name,
         inviterName: user.name || user.email,
       });
 
       availableSlots -= 1;
-      results.push({ email, status: "invited", message: "Invitation sent" });
+
+      if (emailResult.sent) {
+        results.push({ email, status: "invited", message: "Invitation sent" });
+      } else {
+        results.push({
+          email,
+          status: "skipped",
+          message: "Invite created, but email delivery failed (use copy invite link).",
+        });
+      }
     } catch (error) {
       console.error("Error creating bulk invite:", error);
       results.push({ email, status: "skipped", message: "Failed to send invite" });
@@ -620,7 +778,20 @@ export async function acceptInviteSignUp(input: { token: string; name: string; p
     return { success: false, error: "Invalid or expired invite" };
   }
 
+  if (invite.status === "accepted") {
+    return { success: false, error: "This invite has already been accepted." };
+  }
+
+  if (invite.status === "canceled") {
+    return { success: false, error: "This invite was canceled by an admin." };
+  }
+
+  if (invite.status === "expired") {
+    return { success: false, error: "Invite expired" };
+  }
+
   if (invite.expiresAt < new Date()) {
+    await markInviteExpired(invite.id);
     return { success: false, error: "Invite expired" };
   }
 
@@ -643,8 +814,17 @@ export async function acceptInviteSignUp(input: { token: string; name: string; p
         },
       });
     }
-    // Consume invite
-    await prisma.organizationInvite.delete({ where: { id: invite.id } });
+
+    await prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date(),
+        consumedById: existingUser.id,
+        lastError: null,
+      },
+    });
+
     return { success: false, code: "USER_EXISTS", email: invite.email };
   }
 
@@ -661,19 +841,24 @@ export async function acceptInviteSignUp(input: { token: string; name: string; p
     return { success: false, error: "Failed to create user" };
   }
 
-  // Add membership
-  await prisma.organizationMember.create({
-    data: {
-      organizationId: invite.organizationId,
-      userId: created.user.id,
-      role: invite.role,
-    },
-  });
-
-  // Default personal subscription optional (skip)
-
-  // Consume invite
-  await prisma.organizationInvite.delete({ where: { id: invite.id } });
+  await prisma.$transaction([
+    prisma.organizationMember.create({
+      data: {
+        organizationId: invite.organizationId,
+        userId: created.user.id,
+        role: invite.role,
+      },
+    }),
+    prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date(),
+        consumedById: created.user.id,
+        lastError: null,
+      },
+    }),
+  ]);
 
   // Get org slug
   const org = await prisma.organization.findUnique({
@@ -837,7 +1022,29 @@ export async function acceptInvite(token: string) {
     };
   }
 
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "This invite has already been accepted.",
+    };
+  }
+
+  if (invite.status === "canceled") {
+    return {
+      success: false,
+      error: "This invite was canceled by an admin.",
+    };
+  }
+
+  if (invite.status === "expired") {
+    return {
+      success: false,
+      error: "Invite has expired",
+    };
+  }
+
   if (invite.expiresAt < new Date()) {
+    await markInviteExpired(invite.id);
     return {
       success: false,
       error: "Invite has expired",
@@ -861,6 +1068,16 @@ export async function acceptInvite(token: string) {
   });
 
   if (existingMembership) {
+    await prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date(),
+        consumedById: user.id,
+        lastError: null,
+      },
+    });
+
     return {
       success: false,
       error: "You are already a member of this organization",
@@ -868,7 +1085,7 @@ export async function acceptInvite(token: string) {
   }
 
   try {
-    // Add as member and delete invite
+    // Add as member and mark invite accepted
     await prisma.$transaction([
       prisma.organizationMember.create({
         data: {
@@ -877,8 +1094,14 @@ export async function acceptInvite(token: string) {
           role: invite.role,
         },
       }),
-      prisma.organizationInvite.delete({
+      prismaAny.organizationInvite.update({
         where: { id: invite.id },
+        data: {
+          status: "accepted",
+          acceptedAt: new Date(),
+          consumedById: user.id,
+          lastError: null,
+        },
       }),
     ]);
 
@@ -897,6 +1120,178 @@ export async function acceptInvite(token: string) {
       error: "Failed to accept invitation",
     };
   }
+}
+
+export async function resendInvite(inviteId: string) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const invite = await prisma.organizationInvite.findUnique({
+    where: { id: inviteId },
+    include: {
+      organization: {
+        include: {
+          members: {
+            where: {
+              userId: user.id,
+              role: "admin",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!invite) {
+    return {
+      success: false,
+      error: "Invite not found",
+    };
+  }
+
+  if (!isSuperAdmin && invite.organization.members.length === 0) {
+    return {
+      success: false,
+      error: "You don't have permission to resend this invite",
+    };
+  }
+
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "This invite has already been accepted.",
+    };
+  }
+
+  if (invite.status === "canceled") {
+    return {
+      success: false,
+      error: "This invite has been canceled.",
+    };
+  }
+
+  let token = invite.token;
+  const now = new Date();
+  const isExpired = invite.expiresAt < now || invite.status === "expired";
+
+  if (isExpired) {
+    token = crypto.randomBytes(32).toString("hex");
+    await prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        token,
+        expiresAt: getInviteExpiryDate(),
+        status: "pending",
+        lastError: null,
+      },
+    });
+  } else if (invite.status === "failed") {
+    await prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: "pending",
+      },
+    });
+  }
+
+  const { inviteLink, emailResult } = await dispatchInviteEmail({
+    inviteId: invite.id,
+    organizationId: invite.organizationId,
+    email: invite.email,
+    token,
+    orgName: invite.organization.name,
+    inviterName: user.name || user.email,
+  });
+
+  revalidatePath(`/org/${invite.organization.slug}`);
+  revalidatePath(`/org/${invite.organization.slug}/members`);
+
+  if (!emailResult.sent) {
+    return {
+      success: false,
+      error: "Email could not be delivered. Copy the invite link and share it manually.",
+      inviteLink,
+    };
+  }
+
+  return {
+    success: true,
+    message: "Invitation resent",
+    inviteLink,
+  };
+}
+
+export async function copyInviteLink(inviteId: string) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const invite = await prisma.organizationInvite.findUnique({
+    where: { id: inviteId },
+    include: {
+      organization: {
+        include: {
+          members: {
+            where: {
+              userId: user.id,
+              role: "admin",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!invite) {
+    return {
+      success: false,
+      error: "Invite not found",
+    };
+  }
+
+  if (!isSuperAdmin && invite.organization.members.length === 0) {
+    return {
+      success: false,
+      error: "You don't have permission to access this invite link",
+    };
+  }
+
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "This invite has already been accepted.",
+    };
+  }
+
+  if (invite.status === "canceled") {
+    return {
+      success: false,
+      error: "This invite has been canceled.",
+    };
+  }
+
+  let token = invite.token;
+  const now = new Date();
+  const isExpired = invite.expiresAt < now || invite.status === "expired";
+
+  if (isExpired) {
+    token = crypto.randomBytes(32).toString("hex");
+    await prismaAny.organizationInvite.update({
+      where: { id: invite.id },
+      data: {
+        token,
+        expiresAt: getInviteExpiryDate(),
+        status: "pending",
+        lastError: null,
+      },
+    });
+    revalidatePath(`/org/${invite.organization.slug}`);
+    revalidatePath(`/org/${invite.organization.slug}/members`);
+  }
+
+  return {
+    success: true,
+    inviteLink: buildInviteLink(token),
+  };
 }
 
 export async function cancelInvite(inviteId: string) {
@@ -933,11 +1328,27 @@ export async function cancelInvite(inviteId: string) {
     };
   }
 
+  if (invite.status === "accepted") {
+    return {
+      success: false,
+      error: "Cannot cancel an invite that was already accepted.",
+    };
+  }
+
+  if (invite.status === "canceled") {
+    return { success: true };
+  }
+
   try {
-    await prisma.organizationInvite.delete({
+    await prismaAny.organizationInvite.update({
       where: { id: inviteId },
+      data: {
+        status: "canceled",
+        canceledAt: new Date(),
+      },
     });
 
+    revalidatePath(`/org/${invite.organization.slug}`);
     revalidatePath(`/org/${invite.organization.slug}/members`);
 
     return { success: true };
@@ -977,6 +1388,7 @@ export async function getOrganization(slug: string) {
       },
       invites: {
         where: {
+          status: { in: ACTIVE_INVITE_STATUSES },
           expiresAt: { gte: new Date() },
         },
         orderBy: { createdAt: "desc" },

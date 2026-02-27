@@ -19,6 +19,7 @@ model User {
   memberships          OrganizationMember[]
   createdOrganizations Organization[]       @relation("OrganizationCreator")
   sentInvites          OrganizationInvite[]
+  consumedInvites      OrganizationInvite[] @relation("InviteConsumedByUser")
 
   // PhishGuard relations
   scans          Scan[]
@@ -95,6 +96,7 @@ model Organization {
   scans        Scan[]
 
   settings Json?
+  emailDeliveryLogs EmailDeliveryLog[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -131,15 +133,60 @@ model OrganizationInvite {
   token          String       @unique
   invitedById    String
   invitedBy      User         @relation(fields: [invitedById], references: [id])
-  status         String       @default("pending")
+  status         InviteStatus @default(pending)
+  sendAttempts   Int          @default(0)
+  lastSentAt     DateTime?
+  lastError      String?
+  acceptedAt     DateTime?
+  canceledAt     DateTime?
+  consumedById   String?
+  consumedBy     User?        @relation("InviteConsumedByUser", fields: [consumedById], references: [id], onDelete: SetNull)
   expiresAt      DateTime
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  emailLogs      EmailDeliveryLog[]
 
   @@index([organizationId])
   @@index([email])
   @@index([token])
+  @@index([status, expiresAt])
   @@map("organization_invite")
+}
+
+model EmailDeliveryLog {
+  id                String        @id @default(cuid())
+  inviteId          String?
+  invite            OrganizationInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  organizationId    String
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipientEmail    String
+  channel           String        @default("smtp")
+  status            DeliveryStatus
+  providerMessageId String?
+  error             String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+
+  @@index([inviteId])
+  @@index([organizationId])
+  @@index([recipientEmail])
+  @@index([status, createdAt])
+  @@map("email_delivery_log")
+}
+
+enum InviteStatus {
+  pending
+  sent
+  failed
+  accepted
+  canceled
+  expired
+}
+
+enum DeliveryStatus {
+  sent
+  failed
+  skipped
 }
 
 // Personal Subscription (B2C - Individual Users)
