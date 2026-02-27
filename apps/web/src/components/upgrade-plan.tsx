@@ -48,8 +48,11 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
 
         if (data?.url) {
           window.location.href = data.url;
+        } else if (data?.message) {
+          toast.success(data.message);
+          window.location.reload();
         } else {
-          toast.error("Stripe session missing redirect URL.");
+          toast.error("Could not start the billing flow.");
         }
       } catch (err: any) {
         toast.error(err?.message || "Upgrade failed");

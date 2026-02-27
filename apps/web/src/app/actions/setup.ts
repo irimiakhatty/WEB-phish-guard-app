@@ -3,6 +3,8 @@
 import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
 import { revalidatePath } from "next/cache";
+import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
+import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/organization-name";
 
 /**
  * Check if any organization admin exists in the system
@@ -36,9 +38,13 @@ export async function createFirstAdmin(data: {
     throw new Error("All fields are required");
   }
 
-  if (data.password.length < 8) {
-    throw new Error("Password must be at least 8 characters");
+  if (!isPasswordStrong(data.password)) {
+    throw new Error(PASSWORD_POLICY_ERROR);
   }
+  const orgName = sanitizeOrganizationName(
+    data.organizationName || `${data.name}'s Organization`,
+  );
+  const orgNameKey = toOrganizationNameKey(orgName);
 
   // Check if email is already taken
   const existingUser = await prisma.user.findUnique({
@@ -47,6 +53,13 @@ export async function createFirstAdmin(data: {
 
   if (existingUser) {
     throw new Error("This email is already registered");
+  }
+  const existingOrganization = await prisma.organization.findUnique({
+    where: { nameNormalized: orgNameKey },
+    select: { id: true },
+  });
+  if (existingOrganization) {
+    throw new Error("Organization name already exists. Choose a different name.");
   }
 
   try {
@@ -64,8 +77,6 @@ export async function createFirstAdmin(data: {
       throw new Error("Failed to create user");
     }
 
-    // Default organization name if not provided
-    const orgName = data.organizationName || `${data.name}'s Organization`;
     const orgSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString().slice(-4);
 
     // Create organization and update user role in a transaction? 
@@ -87,6 +98,7 @@ export async function createFirstAdmin(data: {
         await tx.organization.create({
             data: {
                 name: orgName,
+                nameNormalized: orgNameKey,
                 slug: orgSlug,
                 createdById: user.user.id,
                 subscription: {
@@ -118,6 +130,17 @@ export async function createFirstAdmin(data: {
       message: "Organization admin account and organization created successfully! You can now login.",
     };
   } catch (error: any) {
+    const hasOrganizationNameUniqueViolation =
+      error?.meta?.target?.some(
+        (target: string) =>
+          target === "nameNormalized" ||
+          target === "name_normalized" ||
+          target === "organization_name_normalized_key",
+      ) ?? false;
+
+    if (error?.code === "P2002" && hasOrganizationNameUniqueViolation) {
+      throw new Error("Organization name already exists. Choose a different name.");
+    }
     console.error("Error creating admin:", error);
     // Ideally we should delete the user if org creation fails to keep consistency, 
     // but better-auth user deletion might require more setup.

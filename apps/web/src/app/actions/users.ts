@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import { hash } from "@node-rs/argon2";
 import { randomUUID } from "crypto";
+import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
 
 /**
  * Admin creates a new user
@@ -23,8 +24,8 @@ export async function createUserByAdmin(data: {
     throw new Error("All fields are required");
   }
 
-  if (data.password.length < 8) {
-    throw new Error("Password must be at least 8 characters");
+  if (!isPasswordStrong(data.password)) {
+    throw new Error(PASSWORD_POLICY_ERROR);
   }
 
   // Check if email is already taken

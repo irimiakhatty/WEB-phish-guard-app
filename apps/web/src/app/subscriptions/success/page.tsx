@@ -9,12 +9,15 @@ import { CheckCircle, AlertTriangle } from "lucide-react";
 interface PageProps {
   searchParams?: {
     session_id?: string | string[];
+    updated?: string | string[];
   };
 }
 
 export default async function SubscriptionSuccessPage({ searchParams }: PageProps) {
   const sessionId =
     typeof searchParams?.session_id === "string" ? searchParams.session_id : undefined;
+  const updated =
+    typeof searchParams?.updated === "string" ? searchParams.updated : undefined;
   const session = await getSession();
   if (!session?.user) {
     const redirectTarget = sessionId
@@ -25,7 +28,10 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
   let status: "success" | "warning" | "error" = "success";
   let message = "Your subscription is active. You can continue using PhishGuard.";
 
-  if (!sessionId) {
+  if (updated === "1") {
+    status = "success";
+    message = "Your subscription change was applied successfully.";
+  } else if (!sessionId) {
     status = "warning";
     message = "Missing Stripe session. If you completed checkout, refresh later.";
   } else {

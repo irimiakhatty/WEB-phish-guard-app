@@ -81,11 +81,12 @@ model Verification {
 
 // Organizations
 model Organization {
-  id     String  @id @default(cuid())
-  name   String
-  slug   String  @unique
-  domain String? @unique
-  logo   String?
+  id             String  @id @default(cuid())
+  name           String
+  nameNormalized String  @unique @map("name_normalized")
+  slug           String  @unique
+  domain         String? @unique
+  logo           String?
 
   subscription Subscription?
   members      OrganizationMember[]

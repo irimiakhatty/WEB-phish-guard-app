@@ -38,8 +38,8 @@ export default function PricingPage({
     }
 
     const plan = SUBSCRIPTION_PLANS[planId];
-    if (!plan || plan.price === 0 || !plan.stripePriceId) {
-      toast.info("This plan does not require checkout.");
+    if (!plan) {
+      toast.error("Plan not found.");
       return;
     }
 
@@ -71,8 +71,11 @@ export default function PricingPage({
       }
       if (data?.url) {
         window.location.href = data.url;
+      } else if (data?.message) {
+        toast.success(data.message);
+        window.location.reload();
       } else {
-        toast.error("Stripe session missing redirect URL.");
+        toast.error("Could not start the billing flow.");
       }
     });
   };

@@ -7,6 +7,8 @@ import crypto from "crypto";
 import { getPlanById, isTeamPlan } from "@/lib/subscription-plans";
 import { sendInviteEmail } from "@/lib/email";
 import { auth } from "@phish-guard-app/auth";
+import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
+import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/organization-name";
 
 // ==========================================
 // ORGANIZATION CRUD
@@ -17,6 +19,15 @@ export async function createOrganization(data: {
   slug: string;
 }) {
   const { user } = await requireAuth();
+  const sanitizedName = sanitizeOrganizationName(data.name);
+  const organizationNameKey = toOrganizationNameKey(sanitizedName);
+
+  if (sanitizedName.length < 2) {
+    return {
+      success: false,
+      error: "Organization name must be at least 2 characters",
+    };
+  }
 
   // Check if slug is available
   const existing = await prisma.organization.findUnique({
@@ -27,6 +38,17 @@ export async function createOrganization(data: {
     return {
       success: false,
       error: "Organization slug already taken",
+    };
+  }
+  const existingByName = await prisma.organization.findUnique({
+    where: { nameNormalized: organizationNameKey },
+    select: { id: true },
+  });
+
+  if (existingByName) {
+    return {
+      success: false,
+      error: "Organization name already exists",
     };
   }
 
@@ -57,7 +79,8 @@ export async function createOrganization(data: {
     // Create organization with free subscription
     const organization = await prisma.organization.create({
       data: {
-        name: data.name,
+        name: sanitizedName,
+        nameNormalized: organizationNameKey,
         slug: data.slug,
         createdById: user.id,
         subscription: {
@@ -95,6 +118,20 @@ export async function createOrganization(data: {
       },
     };
   } catch (error) {
+    const err = error as { code?: string; meta?: { target?: string[] } };
+    const hasOrganizationNameUniqueViolation =
+      err.meta?.target?.some(
+        (target) =>
+          target === "nameNormalized" ||
+          target === "name_normalized" ||
+          target === "organization_name_normalized_key",
+      ) ?? false;
+    if (err.code === "P2002" && hasOrganizationNameUniqueViolation) {
+      return {
+        success: false,
+        error: "Organization name already exists",
+      };
+    }
     console.error("Error creating organization:", error);
     return {
       success: false,
@@ -109,6 +146,15 @@ export async function updateOrganization(
 ) {
   const { user } = await requireAuth();
   const isSuperAdmin = user.role === "super_admin";
+  const sanitizedName = sanitizeOrganizationName(data.name);
+  const organizationNameKey = toOrganizationNameKey(sanitizedName);
+
+  if (sanitizedName.length < 2) {
+    return {
+      success: false,
+      error: "Organization name must be at least 2 characters",
+    };
+  }
 
   // Check if user is admin of this organization
   if (!isSuperAdmin) {
@@ -131,7 +177,7 @@ export async function updateOrganization(
   try {
     await prisma.organization.update({
       where: { id: organizationId },
-      data: { name: data.name },
+      data: { name: sanitizedName, nameNormalized: organizationNameKey },
     });
 
     revalidatePath("/organizations");
@@ -143,6 +189,20 @@ export async function updateOrganization(
 
     return { success: true };
   } catch (error) {
+    const err = error as { code?: string; meta?: { target?: string[] } };
+    const hasOrganizationNameUniqueViolation =
+      err.meta?.target?.some(
+        (target) =>
+          target === "nameNormalized" ||
+          target === "name_normalized" ||
+          target === "organization_name_normalized_key",
+      ) ?? false;
+    if (err.code === "P2002" && hasOrganizationNameUniqueViolation) {
+      return {
+        success: false,
+        error: "Organization name already exists",
+      };
+    }
     console.error("Error updating organization:", error);
     return {
       success: false,
@@ -548,6 +608,9 @@ export async function bulkInviteMembers(
 // Accept invite with signup (new user)
 export async function acceptInviteSignUp(input: { token: string; name: string; password: string }) {
   const { token, name, password } = input;
+  if (!isPasswordStrong(password)) {
+    return { success: false, error: PASSWORD_POLICY_ERROR };
+  }
 
   const invite = await prisma.organizationInvite.findUnique({
     where: { token },

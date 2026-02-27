@@ -7,6 +7,12 @@ import { ArrowLeft, Building2, Eye, EyeOff, Shield, User } from "lucide-react";
 
 import { signUpWithOrganization } from "@/app/actions/auth";
 import { authClient } from "@/lib/auth-client";
+import {
+  getPasswordRuleStates,
+  isPasswordStrong,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_ERROR,
+} from "@/lib/password-policy";
 
 import Loader from "./loader";
 import { Button } from "./ui/button";
@@ -18,7 +24,10 @@ const signUpSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+      .refine(isPasswordStrong, PASSWORD_POLICY_ERROR),
     accountType: z.enum(["personal", "organization"]),
     organizationName: z.string(),
   })
@@ -317,6 +326,25 @@ export default function SignUpForm({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <ul className="mt-2 space-y-1">
+                    {getPasswordRuleStates(field.state.value).map((rule) => (
+                      <li
+                        key={rule.id}
+                        className={`flex items-center gap-2 text-xs ${
+                          rule.passed
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            rule.passed ? "bg-emerald-500" : "bg-gray-400"
+                          }`}
+                        />
+                        {rule.label}
+                      </li>
+                    ))}
+                  </ul>
                   {field.state.meta.errors.map((error, idx) => (
                     <p key={idx} className="text-sm text-red-500">
                       {getErrorMessage(error)}

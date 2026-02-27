@@ -2,6 +2,8 @@
 
 import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
+import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
+import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/organization-name";
 
 type SignUpResult =
   | { success: true; message: string }
@@ -11,8 +13,15 @@ function toFriendlySignUpError(error: unknown): SignUpResult {
   const err = error as {
     code?: string;
     message?: string;
-    meta?: { table?: string };
+    meta?: { table?: string; target?: string[] };
   };
+  const hasOrganizationNameUniqueViolation =
+    err?.meta?.target?.some(
+      (target) =>
+        target === "nameNormalized" ||
+        target === "name_normalized" ||
+        target === "organization_name_normalized_key",
+    ) ?? false;
 
   if (err?.code === "P2021" || err?.code === "P2022") {
     return {
@@ -28,6 +37,14 @@ function toFriendlySignUpError(error: unknown): SignUpResult {
       success: false,
       code: err.code,
       error: "Cannot connect to database. Verify DATABASE_URL in Vercel.",
+    };
+  }
+
+  if (err?.code === "P2002" && hasOrganizationNameUniqueViolation) {
+    return {
+      success: false,
+      code: err.code,
+      error: "Organization name already exists. Choose a different name.",
     };
   }
 
@@ -56,6 +73,9 @@ export async function signUpWithOrganization(data: {
   if (!data.email || !data.password || !data.name) {
     return { success: false, error: "All fields are required" };
   }
+  if (!isPasswordStrong(data.password)) {
+    return { success: false, error: PASSWORD_POLICY_ERROR };
+  }
 
   if (data.accountType === "organization" && !data.organizationName) {
     return {
@@ -64,9 +84,34 @@ export async function signUpWithOrganization(data: {
     };
   }
 
+  const sanitizedOrganizationName =
+    data.accountType === "organization" && data.organizationName
+      ? sanitizeOrganizationName(data.organizationName)
+      : null;
+  const organizationNameKey =
+    data.accountType === "organization" && data.organizationName
+      ? toOrganizationNameKey(data.organizationName)
+      : null;
+
   let createdUserId: string | null = null;
 
   try {
+    if (data.accountType === "organization" && organizationNameKey) {
+      const existingOrganization = await prisma.organization.findUnique({
+        where: {
+          nameNormalized: organizationNameKey,
+        },
+        select: { id: true },
+      });
+
+      if (existingOrganization) {
+        return {
+          success: false,
+          error: "Organization name already exists. Choose a different name.",
+        };
+      }
+    }
+
     // Check user existence first. Keep this inside try so DB errors are returned
     // as user-friendly messages instead of bubbling as HTTP 500.
     const existingUser = await prisma.user.findUnique({
@@ -91,13 +136,18 @@ export async function signUpWithOrganization(data: {
     }
     createdUserId = user.user.id;
 
-    if (data.accountType === "organization" && data.organizationName) {
-        const orgName = data.organizationName;
+    if (
+      data.accountType === "organization" &&
+      sanitizedOrganizationName &&
+      organizationNameKey
+    ) {
+        const orgName = sanitizedOrganizationName;
         const orgSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString().slice(-4);
 
         await prisma.organization.create({
             data: {
                 name: orgName,
+                nameNormalized: organizationNameKey,
                 slug: orgSlug,
                 createdById: user.user.id,
                 subscription: {

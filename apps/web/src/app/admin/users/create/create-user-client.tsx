@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createUserByAdmin } from "@/app/actions/users";
+import {
+  isPasswordStrong,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_ERROR,
+} from "@/lib/password-policy";
 
 export default function CreateUserClient() {
   const router = useRouter();
@@ -49,8 +54,11 @@ export default function CreateUserClient() {
       onSubmit: z.object({
         name: z.string().min(2, "Name must be at least 2 characters"),
         email: z.string().email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
-        confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+        password: z
+          .string()
+          .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`)
+          .refine(isPasswordStrong, PASSWORD_POLICY_ERROR),
+        confirmPassword: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
         role: z.enum(["user", "admin"]),
       }),
     },
