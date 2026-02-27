@@ -126,9 +126,9 @@ export default function SignUpForm({
   }
 
   return (
-    <Card className="border-gray-200/70 dark:border-gray-800/70 shadow-xl bg-white/90 dark:bg-gray-900/80 backdrop-blur">
+    <Card className="border-zinc-200/80 bg-card shadow-xl dark:border-zinc-800/80">
       <CardHeader className="space-y-3 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900">
           <Shield className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -154,23 +154,23 @@ export default function SignUpForm({
                   <div
                     className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
                       field.state.value === "personal"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-600"
-                        : "border-gray-200 hover:border-blue-400 dark:border-gray-700"
+                        ? "border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 dark:border-zinc-100 dark:bg-zinc-900/60 dark:ring-zinc-100"
+                        : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
                     }`}
                     onClick={() => field.handleChange("personal")}
                   >
                     <User
                       className={`h-6 w-6 ${
                         field.state.value === "personal"
-                          ? "text-blue-600"
-                          : "text-gray-500"
+                          ? "text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-500"
                       }`}
                     />
                     <span
                       className={`text-sm font-medium ${
                         field.state.value === "personal"
-                          ? "text-blue-900 dark:text-blue-100"
-                          : "text-gray-600 dark:text-gray-400"
+                          ? "text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       Personal
@@ -179,23 +179,23 @@ export default function SignUpForm({
                   <div
                     className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
                       field.state.value === "organization"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-600"
-                        : "border-gray-200 hover:border-blue-400 dark:border-gray-700"
+                        ? "border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 dark:border-zinc-100 dark:bg-zinc-900/60 dark:ring-zinc-100"
+                        : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
                     }`}
                     onClick={() => field.handleChange("organization")}
                   >
                     <Building2
                       className={`h-6 w-6 ${
                         field.state.value === "organization"
-                          ? "text-blue-600"
-                          : "text-gray-500"
+                          ? "text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-500"
                       }`}
                     />
                     <span
                       className={`text-sm font-medium ${
                         field.state.value === "organization"
-                          ? "text-blue-900 dark:text-blue-100"
-                          : "text-gray-600 dark:text-gray-400"
+                          ? "text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
                       Organization Admin
@@ -209,12 +209,12 @@ export default function SignUpForm({
           <form.Subscribe selector={(state) => state.values.accountType}>
               {(accountType) =>
                 accountType === "organization" ? (
-                <div className="rounded-lg border border-blue-200/70 bg-blue-50/80 px-4 py-3 text-sm text-blue-900 dark:border-blue-800/70 dark:bg-blue-950/30 dark:text-blue-100">
+                <div className="rounded-lg border border-zinc-300/80 bg-zinc-100/80 px-4 py-3 text-sm text-zinc-900 dark:border-zinc-700/80 dark:bg-zinc-900/40 dark:text-zinc-100">
                   <p className="font-medium">Organization admin setup</p>
-                  <p className="mt-1 text-blue-700 dark:text-blue-200">
+                  <p className="mt-1 text-zinc-700 dark:text-zinc-300">
                     You will create the organization workspace and become its first admin.
                   </p>
-                  <p className="mt-1 text-blue-700 dark:text-blue-200">
+                  <p className="mt-1 text-zinc-700 dark:text-zinc-300">
                     After sign up, you can invite members and manage security settings.
                   </p>
                 </div>
@@ -359,7 +359,7 @@ export default function SignUpForm({
             {(state) => (
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full"
                 disabled={!state.canSubmit || state.isSubmitting}
               >
                 {state.isSubmitting ? "Creating account..." : "Sign Up"}
@@ -372,7 +372,7 @@ export default function SignUpForm({
           <Button
             variant="outline"
             onClick={onSwitchToSignIn}
-            className="w-full border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 dark:border-blue-600/60 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:bg-blue-900/35"
+            className="w-full"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to sign in

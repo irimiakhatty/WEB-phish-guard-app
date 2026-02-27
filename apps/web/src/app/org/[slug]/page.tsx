@@ -32,7 +32,7 @@ export default async function OrganizationPage({ params }: PageProps) {
   const isAdmin = isSuperAdmin || currentUserMembership?.role === "admin";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto py-10 px-4 max-w-7xl">
       <Link href="/organizations">
         <Button variant="ghost" className="mb-6">
@@ -185,3 +185,4 @@ export default async function OrganizationPage({ params }: PageProps) {
     </div>
   );
 }
+

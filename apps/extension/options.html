@@ -1,89 +1,143 @@
 <!DOCTYPE html>
-<html>
-
-<head>
-    <meta charset="UTF-8">
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
     <title>PhishGuard Settings</title>
     <style>
-        body {
-            padding: 20px;
-            font-family: sans-serif;
-            width: 300px;
-        }
+      :root {
+        --background: #ffffff;
+        --foreground: #09090b;
+        --card: #ffffff;
+        --muted: #71717a;
+        --border: #e4e4e7;
+        --primary: #111111;
+        --primary-foreground: #ffffff;
+      }
 
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #000000;
+          --foreground: #fafafa;
+          --card: #09090b;
+          --muted: #a1a1aa;
+          --border: #27272a;
+          --primary: #fafafa;
+          --primary-foreground: #09090b;
         }
+      }
 
-        input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 15px;
-            box-sizing: border-box;
-        }
+      * {
+        box-sizing: border-box;
+      }
 
-        button {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
+      body {
+        margin: 0;
+        padding: 20px;
+        width: 340px;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+      }
 
-        button:hover {
-            background: #2980b9;
-        }
+      h2 {
+        margin: 0 0 16px;
+        font-size: 1.15rem;
+        letter-spacing: -0.01em;
+      }
 
-        #status {
-            margin-top: 10px;
-            color: green;
-            display: none;
-        }
+      .option-group {
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--card);
+      }
 
-        .option-group {
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.86rem;
+        font-weight: 600;
+      }
 
-        .help-text {
-            font-size: 12px;
-            color: #666;
-            margin-top: -10px;
-            margin-bottom: 10px;
-        }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--foreground);
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      }
+
+      .help-text {
+        margin-top: 8px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+
+      button {
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 10px 12px;
+        cursor: pointer;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font-weight: 600;
+      }
+
+      button:hover {
+        opacity: 0.92;
+      }
+
+      #status {
+        margin-top: 10px;
+        color: #16a34a;
+        font-size: 0.82rem;
+        display: none;
+      }
     </style>
-</head>
+  </head>
 
-<body>
-    <h2>⚙️ Settings</h2>
+  <body>
+    <h2>Settings</h2>
 
     <div class="option-group">
-        <label for="apiUrl">Dashboard/API URL:</label>
-        <input type="text" id="apiUrl" placeholder="http://localhost:3000">
-        <div class="help-text">Enter the URL of your deployed PhishGuard Web App (e.g., https://phish-guard.vercel.app).
-            Default is http://localhost:3000.</div>
+      <label for="apiUrl">Dashboard/API URL</label>
+      <input type="text" id="apiUrl" placeholder="http://localhost:3000" />
+      <div class="help-text">
+        Use your deployed web app URL (example: https://phish-guard.vercel.app). Default is
+        localhost for development.
+      </div>
     </div>
 
     <div class="option-group">
-        <label for="apiToken">API Token:</label>
-        <input type="password" id="apiToken" placeholder="Paste your API Token here">
-        <div class="help-text">Generate a token at <a href="http://localhost:3001/ext-auth" target="_blank">/ext-auth</a></div>
+      <label for="apiToken">API Token</label>
+      <input type="password" id="apiToken" placeholder="Paste your API token" />
+      <div class="help-text">
+        Generate token from <a href="http://localhost:3001/ext-auth" target="_blank">/ext-auth</a>.
+      </div>
     </div>
 
     <div class="option-group">
-        <label>
-            <input type="checkbox" id="autoScan"> Automatically scan emails when opened
-        </label>
+      <label>
+        <input type="checkbox" id="autoScan" />
+        Automatically scan emails when opened
+      </label>
     </div>
 
     <button id="save">Save Settings</button>
-    <div id="status">Settings saved!</div>
+    <div id="status">Settings saved.</div>
 
     <script src="options.js"></script>
-</body>
-
+  </body>
 </html>

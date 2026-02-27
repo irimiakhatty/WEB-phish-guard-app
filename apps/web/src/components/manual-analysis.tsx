@@ -273,7 +273,7 @@ export default function ManualAnalysis() {
     : "/subscriptions";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-6xl px-4 py-12">
         {/* Welcome Section */}
         <div className="mb-12">
@@ -568,3 +568,4 @@ export default function ManualAnalysis() {
     </div>
   );
 }
+

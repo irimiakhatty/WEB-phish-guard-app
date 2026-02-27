@@ -178,7 +178,7 @@ export default function ExtAuthPage() {
 
   if (status === "loading" || status === "connecting") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
         <Card className="w-full max-w-md border-0 shadow-lg">
             <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
                 <div className="relative mb-6">
@@ -199,7 +199,7 @@ export default function ExtAuthPage() {
 
   if (status === "error") {
       return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
             <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-red-500">
                 <CardHeader>
                     <CardTitle className="text-red-600">Connection Failed</CardTitle>
@@ -223,7 +223,7 @@ export default function ExtAuthPage() {
 
   // Success State
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20 p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-md border-0 shadow-lg border-t-4 border-t-green-500">
         <CardContent className="pt-12 pb-8 flex flex-col items-center text-center">
              <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-full mb-6">
@@ -269,5 +269,6 @@ export default function ExtAuthPage() {
 // Add getStatus wrapper just to satisfy type checker if needed or reuse checkAuthAndConnect logic partially
 // Actually simpler to just call sendTokenToExtension if we have token stored in a ref or state
 // Let's modify the component to store token in state for the retry button.
+
 
 

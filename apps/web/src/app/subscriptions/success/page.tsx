@@ -48,7 +48,7 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-2xl px-4 py-16">
         <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader className="text-center">
@@ -79,3 +79,4 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
     </div>
   );
 }
+

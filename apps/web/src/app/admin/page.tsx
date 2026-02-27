@@ -19,7 +19,7 @@ export default async function AdminPage() {
   const stats = await getGlobalStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto py-10 px-6 max-w-7xl space-y-8">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-lg bg-gradient-to-br from-yellow-400/20 to-orange-500/20">
@@ -159,3 +159,4 @@ export default async function AdminPage() {
     </div>
   );
 }
+

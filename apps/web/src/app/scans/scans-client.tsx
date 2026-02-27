@@ -57,7 +57,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-6xl px-4 py-10">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">My Scans</h1>
@@ -167,3 +167,4 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
     </div>
   );
 }
+

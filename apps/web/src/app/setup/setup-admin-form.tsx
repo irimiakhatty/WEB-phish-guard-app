@@ -84,9 +84,9 @@ export default function SetupAdminForm() {
   });
 
   return (
-    <Card className="border-gray-200/70 dark:border-gray-800/70 shadow-xl bg-white/90 dark:bg-gray-900/80 backdrop-blur">
+    <Card className="border-zinc-200/80 bg-card shadow-xl dark:border-zinc-800/80">
       <CardHeader className="space-y-3 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900">
           <Shield className="h-6 w-6" />
         </div>
         <CardTitle className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -274,7 +274,7 @@ export default function SetupAdminForm() {
 
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700"
+            className="w-full"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Creating Admin..." : "Create Org Admin Account"}

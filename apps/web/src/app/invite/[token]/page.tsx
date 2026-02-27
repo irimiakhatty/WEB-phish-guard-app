@@ -25,7 +25,7 @@ export default async function InvitePage({ params }: PageProps) {
 
   const renderInactiveInvite = (title: string, description: string) => {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto max-w-xl py-16 px-4">
           <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
@@ -70,7 +70,7 @@ export default async function InvitePage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/20 dark:from-gray-950 dark:via-blue-950/20 dark:to-purple-950/20">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-xl py-16 px-4">
         <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
           <CardHeader>
@@ -94,3 +94,4 @@ export default async function InvitePage({ params }: PageProps) {
     </div>
   );
 }
+
