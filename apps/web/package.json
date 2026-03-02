@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "export:evaluation:csv": "bunx tsx scripts/export-evaluation-csv.ts",
-    "keys:analyze": "bunx tsx scripts/generate-analyze-keypair.ts"
+    "keys:analyze": "bunx tsx scripts/generate-analyze-keypair.ts",
+    "sync:notion": "bunx tsx scripts/sync-notion-context.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",

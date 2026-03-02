@@ -166,6 +166,12 @@ Key generation helper:
 bun run --filter web keys:analyze -- --out apps/web/.env.analyze.keys
 ```
 
+Notion context sync helper:
+
+```bash
+bun run --filter web sync:notion -- --out apps/web/notion-sync
+```
+
 ## Local Development
 
 1. Run the web app API on `http://localhost:3001`.
