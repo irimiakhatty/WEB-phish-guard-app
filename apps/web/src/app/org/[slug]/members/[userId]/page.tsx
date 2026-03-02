@@ -27,7 +27,7 @@ const riskTierLabel: Record<RiskTier, string> = {
 
 const riskTierClass: Record<RiskTier, string> = {
   safe: "border-emerald-200 text-emerald-700 bg-emerald-50/70",
-  low: "border-blue-200 text-blue-700 bg-blue-50/70",
+  low: "border-zinc-200 text-zinc-700 bg-zinc-50/70 dark:border-zinc-700 dark:text-zinc-300 dark:bg-zinc-900/40",
   medium: "border-yellow-200 text-yellow-700 bg-yellow-50/70",
   high: "border-orange-200 text-orange-700 bg-orange-50/70",
   critical: "border-red-200 text-red-700 bg-red-50/70",
@@ -35,7 +35,7 @@ const riskTierClass: Record<RiskTier, string> = {
 
 const scanRiskClass: Record<RiskTier, string> = {
   safe: "border-emerald-200 text-emerald-700 bg-emerald-50/70",
-  low: "border-blue-200 text-blue-700 bg-blue-50/70",
+  low: "border-zinc-200 text-zinc-700 bg-zinc-50/70 dark:border-zinc-700 dark:text-zinc-300 dark:bg-zinc-900/40",
   medium: "border-yellow-200 text-yellow-700 bg-yellow-50/70",
   high: "border-orange-200 text-orange-700 bg-orange-50/70",
   critical: "border-red-200 text-red-700 bg-red-50/70",
@@ -330,12 +330,12 @@ export default async function MemberProfilePage({ params }: PageProps) {
               <div className="grid grid-cols-7 gap-2">
                 {heatmapDays.map((day) => {
                   const intensity = day.count / maxDaily;
-                  const background = `rgba(59, 130, 246, ${0.12 + intensity * 0.68})`;
+                  const background = `rgba(113, 113, 122, ${0.12 + intensity * 0.68})`;
                   return (
                     <div
                       key={day.key}
                       title={`${day.key} - ${day.count} scans`}
-                      className="h-9 w-9 rounded-lg border border-blue-100 dark:border-blue-900/40"
+                      className="h-9 w-9 rounded-lg border border-zinc-200 dark:border-zinc-700"
                       style={{ backgroundColor: background }}
                     />
                   );
@@ -347,8 +347,8 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   {Array.from({ length: 4 }).map((_, index) => (
                     <span
                       key={index}
-                      className="h-2.5 w-2.5 rounded-sm border border-blue-100"
-                      style={{ backgroundColor: `rgba(59,130,246,${0.2 + index * 0.2})` }}
+                      className="h-2.5 w-2.5 rounded-sm border border-zinc-200 dark:border-zinc-700"
+                      style={{ backgroundColor: `rgba(113,113,122,${0.2 + index * 0.2})` }}
                     />
                   ))}
                 </div>
@@ -372,7 +372,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div key={label} className="flex flex-col items-center gap-2 flex-1">
                       <div
-                        className="w-full rounded-md bg-blue-500/80"
+                        className="w-full rounded-md bg-zinc-500/80"
                         style={{ height }}
                         title={`${count} scans`}
                       />
@@ -415,7 +415,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200/80 dark:border-blue-800/80">
+          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
               <CardTitle>Training recommendation</CardTitle>
               <CardDescription>

@@ -94,7 +94,7 @@ export default function Dashboard({
           <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
             Welcome back, {session.user.name}!
             {isSuperAdmin && (
-              <span className="ml-3 text-base font-normal text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+              <span className="ml-3 rounded-full bg-zinc-100 px-3 py-1 text-base font-normal text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                 Super Admin
               </span>
             )}
@@ -112,8 +112,8 @@ export default function Dashboard({
           <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="bg-blue-600 p-3 rounded-lg">
-                  <Shield className="w-5 h-5 text-white" />
+                <div className="rounded-lg bg-zinc-900 p-3 dark:bg-zinc-100">
+                  <Shield className="h-5 w-5 text-zinc-50 dark:text-zinc-900" />
                 </div>
                 Analyze Content
               </CardTitle>
@@ -123,7 +123,7 @@ export default function Dashboard({
             </CardHeader>
             <CardContent>
               <Link href="/analyze">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                <Button className="w-full">
                   Start Analysis
                 </Button>
               </Link>
@@ -239,10 +239,10 @@ export default function Dashboard({
         </div>
 
         {!isSuperAdmin && trainingRecommendation && (
-          <Card className="mt-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200/80 dark:border-blue-800/80">
+          <Card className="mt-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Shield className="w-4 h-4 text-blue-600" />
+                <Shield className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                 Training Recommendation
               </CardTitle>
               <CardDescription>
@@ -272,17 +272,17 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200 dark:border-blue-800">
+              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-600" />
+                      <Users className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                       Total Users
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-blue-600 mb-1">
+                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     {adminStats?.totalUsers || 0}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -291,17 +291,17 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-purple-200 dark:border-purple-800">
+              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-purple-600" />
+                      <Activity className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                       Active Today
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-purple-600 mb-1">
+                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     0
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -310,17 +310,17 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-orange-200 dark:border-orange-800">
+              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-orange-600" />
+                      <Globe className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                       Detection Rate
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-orange-600 mb-1">
+                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     {adminStats && adminStats.totalScans > 0 
                       ? Math.round((adminStats.threatsDetected / adminStats.totalScans) * 100)
                       : 0}%
@@ -371,14 +371,14 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-blue-200 dark:border-blue-800">
+              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
                     Emails Analyzed This Month
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-blue-600 mb-1">
+                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
                     {orgAdminStats.scansThisMonth}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">

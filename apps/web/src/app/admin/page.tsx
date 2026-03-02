@@ -41,7 +41,7 @@ export default async function AdminPage() {
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Total Users
               </CardTitle>
-              <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <Users className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -58,7 +58,7 @@ export default async function AdminPage() {
               <CardTitle className="text-sm text-gray-600 dark:text-gray-400">
                 Organizations
               </CardTitle>
-              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <Building2 className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-semibold text-gray-900 dark:text-white">

@@ -67,7 +67,7 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button asChild className="w-full">
               <Link href="/dashboard">Go to dashboard</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">

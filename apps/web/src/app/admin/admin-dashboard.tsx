@@ -68,7 +68,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-purple-600" />
+                <Building2 className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
                 Organizations
               </CardTitle>
               <CardDescription>
@@ -82,7 +82,7 @@ export default function AdminDashboard({ stats }: { stats: AdminStats }) {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
+                <Users className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
                 Manage Users
               </CardTitle>
               <CardDescription>

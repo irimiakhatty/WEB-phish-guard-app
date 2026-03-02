@@ -109,7 +109,7 @@ export default function OrganizationMembers({
     pending: "bg-gray-100 text-gray-700 border-gray-200",
     sent: "bg-emerald-100 text-emerald-700 border-emerald-200",
     failed: "bg-red-100 text-red-700 border-red-200",
-    accepted: "bg-blue-100 text-blue-700 border-blue-200",
+    accepted: "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
     canceled: "bg-zinc-100 text-zinc-700 border-zinc-200",
     expired: "bg-amber-100 text-amber-700 border-amber-200",
   };
@@ -317,7 +317,7 @@ export default function OrganizationMembers({
           <CardContent className="pt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                <Users className="w-4 h-4 text-blue-600" />
+                <Users className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                 Members intelligence
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">

@@ -51,7 +51,7 @@ export default function AdminScansClient({ scans: initialScans }: { scans: ScanW
       case "safe":
         return "bg-green-100 text-green-800";
       case "low":
-        return "bg-blue-100 text-blue-800";
+        return "bg-zinc-100 text-zinc-800";
       case "medium":
         return "bg-yellow-100 text-yellow-800";
       case "high":
@@ -91,7 +91,7 @@ export default function AdminScansClient({ scans: initialScans }: { scans: ScanW
                     </span>
                     {scan.isPhishing && (
                       <span className="text-sm text-red-600 font-semibold">
-                        ⚠️ Phishing
+                        Phishing
                       </span>
                     )}
                   </div>

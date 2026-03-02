@@ -250,7 +250,7 @@ export default function ManualAnalysis() {
       case "safe":
         return "text-green-600 dark:text-green-400";
       case "low":
-        return "text-blue-600 dark:text-blue-400";
+        return "text-zinc-700 dark:text-zinc-300";
       case "medium":
         return "text-yellow-600 dark:text-yellow-400";
       case "high":
@@ -294,7 +294,7 @@ export default function ManualAnalysis() {
                 <p className="text-sm">{limitInfo.message}</p>
                 {limitInfo.limits && (
                   <p className="text-xs mt-1">
-                    Monthly {limitInfo.limits.monthly.used}/{limitInfo.limits.monthly.limit} · Hourly {limitInfo.limits.hourly.used}/{limitInfo.limits.hourly.limit}
+                    Monthly {limitInfo.limits.monthly.used}/{limitInfo.limits.monthly.limit} / Hourly {limitInfo.limits.hourly.used}/{limitInfo.limits.hourly.limit}
                   </p>
                 )}
                 <div className="mt-3 flex gap-2">
@@ -369,7 +369,7 @@ export default function ManualAnalysis() {
                 <Button 
                   onClick={handleAnalyze} 
                   disabled={analyzing}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {analyzing ? (
                     <>Analyzing...</>
@@ -395,7 +395,7 @@ export default function ManualAnalysis() {
               <Button 
                 onClick={handleAnalyze} 
                 disabled={analyzing} 
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {analyzing ? (
                   <>Analyzing...</>
@@ -454,7 +454,7 @@ export default function ManualAnalysis() {
                   </div>
                   
                   {extractingText && (
-                    <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 rounded-lg bg-zinc-100 p-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
                       <Loader className="h-4 w-4 animate-spin" />
                       Extracting text from image...
                     </div>
@@ -487,7 +487,7 @@ export default function ManualAnalysis() {
                   <Button 
                     onClick={handleAnalyze} 
                     disabled={analyzing || extractingText} 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {analyzing ? (
                       <>Analyzing...</>
@@ -520,7 +520,7 @@ export default function ManualAnalysis() {
               <div>
                 <h3 className="text-2xl font-bold capitalize">{result.riskLevel} Risk</h3>
                 <p className="text-muted-foreground">
-                  {result.isPhishing ? "⚠️ Potential phishing detected" : "✓ No immediate threats detected"}
+                  {result.isPhishing ? "Potential phishing detected" : "No immediate threats detected"}
                 </p>
               </div>
             </div>

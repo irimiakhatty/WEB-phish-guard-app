@@ -92,7 +92,7 @@ export default function AdminActivity() {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(scan.createdAt).toLocaleString()} • {scan.source}
+                        {new Date(scan.createdAt).toLocaleString()} - {scan.source}
                       </p>
                     </div>
                   </div>
@@ -116,8 +116,8 @@ export default function AdminActivity() {
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className="p-1.5 bg-blue-500/10 rounded-lg">
-                      <UserPlus className="w-4 h-4 text-blue-500" />
+                    <div className="rounded-lg bg-zinc-500/10 p-1.5 dark:bg-zinc-400/10">
+                      <UserPlus className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
                     </div>
                     <div>
                       <p className="font-medium text-sm">

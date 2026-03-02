@@ -183,9 +183,9 @@ export default function ExtAuthPage() {
         <Card className="w-full max-w-md border-0 shadow-lg">
             <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
                 <div className="relative mb-6">
-                    <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 dark:bg-blue-900/30"></div>
-                    <div className="relative bg-white dark:bg-slate-900 p-4 rounded-full border-2 border-blue-100 dark:border-blue-800">
-                        <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+                    <div className="absolute inset-0 animate-ping rounded-full bg-zinc-200/70 dark:bg-zinc-700/40"></div>
+                    <div className="relative rounded-full border-2 border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-slate-900">
+                        <Loader2 className="h-10 w-10 animate-spin text-zinc-700 dark:text-zinc-200" />
                     </div>
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Connecting PhishGuard...</h2>

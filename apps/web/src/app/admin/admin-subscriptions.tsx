@@ -63,8 +63,8 @@ export default function AdminSubscriptions() {
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                      <CreditCard className="w-6 h-6 text-blue-500" />
+                    <div className="rounded-lg bg-zinc-500/10 p-2 dark:bg-zinc-400/10">
+                      <CreditCard className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
                     </div>
                     <div>
                       <p className="font-semibold">{sub.user.name || sub.user.email}</p>
@@ -108,8 +108,8 @@ export default function AdminSubscriptions() {
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-purple-500/10 rounded-lg">
-                      <Building2 className="w-6 h-6 text-purple-500" />
+                    <div className="rounded-lg bg-zinc-500/10 p-2 dark:bg-zinc-400/10">
+                      <Building2 className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
                     </div>
                     <div>
                       <Link

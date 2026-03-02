@@ -25,7 +25,7 @@ const riskTierLabel: Record<RiskTier, string> = {
 
 const riskTierClass: Record<RiskTier, string> = {
   safe: "border-emerald-200 text-emerald-700 bg-emerald-50/70",
-  low: "border-blue-200 text-blue-700 bg-blue-50/70",
+  low: "border-zinc-200 text-zinc-700 bg-zinc-50/70 dark:border-zinc-700 dark:text-zinc-300 dark:bg-zinc-900/40",
   medium: "border-yellow-200 text-yellow-700 bg-yellow-50/70",
   high: "border-orange-200 text-orange-700 bg-orange-50/70",
   critical: "border-red-200 text-red-700 bg-red-50/70",
@@ -212,7 +212,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
           <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
             <CardHeader className="pb-2">
               <CardDescription>Scans this month</CardDescription>
-              <CardTitle className="text-3xl text-blue-600">{scansThisMonth}</CardTitle>
+              <CardTitle className="text-3xl text-zinc-900 dark:text-zinc-100">{scansThisMonth}</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-gray-500 dark:text-gray-400">
               Organization activity in the last 30 days

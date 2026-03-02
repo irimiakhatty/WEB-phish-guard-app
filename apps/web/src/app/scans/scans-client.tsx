@@ -78,7 +78,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
       case "safe":
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
       case "low":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+        return "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200";
       case "medium":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
       case "high":
@@ -138,7 +138,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
                           href={scan.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
+                          className="text-zinc-700 underline-offset-2 hover:underline dark:text-zinc-300"
                         >
                           {scan.url.substring(0, 80)}
                           {scan.url.length > 80 ? "..." : ""}
@@ -189,7 +189,7 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
                     <p className="text-sm font-medium mb-2">Detected Threats:</p>
                     <ul className="text-sm text-muted-foreground space-y-1">
                       {scan.detectedThreats.slice(0, 3).map((threat, idx) => (
-                        <li key={idx}>• {threat}</li>
+                        <li key={idx}>- {threat}</li>
                       ))}
                       {scan.detectedThreats.length > 3 && (
                         <li>+ {scan.detectedThreats.length - 3} more...</li>

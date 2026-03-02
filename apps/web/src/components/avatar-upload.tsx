@@ -51,7 +51,7 @@ export default function AvatarUpload({ currentImageUrl }: AvatarUploadProps) {
 
   return (
     <div className="flex items-center gap-6">
-      <div className="w-24 h-24 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center overflow-hidden">
+      <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -59,7 +59,7 @@ export default function AvatarUpload({ currentImageUrl }: AvatarUploadProps) {
             className="w-full h-full object-cover"
           />
         ) : (
-          <UserIcon className="w-12 h-12 text-blue-600" />
+          <UserIcon className="h-12 w-12 text-zinc-600 dark:text-zinc-300" />
         )}
       </div>
       <div>

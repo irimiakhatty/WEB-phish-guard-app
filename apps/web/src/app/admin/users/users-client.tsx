@@ -107,20 +107,20 @@ export default function AdminUsersClient({
                 className="flex items-center justify-between py-4 border-b last:border-0"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
                     {user.role === "super_admin" ? (
                       <Crown className="w-6 h-6 text-yellow-600" />
                     ) : user.role === "admin" ? (
                       <Shield className="w-6 h-6 text-yellow-600" />
                     ) : (
-                      <UserIcon className="w-6 h-6 text-blue-600" />
+                      <UserIcon className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
                     )}
                   </div>
                   <div>
                     <p className="font-semibold">{user.name}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {user._count.scans} scans • Joined {new Date(user.createdAt).toLocaleDateString()}
+                      {user._count.scans} scans - Joined {new Date(user.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export default function AdminUsersClient({
                     className={`px-3 py-1 rounded-full text-xs font-medium ${
                       user.role === "admin"
                         ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200"
                     }`}
                   >
                     {user.role.toUpperCase()}
