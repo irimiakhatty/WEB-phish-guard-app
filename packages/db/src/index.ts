@@ -17,7 +17,9 @@ export type {
   User, 
   Scan, 
   DashboardStats,
-  Subscription 
+  Subscription,
+  MemberRiskSnapshot,
+  TrainingAssignment
 } from "../prisma/generated/client";
 
 export { PrismaClient } from "../prisma/generated/client";

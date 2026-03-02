@@ -27,6 +27,9 @@ model User {
   dashboardStats DashboardStats?
   apiTokens      ApiToken[]
   userActions    UserAction[]
+  riskSnapshots  MemberRiskSnapshot[] @relation("RiskSnapshotUser")
+  trainingAssignments TrainingAssignment[] @relation("TrainingAssignmentUser")
+  assignedTrainingAssignments TrainingAssignment[] @relation("TrainingAssignmentAssigner")
 
   @@unique([email])
   @@map("user")
@@ -94,6 +97,8 @@ model Organization {
   invites      OrganizationInvite[]
   apiTokens    ApiToken[]
   scans        Scan[]
+  riskSnapshots MemberRiskSnapshot[]
+  trainingAssignments TrainingAssignment[]
 
   settings Json?
   emailDeliveryLogs EmailDeliveryLog[]
@@ -122,6 +127,67 @@ model OrganizationMember {
   @@index([organizationId])
   @@index([userId])
   @@map("organization_member")
+}
+
+model MemberRiskSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("RiskSnapshotUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  snapshotDate DateTime
+  windowDays   Int      @default(30)
+
+  totalScans Int   @default(0)
+  riskyScans Int   @default(0)
+  avgScore   Float @default(0)
+  riskTier   String
+
+  dominantAttackType String @default("Other")
+  recommendation     String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments TrainingAssignment[]
+
+  @@unique([organizationId, userId, snapshotDate])
+  @@index([organizationId, snapshotDate])
+  @@index([userId, snapshotDate])
+  @@map("member_risk_snapshot")
+}
+
+model TrainingAssignment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation("TrainingAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  assignedById String?
+  assignedBy   User?   @relation("TrainingAssignmentAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  snapshotId String?
+  snapshot   MemberRiskSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+
+  source         String @default("manual")
+  status         String @default("assigned") // assigned, in_progress, completed, dismissed
+  attackType     String @default("Other")
+  recommendation String @db.Text
+  note           String?
+
+  dueAt       DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, userId, status])
+  @@index([organizationId, createdAt])
+  @@index([userId, status])
+  @@index([snapshotId])
+  @@map("training_assignment")
 }
 
 model OrganizationInvite {

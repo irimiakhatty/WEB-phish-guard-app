@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Users, AlertTriangle, Shield, Activity, TrendingUp } from "lucide-react";
+import TrainingAssignmentButton from "./training-assignment-button";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -59,7 +60,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [scanAgg, riskyAgg, scansThisMonth] = await Promise.all([
+  const [scanAgg, riskyAgg, scansThisMonth, snapshots, assignments] = await Promise.all([
     prisma.scan.groupBy({
       by: ["userId"],
       where: {
@@ -86,7 +87,71 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
         createdAt: { gte: startOfMonth },
       },
     }),
+    prisma.memberRiskSnapshot.findMany({
+      where: {
+        organizationId: organization.id,
+      },
+      orderBy: {
+        snapshotDate: "desc",
+      },
+      select: {
+        id: true,
+        userId: true,
+        snapshotDate: true,
+        dominantAttackType: true,
+        recommendation: true,
+      },
+    }),
+    prisma.trainingAssignment.findMany({
+      where: {
+        organizationId: organization.id,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        attackType: true,
+        dueAt: true,
+        createdAt: true,
+      },
+    }),
   ]);
+
+  const latestSnapshotByUserId = new Map<
+    string,
+    {
+      id: string;
+      snapshotDate: Date;
+      dominantAttackType: string;
+      recommendation: string;
+    }
+  >();
+
+  for (const snapshot of snapshots) {
+    if (!latestSnapshotByUserId.has(snapshot.userId)) {
+      latestSnapshotByUserId.set(snapshot.userId, snapshot);
+    }
+  }
+
+  const latestAssignmentByUserId = new Map<
+    string,
+    {
+      id: string;
+      status: string;
+      attackType: string;
+      dueAt: Date | null;
+      createdAt: Date;
+    }
+  >();
+
+  for (const assignment of assignments) {
+    if (!latestAssignmentByUserId.has(assignment.userId)) {
+      latestAssignmentByUserId.set(assignment.userId, assignment);
+    }
+  }
 
   const statsByUserId = new Map<
     string,
@@ -121,6 +186,8 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
       riskyCount: 0,
     };
     const riskTier = getRiskTier(stats.avgScore);
+    const latestSnapshot = latestSnapshotByUserId.get(member.userId) || null;
+    const latestAssignment = latestAssignmentByUserId.get(member.userId) || null;
     const lastSeenLabel = stats.lastSeen
       ? new Date(stats.lastSeen).toLocaleDateString("en-GB", {
           day: "2-digit",
@@ -144,6 +211,8 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
       avgScore: stats.avgScore,
       lastSeenLabel,
       riskTier,
+      latestSnapshot,
+      latestAssignment,
     };
   });
 
@@ -308,6 +377,59 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
                       View profile
                     </Button>
                   </Link>
+                </div>
+
+                <div className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Training
+                    </p>
+                    {member.latestAssignment ? (
+                      <Badge variant={member.latestAssignment.status === "completed" ? "secondary" : "outline"}>
+                        {member.latestAssignment.status.replace("_", " ")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">No assignment</Badge>
+                    )}
+                  </div>
+
+                  {member.latestSnapshot ? (
+                    <p className="text-xs text-gray-600 dark:text-gray-300">
+                      Focus: <span className="font-medium">{member.latestSnapshot.dominantAttackType}</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      No daily snapshot yet. Run cron to generate risk snapshots.
+                    </p>
+                  )}
+
+                  {member.latestSnapshot?.recommendation ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                      {member.latestSnapshot.recommendation}
+                    </p>
+                  ) : null}
+
+                  {member.latestAssignment?.dueAt ? (
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Due:{" "}
+                      {new Date(member.latestAssignment.dueAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  ) : null}
+
+                  <div className="pt-1">
+                    <TrainingAssignmentButton
+                      organizationId={organization.id}
+                      userId={member.userId}
+                      hasOpenAssignment={
+                        member.latestAssignment?.status === "assigned" ||
+                        member.latestAssignment?.status === "in_progress"
+                      }
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

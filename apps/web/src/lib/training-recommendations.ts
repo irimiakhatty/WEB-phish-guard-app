@@ -57,6 +57,11 @@ export interface UserTrainingRecommendation {
   windowDays: number;
 }
 
+export type TrainingIncidentInput = {
+  detectedThreats?: string[] | null;
+  analysis?: string | null;
+};
+
 function normalizeAttackHint(rawHint: string): AttackType | null {
   const normalized = rawHint
     .replace(/^attack_type:/i, "")
@@ -83,6 +88,46 @@ function extractAttackTypeFromScan(
   return classifyAttackType(`${analysis || ""} ${detectedThreats.join(" ")}`);
 }
 
+export function deriveTrainingRecommendationFromIncidents(
+  incidents: TrainingIncidentInput[],
+  windowDays = WINDOW_DAYS
+): UserTrainingRecommendation {
+  if (incidents.length === 0) {
+    return {
+      dominantAttackType: DEFAULT_ATTACK_TYPE,
+      recommendation: TRAINING_PLAYBOOK[DEFAULT_ATTACK_TYPE],
+      incidentsReviewed: 0,
+      windowDays,
+    };
+  }
+
+  const counts = new Map<AttackType, number>();
+  ATTACK_TYPES.forEach((type) => counts.set(type, 0));
+
+  for (const incident of incidents) {
+    const attackType = extractAttackTypeFromScan(
+      incident.detectedThreats || [],
+      incident.analysis ?? null
+    );
+    counts.set(attackType, (counts.get(attackType) || 0) + 1);
+  }
+
+  const ranked = ATTACK_TYPES.map((type) => ({
+    type,
+    count: counts.get(type) || 0,
+  })).sort((a, b) => b.count - a.count);
+
+  const topNonOther = ranked.find((entry) => entry.type !== "Other" && entry.count > 0);
+  const dominantAttackType = (topNonOther?.type || ranked[0]?.type || DEFAULT_ATTACK_TYPE) as AttackType;
+
+  return {
+    dominantAttackType,
+    recommendation: TRAINING_PLAYBOOK[dominantAttackType],
+    incidentsReviewed: incidents.length,
+    windowDays,
+  };
+}
+
 export async function getUserTrainingRecommendation(
   userId: string
 ): Promise<UserTrainingRecommendation> {
@@ -104,38 +149,5 @@ export async function getUserTrainingRecommendation(
     take: 500,
   });
 
-  if (riskyScans.length === 0) {
-    return {
-      dominantAttackType: DEFAULT_ATTACK_TYPE,
-      recommendation: TRAINING_PLAYBOOK[DEFAULT_ATTACK_TYPE],
-      incidentsReviewed: 0,
-      windowDays: WINDOW_DAYS,
-    };
-  }
-
-  const counts = new Map<AttackType, number>();
-  ATTACK_TYPES.forEach((type) => counts.set(type, 0));
-
-  for (const scan of riskyScans) {
-    const attackType = extractAttackTypeFromScan(
-      scan.detectedThreats || [],
-      scan.analysis
-    );
-    counts.set(attackType, (counts.get(attackType) || 0) + 1);
-  }
-
-  const ranked = ATTACK_TYPES.map((type) => ({
-    type,
-    count: counts.get(type) || 0,
-  })).sort((a, b) => b.count - a.count);
-
-  const topNonOther = ranked.find((entry) => entry.type !== "Other" && entry.count > 0);
-  const dominantAttackType = (topNonOther?.type || ranked[0]?.type || DEFAULT_ATTACK_TYPE) as AttackType;
-
-  return {
-    dominantAttackType,
-    recommendation: TRAINING_PLAYBOOK[dominantAttackType],
-    incidentsReviewed: riskyScans.length,
-    windowDays: WINDOW_DAYS,
-  };
+  return deriveTrainingRecommendationFromIncidents(riskyScans, WINDOW_DAYS);
 }

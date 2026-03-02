@@ -9,6 +9,7 @@ import { sendInviteEmail } from "@/lib/email";
 import { auth } from "@phish-guard-app/auth";
 import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/password-policy";
 import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/organization-name";
+import { deriveTrainingRecommendationFromIncidents } from "@/lib/training-recommendations";
 
 const INVITE_TTL_DAYS = Number(process.env.INVITE_LINK_TTL_DAYS || 7);
 const prismaAny = prisma as any;
@@ -999,6 +1000,164 @@ export async function updateMemberRole(
       error: "Failed to update member role",
     };
   }
+}
+
+export async function assignMemberTraining(input: {
+  organizationId: string;
+  userId: string;
+  note?: string;
+  dueInDays?: number;
+}) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
+
+  if (!isSuperAdmin && !adminMembership) {
+    return {
+      success: false,
+      error: "You don't have permission to assign training",
+    };
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { id: true, slug: true },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  const member = await prisma.organizationMember.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+    },
+    select: {
+      id: true,
+      userId: true,
+    },
+  });
+
+  if (!member) {
+    return {
+      success: false,
+      error: "Member not found in this organization",
+    };
+  }
+
+  const latestSnapshot = await prisma.memberRiskSnapshot.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+    },
+    orderBy: {
+      snapshotDate: "desc",
+    },
+    select: {
+      id: true,
+      dominantAttackType: true,
+      recommendation: true,
+    },
+  });
+
+  let attackType = latestSnapshot?.dominantAttackType || "Other";
+  let recommendation =
+    latestSnapshot?.recommendation ||
+    "Continue baseline phishing training with monthly simulations and mandatory reporting of suspicious messages.";
+
+  if (!latestSnapshot) {
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - 90);
+
+    const incidents = await prisma.scan.findMany({
+      where: {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        isDeleted: false,
+        createdAt: { gte: windowStart },
+        OR: [{ isPhishing: true }, { riskLevel: { in: ["high", "critical"] } }],
+      },
+      select: {
+        detectedThreats: true,
+        analysis: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+
+    const derived = deriveTrainingRecommendationFromIncidents(incidents, 90);
+    attackType = derived.dominantAttackType;
+    recommendation = derived.recommendation;
+  }
+
+  const existingOpenAssignment = await prisma.trainingAssignment.findFirst({
+    where: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      status: { in: ["assigned", "in_progress"] },
+      attackType,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+
+  if (existingOpenAssignment) {
+    return {
+      success: true,
+      assignmentId: existingOpenAssignment.id,
+      reused: true,
+      message: "An open assignment already exists for this member and attack type.",
+    };
+  }
+
+  const dueInDays = Number.isFinite(input.dueInDays) ? Math.max(1, Math.min(90, Math.floor(input.dueInDays!))) : 14;
+  const dueAt = new Date();
+  dueAt.setDate(dueAt.getDate() + dueInDays);
+
+  const assignment = await prisma.trainingAssignment.create({
+    data: {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      assignedById: user.id,
+      snapshotId: latestSnapshot?.id || null,
+      source: "manual_dashboard",
+      status: "assigned",
+      attackType,
+      recommendation,
+      note: input.note?.trim() || null,
+      dueAt,
+    },
+    select: {
+      id: true,
+      attackType: true,
+      dueAt: true,
+    },
+  });
+
+  revalidatePath(`/org/${organization.slug}`);
+  revalidatePath(`/org/${organization.slug}/members`);
+  revalidatePath(`/org/${organization.slug}/members/${input.userId}`);
+
+  return {
+    success: true,
+    assignmentId: assignment.id,
+    attackType: assignment.attackType,
+    dueAt: assignment.dueAt?.toISOString() ?? null,
+    message: "Training assignment created.",
+  };
 }
 
 // ==========================================
