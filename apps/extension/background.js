@@ -1,10 +1,4 @@
-importScripts('tf.min.js');
-
 // --- CONFIGURATION ---
-const TEXT_MAX_LEN = 150;
-const URL_MAX_LEN = 150;
-const TEXT_OOV = "<OOV>";
-const URL_OOV = "<OOV>";
 const RISK_THRESHOLDS = {
     low: 0.2,
     medium: 0.4,
@@ -13,6 +7,41 @@ const RISK_THRESHOLDS = {
 };
 
 const DEEP_SCAN_MAX_CHARS = 5000;
+const ANALYZE_TIMEOUT_MS = 8000;
+const FALLBACK_SCORING_VERSION = "extension_fallback_weighted_v1";
+const MAX_ANALYZE_TEXT_CHARS = 6000;
+const POLICY_DEFAULTS = {
+    // GDPR strict defaults: do not rely on local fallback path.
+    allowLocalFallback: false,
+    strictServerOnly: true,
+    disableHardBlock: false
+};
+const latestScanByTab = new Map();
+
+function bootstrapPolicyDefaults(force = false) {
+    chrome.storage.sync.get(
+        ["allowLocalFallback", "strictServerOnly", "disableHardBlock"],
+        (items) => {
+            const updates = {};
+
+            if (force || typeof items.allowLocalFallback !== "boolean") {
+                updates.allowLocalFallback = POLICY_DEFAULTS.allowLocalFallback;
+            }
+            if (force || typeof items.strictServerOnly !== "boolean") {
+                updates.strictServerOnly = POLICY_DEFAULTS.strictServerOnly;
+            }
+            if (force || typeof items.disableHardBlock !== "boolean") {
+                updates.disableHardBlock = POLICY_DEFAULTS.disableHardBlock;
+            }
+
+            if (Object.keys(updates).length > 0) {
+                chrome.storage.sync.set(updates);
+            }
+        }
+    );
+}
+
+bootstrapPolicyDefaults();
 
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -80,7 +109,6 @@ async function encryptDeepScanText(text, publicKeyPem) {
         rawKey
     );
 
-    // Best-effort wipe
     payload.fill(0);
 
     return {
@@ -92,12 +120,16 @@ async function encryptDeepScanText(text, publicKeyPem) {
     };
 }
 
-// Heuristic Keywords (Must match WebApp)
 const SUSPICIOUS_KEYWORDS = {
     urgency: ["immediately", "urgent", "24 hours", "suspend", "close account", "lock", "restricted"],
     action: ["verify", "login", "click here", "update", "confirm"],
     generic: ["dear customer", "dear user", "valued customer"]
 };
+
+function clampScore(value) {
+    if (typeof value !== "number" || Number.isNaN(value)) return 0;
+    return Math.max(0, Math.min(value, 1));
+}
 
 function getRiskLevel(score) {
     if (score < RISK_THRESHOLDS.low) return "safe";
@@ -126,124 +158,215 @@ function classifyAttackType(text) {
             return rule.type;
         }
     }
+
     return "Other";
 }
 
-let textModel, urlModel;
-let textVocab, urlVocab;
-let isModelsLoaded = false;
+function scoreTextHeuristic(text) {
+    const lowerText = (text || "").toLowerCase();
+    let score = 0;
 
-// --- 1. LOAD RESOURCES ---
-async function loadResources() {
-    if (isModelsLoaded) return;
-
-    console.log("Background: Loading models...");
-    try {
-        // Load Models
-        textModel = await tf.loadLayersModel('assets/text_model/model.json');
-        urlModel = await tf.loadLayersModel('assets/url_model/model.json');
-
-        // Load Dictionaries
-        const textVocabReq = await fetch('assets/word_index.json');
-        textVocab = await textVocabReq.json();
-
-        const urlVocabReq = await fetch('assets/url_char_index.json');
-        urlVocab = await urlVocabReq.json();
-
-        isModelsLoaded = true;
-        console.log("Background: All resources loaded!");
-    } catch (e) {
-        console.error("Background: Error loading resources:", e);
-    }
-}
-
-// --- 2. PRE-PROCESSING FUNCTIONS ---
-function preprocessText(text) {
-    const words = text.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/);
-    const sequence = words.map(w => textVocab[w] || textVocab[TEXT_OOV] || 1);
-
-    const padded = new Array(TEXT_MAX_LEN).fill(0);
-    for (let i = 0; i < Math.min(sequence.length, TEXT_MAX_LEN); i++) {
-        padded[i] = sequence[i];
-    }
-    return tf.tensor2d([padded]);
-}
-
-function preprocessURL(url) {
-    const chars = url.split('');
-    const sequence = chars.map(c => urlVocab[c] || urlVocab[URL_OOV] || 1);
-
-    const padded = new Array(URL_MAX_LEN).fill(0);
-    for (let i = 0; i < Math.min(sequence.length, URL_MAX_LEN); i++) {
-        padded[i] = sequence[i];
-    }
-    return tf.tensor2d([padded]);
-}
-
-// --- 3. PREDICTION LOGIC ---
-async function predict(text, url) {
-    await loadResources();
-
-    let textScore = 0;
-    let urlScore = 0;
-
-    if (text) {
-        const textTensor = preprocessText(text);
-        const pred = textModel.predict(textTensor);
-        textScore = (await pred.data())[0];
-        textTensor.dispose();
-    }
-
-    if (url) {
-        const urlTensor = preprocessURL(url);
-        const pred = urlModel.predict(urlTensor);
-        urlScore = (await pred.data())[0];
-        urlTensor.dispose();
-    }
-
-    // 3. Heuristic Analysis
-    let heuristicScore = 0;
-    const lowerText = text ? text.toLowerCase() : "";
-
-    // Provider Mismatch Check
     if (lowerText.includes("microsoft") && lowerText.includes("@gmail.com")) {
-        heuristicScore += 0.4;
+        score += 0.35;
     }
 
-    SUSPICIOUS_KEYWORDS.urgency.forEach(word => {
-        if (lowerText.includes(word)) heuristicScore += 0.2;
+    SUSPICIOUS_KEYWORDS.urgency.forEach((word) => {
+        if (lowerText.includes(word)) score += 0.08;
     });
-    SUSPICIOUS_KEYWORDS.action.forEach(word => {
-        if (lowerText.includes(word)) heuristicScore += 0.1;
+    SUSPICIOUS_KEYWORDS.action.forEach((word) => {
+        if (lowerText.includes(word)) score += 0.05;
     });
-    SUSPICIOUS_KEYWORDS.generic.forEach(word => {
-        if (lowerText.includes(word)) heuristicScore += 0.15;
+    SUSPICIOUS_KEYWORDS.generic.forEach((word) => {
+        if (lowerText.includes(word)) score += 0.1;
     });
-    heuristicScore = Math.min(heuristicScore, 0.9);
 
-    return { textScore, urlScore, heuristicScore };
+    return clampScore(score);
 }
 
-// --- 4. MESSAGE HANDLING ---
-async function logIncident(data) {
-    try {
-        // Retrieve API URL and token from storage
-        const { apiUrl, authToken } = await chrome.storage.sync.get({ 
-            apiUrl: 'http://localhost:3001',
-            authToken: null 
-        });
+function scoreUrlHeuristic(url) {
+    if (!url) return 0;
 
-        // Skip if no auth token
-        if (!authToken) {
-            console.log("No auth token, skipping incident log");
-            return;
+    let score = 0;
+    const raw = String(url).toLowerCase();
+    if (raw.includes("@")) score += 0.35;
+
+    try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase();
+        const path = parsed.pathname.toLowerCase();
+
+        if (parsed.protocol !== "https:") score += 0.2;
+        if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) score += 0.35;
+
+        const highRiskTlds = [".tk", ".ml", ".ga", ".cf", ".gq"];
+        const suspiciousTlds = [".xyz", ".top", ".work", ".click", ".loan"];
+        if (highRiskTlds.some((tld) => host.endsWith(tld))) score += 0.35;
+        else if (suspiciousTlds.some((tld) => host.endsWith(tld))) score += 0.2;
+
+        if (host.split(".").length > 4) score += 0.1;
+
+        const phishingKeywords = ["verify", "account", "update", "secure", "login", "signin", "confirm", "suspended", "urgent"];
+        const hostHits = phishingKeywords.filter((keyword) => host.includes(keyword)).length;
+        const pathHits = phishingKeywords.filter((keyword) => path.includes(keyword)).length;
+        score += Math.min((hostHits * 0.07) + (pathHits * 0.04), 0.25);
+    } catch (_error) {
+        score += 0.4;
+    }
+
+    return clampScore(score);
+}
+
+function computeWeightedScore(textScore, urlScore, heuristicScore, hasText, hasUrl) {
+    const components = [];
+    if (hasText) components.push({ score: textScore, weight: 0.45 });
+    if (hasUrl) components.push({ score: urlScore, weight: 0.45 });
+    if (hasText || hasUrl) components.push({ score: heuristicScore, weight: 0.1 });
+
+    if (components.length === 0) return 0;
+    const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
+    const weighted = components.reduce((sum, c) => sum + (c.score * c.weight), 0);
+    return clampScore(weighted / totalWeight);
+}
+
+function runFallbackAnalysis(text, url) {
+    const textScore = scoreTextHeuristic(text);
+    const urlScore = scoreUrlHeuristic(url);
+    const heuristicScore = clampScore((textScore + urlScore) / 2);
+    const overallScore = computeWeightedScore(textScore, urlScore, heuristicScore, Boolean(text), Boolean(url));
+    const riskLevel = getRiskLevel(overallScore);
+    const isPhishing = isPhishingScore(overallScore);
+
+    return {
+        textScore,
+        urlScore,
+        heuristicScore,
+        overallScore,
+        riskLevel,
+        isPhishing,
+        confidence: 0.6,
+        detectedThreats: ["fallback_heuristics", `scoring_version:${FALLBACK_SCORING_VERSION}`],
+        analysis: "Local fallback heuristics used because API analysis was unavailable.",
+        scoringVersion: FALLBACK_SCORING_VERSION,
+        scoreBreakdown: {
+            textHeuristicScore: textScore,
+            urlHeuristicScore: urlScore,
+            weightedScore: overallScore
+        },
+        modelVersions: {
+            textModel: null,
+            urlModel: null,
+            safeBrowsingHit: false
+        },
+        origin: "fallback_local"
+    };
+}
+
+async function analyzeViaApi(request, authToken) {
+    const { apiUrl, analyzePayloadPublicKey, deepScanPublicKey } = await chrome.storage.sync.get({
+        apiUrl: "http://localhost:3001",
+        analyzePayloadPublicKey: null,
+        deepScanPublicKey: null
+    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+    const sanitizedText = typeof request.text === "string"
+        ? request.text.slice(0, MAX_ANALYZE_TEXT_CHARS)
+        : "";
+    const payloadPublicKey = analyzePayloadPublicKey || deepScanPublicKey || null;
+
+    try {
+        const requestBody = {
+            url: request.url,
+            source: "extension"
+        };
+
+        if (sanitizedText) {
+            if (payloadPublicKey) {
+                try {
+                    const textHash = await hashTextSha256(sanitizedText);
+                    const encryptedPayload = await encryptDeepScanText(sanitizedText, payloadPublicKey);
+                    requestBody.payloadEncoding = "rsa_oaep_aes_gcm_v1";
+                    requestBody.textHash = textHash;
+                    requestBody.encryptedPayload = encryptedPayload;
+                } catch (encryptError) {
+                    console.warn("PhishGuard: analyze payload encryption failed, falling back to plaintext.", encryptError);
+                    requestBody.payloadEncoding = "plaintext_fallback";
+                    requestBody.textContent = sanitizedText;
+                }
+            } else {
+                requestBody.textContent = sanitizedText;
+            }
         }
 
-        const response = await fetch(`${apiUrl}/api/v1/incidents`, {
-            method: 'POST',
+        const response = await fetch(`${apiUrl}/api/v1/analyze`, {
+            method: "POST",
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${authToken}`
+            },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.success) {
+            const err = new Error(payload?.error || `API_ANALYZE_FAILED_${response.status}`);
+            err.status = response.status;
+            throw err;
+        }
+
+        const data = payload.data || {};
+        const textScore = clampScore(data.textScore || 0);
+        const urlScore = clampScore(data.urlScore || 0);
+        const heuristicScore = clampScore(
+            ((data?.scoreBreakdown?.textHeuristicScore || 0) +
+            (data?.scoreBreakdown?.urlHeuristicScore || 0)) / 2
+        );
+        const overallScore = clampScore(
+            typeof data.overallScore === "number"
+                ? data.overallScore
+                : Math.max(textScore, urlScore, heuristicScore)
+        );
+        const riskLevel = typeof data.riskLevel === "string" ? data.riskLevel : getRiskLevel(overallScore);
+        const isPhishing = typeof data.isPhishing === "boolean" ? data.isPhishing : isPhishingScore(overallScore);
+
+        return {
+            textScore,
+            urlScore,
+            heuristicScore,
+            overallScore,
+            riskLevel,
+            isPhishing,
+            confidence: clampScore(data.confidence || 0.75),
+            detectedThreats: Array.isArray(data.detectedThreats) ? data.detectedThreats : [],
+            analysis: typeof data.analysis === "string" ? data.analysis : "",
+            scoringVersion: typeof data.scoringVersion === "string" ? data.scoringVersion : "weighted_v1",
+            scoreBreakdown: data.scoreBreakdown || null,
+            modelVersions: data.modelVersions || null,
+            policyDecision: data.policyDecision || null,
+            retentionPolicy: data.retentionPolicy || null,
+            scanId: data.scanId || null,
+            origin: "server"
+        };
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+async function logIncident(data) {
+    try {
+        const { apiUrl, authToken } = await chrome.storage.sync.get({
+            apiUrl: "http://localhost:3001",
+            authToken: null
+        });
+
+        if (!authToken) return;
+
+        await fetch(`${apiUrl}/api/v1/incidents`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${authToken}`
             },
             body: JSON.stringify({
                 url: data.url,
@@ -253,10 +376,9 @@ async function logIncident(data) {
                 overallScore: data.overallScore,
                 attackType: data.attackType,
                 timestamp: new Date().toISOString(),
-                source: 'extension'
+                source: data.source || "extension"
             })
         });
-        console.log("Incident logged:", await response.json());
     } catch (e) {
         console.error("Failed to log incident:", e);
     }
@@ -264,60 +386,41 @@ async function logIncident(data) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "scan_page") {
-
-        // --- SUBSCRIPTION CHECK ---
-        chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining'], async (items) => {
+        chrome.storage.sync.get(["authToken", "apiToken", "userPlan", "userRole", "scansRemaining"], async (items) => {
             const { userPlan, userRole, scansRemaining } = items;
             const authToken = items.apiToken || items.authToken;
 
-            // 1. Auth Check
             if (!authToken) {
-                // If auto-scan, just ignore. If manual, return error.
-                if (request.source === 'auto') {
-                    sendResponse({ error: "SILENT_FAIL" });
-                } else {
-                    sendResponse({ error: "UNAUTHORIZED" });
-                }
+                if (request.source === "auto") sendResponse({ error: "SILENT_FAIL" });
+                else sendResponse({ error: "UNAUTHORIZED" });
                 return;
             }
 
-            // 2. Quota Check
-            // Admins bypass limits
-            if (userRole === 'admin' || userRole === 'super_admin') {
-                 processScan(request, sender, sendResponse, undefined);
-                 return;
+            if (userRole === "admin" || userRole === "super_admin") {
+                processScan(request, sender, sendResponse, undefined, authToken);
+                return;
             }
 
-            if (userPlan === 'free') {
+            if (userPlan === "free") {
                 if (scansRemaining <= 0) {
-                    // If auto-scan, silent fail (don't spam user)
-                    if (request.source === 'auto') {
-                        console.log("Background: Auto-scan skipped (Limit Reached)");
-                        sendResponse({ error: "SILENT_FAIL" });
-                    } else {
-                        sendResponse({ error: "LIMIT_REACHED" });
-                    }
+                    if (request.source === "auto") sendResponse({ error: "SILENT_FAIL" });
+                    else sendResponse({ error: "LIMIT_REACHED" });
                     return;
                 }
 
-                // Decrement Quota
                 const newRemaining = scansRemaining - 1;
                 await chrome.storage.sync.set({ scansRemaining: newRemaining });
-
-                // Proceed with scan...
-                processScan(request, sender, sendResponse, newRemaining);
+                processScan(request, sender, sendResponse, newRemaining, authToken);
             } else {
-                // Paid user - unlimited
-                processScan(request, sender, sendResponse, undefined);
+                processScan(request, sender, sendResponse, undefined, authToken);
             }
         });
 
-        return true; // Keep channel open for async response
+        return true;
     }
-    
-    // --- DEEP SCAN (PAID ONLY) ---
+
     if (request.action === "deep_scan") {
-        chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole', 'deepScanPublicKey'], async (items) => {
+        chrome.storage.sync.get(["authToken", "apiToken", "userPlan", "userRole", "deepScanPublicKey"], async (items) => {
             const { userPlan } = items;
             const authToken = items.apiToken || items.authToken;
             const deepScanPublicKey = items.deepScanPublicKey;
@@ -346,13 +449,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const truncatedText = String(request.text || "").slice(0, DEEP_SCAN_MAX_CHARS);
                 const textHash = await hashTextSha256(truncatedText);
                 const encryptedPayload = await encryptDeepScanText(truncatedText, deepScanPublicKey);
-                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'http://localhost:3001' });
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
 
                 const response = await fetch(`${apiUrl}/api/v1/deep-scan`, {
-                    method: 'POST',
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${authToken}`
                     },
                     body: JSON.stringify({
                         url: request.url,
@@ -376,162 +479,250 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-        // --- TRACK USER CLICK ON SUSPICIOUS LINK ---
-        if (request.action === "user_action_click_suspicious_link") {
-            chrome.storage.sync.get(['authToken', 'apiToken', 'userPlan', 'userRole'], async (items) => {
-                const authToken = items.apiToken || items.authToken;
-                if (!authToken) return;
-                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: 'http://localhost:3001' });
-                try {
-                    await fetch(`${apiUrl}/api/v1/user-actions`, {
-                        method: 'POST',
+    if (request.action === "scan_feedback") {
+        chrome.storage.sync.get(["authToken", "apiToken", "userRole"], async (items) => {
+            const authToken = items.apiToken || items.authToken;
+            if (!authToken) {
+                sendResponse({ error: "UNAUTHORIZED" });
+                return;
+            }
+            const trustLevel = (items.userRole === "admin" || items.userRole === "super_admin")
+                ? "analyst"
+                : "user";
+
+            const tabId = sender?.tab?.id;
+            const scanId = tabId !== undefined ? latestScanByTab.get(tabId) : null;
+            if (!scanId) {
+                sendResponse({ error: "NO_SCAN_CONTEXT" });
+                return;
+            }
+
+            const label = typeof request.label === "string" ? request.label.toLowerCase() : "";
+            if (!["safe", "phishing", "unsure"].includes(label)) {
+                sendResponse({ error: "INVALID_LABEL" });
+                return;
+            }
+
+            try {
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
+                const response = await fetch(`${apiUrl}/api/v1/scans/${scanId}/feedback`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        label,
+                        note: typeof request.note === "string" ? request.note.slice(0, 400) : "",
+                        trustLevel
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data?.success) {
+                    sendResponse({ error: data?.error || "FEEDBACK_FAILED" });
+                    return;
+                }
+
+                sendResponse({ success: true, data: data.data });
+            } catch (e) {
+                console.error("Failed to save scan feedback:", e);
+                sendResponse({ error: "NETWORK_ERROR" });
+            }
+        });
+        return true;
+    }
+
+    if (request.action === "user_action_click_suspicious_link") {
+        chrome.storage.sync.get(["authToken", "apiToken", "userRole"], async (items) => {
+            const authToken = items.apiToken || items.authToken;
+            if (!authToken) return;
+            const trustLevel = (items.userRole === "admin" || items.userRole === "super_admin")
+                ? "analyst"
+                : "user";
+            const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
+            const tabId = sender?.tab?.id;
+            const scanId = tabId !== undefined ? latestScanByTab.get(tabId) : null;
+
+            try {
+                if (scanId) {
+                    await fetch(`${apiUrl}/api/v1/scans/${scanId}/feedback`, {
+                        method: "POST",
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${authToken}`
                         },
                         body: JSON.stringify({
-                            actionType: 'clicked_suspicious_link',
-                            link: request.link,
-                            actionAt: new Date().toISOString(),
-                            // emailScanId: poate fi adăugat dacă este disponibil
-                            // Se poate adăuga și emailUrl pentru context
-                            emailUrl: request.emailUrl
+                            label: "phishing",
+                            note: `Clicked suspicious link: ${request.link || "unknown"}`,
+                            trustLevel
                         })
                     });
-                } catch (e) {
-                    console.error('Failed to log user action:', e);
                 }
-            });
-            return;
-        }
+            } catch (e) {
+                console.error("Failed to log user action:", e);
+            }
+        });
+        return;
+    }
 });
 
-async function processScan(request, sender, sendResponse, remainingScans) {
+async function processScan(request, sender, sendResponse, remainingScans, authToken) {
     const start = performance.now();
-    predict(request.text, request.url).then(result => {
+    const policySettings = await chrome.storage.sync.get(POLICY_DEFAULTS);
+    const allowLocalFallback = Boolean(policySettings.allowLocalFallback) && !Boolean(policySettings.strictServerOnly);
+
+    try {
+        let result;
+        try {
+            result = await analyzeViaApi(request, authToken);
+        } catch (error) {
+            if (error?.status === 401) {
+                sendResponse({ error: "UNAUTHORIZED" });
+                return;
+            }
+            if (!allowLocalFallback) {
+                const unavailableError = request.source === "auto" ? "SILENT_FAIL" : "ANALYZE_UNAVAILABLE";
+                sendResponse({ error: unavailableError });
+                return;
+            }
+            console.warn("PhishGuard: API analyze unavailable, using fallback heuristics.", error);
+            result = runFallbackAnalysis(request.text, request.url);
+        }
+
         const durationMs = performance.now() - start;
-        // Update Badge
-        // Hybrid Scoring: Max of AI scores and Heuristic score
-        const finalScore = Math.max(result.textScore, result.urlScore, result.heuristicScore);
-        const riskLevel = getRiskLevel(finalScore);
-        const isPhish = isPhishingScore(finalScore);
+        const finalScore = clampScore(result.overallScore);
+        const riskLevel = result.riskLevel || getRiskLevel(finalScore);
+        const isPhish = typeof result.isPhishing === "boolean" ? result.isPhishing : isPhishingScore(finalScore);
+        const backendPolicy = result?.policyDecision && typeof result.policyDecision === "object"
+            ? result.policyDecision
+            : null;
+        const hardBlockByPolicy = Boolean(backendPolicy?.action === "block");
+        const hardBlockEnabled = !Boolean(policySettings.disableHardBlock);
+        const hardBlockApplied = hardBlockByPolicy && hardBlockEnabled;
         const attackType = classifyAttackType(request.text || "");
 
-        if (durationMs > 200) {
-            console.warn(`PhishGuard: scan exceeded 200ms (${durationMs.toFixed(0)}ms)`);
+        if (durationMs > 350) {
+            console.warn(`PhishGuard: scan exceeded 350ms (${durationMs.toFixed(0)}ms)`);
         }
 
-        let badgeText = "SAFE";
-        let badgeColor = "#22C55E";
-        if (riskLevel === "medium") {
-            badgeText = "RISK";
-            badgeColor = "#F59E0B";
-        } else if (riskLevel === "high" || riskLevel === "critical") {
-            badgeText = "WARN";
-            badgeColor = "#DC2626";
+        if (sender?.tab?.id !== undefined) {
+            if (typeof result.scanId === "string" && result.scanId.length > 0) {
+                latestScanByTab.set(sender.tab.id, result.scanId);
+            }
+
+            let badgeText = "SAFE";
+            let badgeColor = "#22C55E";
+
+            if (hardBlockApplied) {
+                badgeText = "BLOCK";
+                badgeColor = "#7F1D1D";
+            } else if (riskLevel === "medium") {
+                badgeText = "RISK";
+                badgeColor = "#F59E0B";
+            } else if (riskLevel === "high" || riskLevel === "critical") {
+                badgeText = "WARN";
+                badgeColor = "#DC2626";
+            }
+
+            chrome.action.setBadgeText({ text: badgeText, tabId: sender.tab.id });
+            chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId: sender.tab.id });
         }
 
-        chrome.action.setBadgeText({ text: badgeText, tabId: sender.tab.id });
-        chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId: sender.tab.id });
+        // Only log incidents from local fallback path to avoid duplicate DB rows.
+        if (result.origin === "fallback_local") {
+            logIncident({
+                url: request.url,
+                textScore: result.textScore,
+                urlScore: result.urlScore,
+                heuristicScore: result.heuristicScore,
+                overallScore: finalScore,
+                attackType,
+                source: "extension_fallback"
+            });
+        }
 
-        // Log scan to backend (for BI & org analytics)
-        logIncident({
-            url: request.url,
-            textScore: result.textScore,
-            urlScore: result.urlScore,
-            heuristicScore: result.heuristicScore,
-            overallScore: finalScore,
-            attackType
-        });
-
-        if (isPhish) {
-            // System Notification (Crucial for Auto-Scan)
+        if (isPhish || hardBlockApplied) {
             chrome.notifications.create({
-                type: 'basic',
-                iconUrl: 'assets/logo-128.png',
-                title: 'Phishing detected',
+                type: "basic",
+                iconUrl: "assets/logo-128.png",
+                title: hardBlockApplied ? "Threat blocked by policy" : "Phishing detected",
                 message: `PhishGuard detected a threat in this email.\nRisk score: ${(finalScore * 100).toFixed(0)}%`,
                 priority: 2
             });
         }
 
-        // Return result + updated quota
+        const effectivePolicyDecision = hardBlockApplied
+            ? backendPolicy
+            : (hardBlockByPolicy && !hardBlockEnabled)
+                ? { action: "warn", reason: "hard_block_disabled_locally", hardBlock: false }
+                : backendPolicy;
+
         sendResponse({
             ...result,
             overallScore: finalScore,
             riskLevel,
             attackType,
+            hardBlockApplied,
+            policyDecision: effectivePolicyDecision,
             durationMs,
             scansRemaining: remainingScans
         });
-    });
+    } catch (error) {
+        console.error("PhishGuard: scan processing failed", error);
+        sendResponse({ error: "ANALYZE_FAILED" });
+    }
 }
 
-// --- 5. EXTERNAL MESSAGING (AUTH HANDOFF) ---
 function handleAuthHandoff(request, sender, sendResponse) {
-	// DEBUG LOG
-	console.log("Background: Message Received", request);
-    // LOGOUT ACTION
     if (request.action === "LOGOUT") {
-        console.log("Background: LOGOUT ACTION TRIGGERED");
-        
-        // Clear everything
-        const keys = ['authToken', 'apiToken', 'userPlan', 'scansRemaining', 'deepScanPublicKey'];
-        
-        chrome.storage.sync.remove(keys, () => {
-             console.log("Background: Sync storage cleared");
-        });
-        
+        const keys = ["authToken", "apiToken", "userPlan", "scansRemaining", "deepScanPublicKey", "analyzePayloadPublicKey"];
+        latestScanByTab.clear();
+
+        chrome.storage.sync.remove(keys, () => {});
         chrome.storage.local.remove(keys, () => {
-             console.log("Background: Local storage cleared");
-             sendResponse({ success: true });
+            sendResponse({ success: true });
         });
-        
-        // Also badge update
+
         chrome.action.setBadgeText({ text: "" });
-        
-        return true; 
+        return true;
     }
 
-    // AUTH HANDOFF ACTION
     if (request.action === "AUTH_HANDOFF") {
-        console.log("Background: Received Auth Token");
-
-        const { token, user, subscription, deepScanPublicKey } = request;
-
-        // Save to Storage (Both Sync and Local for reliability)
+        const { token, user, subscription, deepScanPublicKey, analyzePayloadPublicKey } = request;
         const data = {
             authToken: token,
             apiToken: token,
-            userPlan: user.plan || 'free',
-            userRole: user.role || 'user',
+            userPlan: user.plan || "free",
+            userRole: user.role || "user",
             scansRemaining: subscription ? subscription.scansRemaining : 10,
-            deepScanPublicKey: deepScanPublicKey || null
+            deepScanPublicKey: deepScanPublicKey || null,
+            analyzePayloadPublicKey: analyzePayloadPublicKey || deepScanPublicKey || null
         };
 
         chrome.storage.sync.set(data);
         chrome.storage.local.set(data, () => {
-             console.log("Background: Token saved to storage.");
-             sendResponse({ success: true });
+            sendResponse({ success: true });
         });
 
-        return true; // Async response
+        return true;
     }
 }
 
 chrome.runtime.onMessageExternal.addListener(handleAuthHandoff);
 chrome.runtime.onMessage.addListener(handleAuthHandoff);
 
-// Initialize on load
-loadResources();
-
-// --- INSTALL/UPDATE HANDLER ---
 chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === 'install' || details.reason === 'update') {
-        console.log("Background: Extension installed/updated. Clearing storage to prevent compatibility issues.");
-        const keys = ['authToken', 'apiToken', 'userPlan', 'userRole', 'scansRemaining', 'apiUrl', 'deepScanPublicKey'];
-        
+    if (details.reason === "install" || details.reason === "update") {
+        latestScanByTab.clear();
+        const keys = ["authToken", "apiToken", "userPlan", "userRole", "scansRemaining", "apiUrl", "deepScanPublicKey", "analyzePayloadPublicKey"];
         chrome.storage.local.remove(keys);
         chrome.storage.sync.remove(keys);
+        // Re-apply strict defaults after auth/runtime keys are reset.
+        bootstrapPolicyDefaults(true);
     }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    latestScanByTab.delete(tabId);
 });

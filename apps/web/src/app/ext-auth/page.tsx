@@ -135,7 +135,8 @@ export default function ExtAuthPage() {
                 plan: "free",
             },
             subscription: authData?.subscription,
-            deepScanPublicKey: authData?.deepScanPublicKey || null
+            deepScanPublicKey: authData?.deepScanPublicKey || null,
+            analyzePayloadPublicKey: authData?.analyzePayloadPublicKey || null,
         };
 
         // Try standard runtime messaging

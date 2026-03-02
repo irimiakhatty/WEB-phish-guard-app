@@ -6,6 +6,15 @@ import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
 import { ATTACK_TYPES, classifyAttackType } from "@/lib/attack-types";
 import { revalidatePath } from "next/cache";
 
+export type FeedbackLabel = "safe" | "phishing" | "unsure";
+export type FeedbackTrustLevel = "user" | "analyst";
+
+const FEEDBACK_LABELS = new Set<FeedbackLabel>(["safe", "phishing", "unsure"]);
+
+function appendUniqueTags(existing: string[], tags: string[]): string[] {
+  return Array.from(new Set([...(existing || []), ...tags]));
+}
+
 // Get user's own scans
 export async function getMyScans() {
   const session = await requireAuth();
@@ -70,6 +79,65 @@ export async function deleteScan(scanId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/scans");
   return { success: true };
+}
+
+export async function submitScanFeedback(scanId: string, label: FeedbackLabel, note?: string) {
+  const session = await requireAuth();
+  const trustLevel: FeedbackTrustLevel =
+    session.user.role === "super_admin" || session.user.role === "admin" ? "analyst" : "user";
+
+  if (!FEEDBACK_LABELS.has(label)) {
+    throw new Error("Invalid feedback label");
+  }
+
+  const scan = await prisma.scan.findFirst({
+    where: {
+      id: scanId,
+      userId: session.user.id,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+      detectedThreats: true,
+      analysis: true,
+    },
+  });
+
+  if (!scan) {
+    throw new Error("Scan not found");
+  }
+
+  const timestamp = new Date().toISOString();
+  const trimmedNote = typeof note === "string" ? note.trim().slice(0, 400) : "";
+  const nextThreats = appendUniqueTags(scan.detectedThreats || [], [
+    `feedback_label:${label}`,
+    `feedback_trust:${trustLevel}`,
+    `feedback_at:${timestamp}`,
+    "feedback_source:dashboard",
+  ]);
+  const feedbackLine = `[Dashboard feedback ${timestamp}] label=${label}${
+    trimmedNote ? ` note=${trimmedNote}` : ""
+  } trust=${trustLevel}`;
+  const existingAnalysis = scan.analysis ? `${scan.analysis}\n` : "";
+
+  await prisma.scan.update({
+    where: { id: scanId },
+    data: {
+      detectedThreats: nextThreats,
+      analysis: `${existingAnalysis}${feedbackLine}`,
+    },
+  });
+
+  revalidatePath("/scans");
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    scanId,
+    label,
+    trustLevel,
+    detectedThreats: nextThreats,
+  };
 }
 
 // ADMIN: Get all scans

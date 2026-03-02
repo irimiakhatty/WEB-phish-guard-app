@@ -5,7 +5,7 @@ import { Trash2, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { deleteScan } from "@/app/actions/scans";
+import { deleteScan, submitScanFeedback, type FeedbackLabel } from "@/app/actions/scans";
 import type { Scan } from "@phish-guard-app/db";
 
 type ScansClientProps = {
@@ -15,6 +15,7 @@ type ScansClientProps = {
 export default function ScansClient({ scans: initialScans }: ScansClientProps) {
   const [scans, setScans] = useState(initialScans);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState<string | null>(null);
 
   const handleDelete = async (scanId: string) => {
     if (!confirm("Are you sure you want to delete this scan?")) {
@@ -31,6 +32,44 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
       console.error(error);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const getCurrentFeedback = (scan: Scan): FeedbackLabel | null => {
+    const tags = scan.detectedThreats || [];
+    for (let i = tags.length - 1; i >= 0; i--) {
+      const tag = tags[i];
+      if (tag.startsWith("feedback_label:")) {
+        const value = tag.slice("feedback_label:".length);
+        if (value === "safe" || value === "phishing" || value === "unsure") {
+          return value;
+        }
+      }
+    }
+    return null;
+  };
+
+  const handleFeedback = async (scanId: string, label: FeedbackLabel) => {
+    const key = `${scanId}:${label}`;
+    setFeedbackLoading(key);
+    try {
+      const result = await submitScanFeedback(scanId, label);
+      setScans((prev) =>
+        prev.map((scan) =>
+          scan.id === scanId
+            ? {
+                ...scan,
+                detectedThreats: result.detectedThreats,
+              }
+            : scan
+        )
+      );
+      toast.success(`Feedback saved: ${label}`);
+    } catch (error) {
+      toast.error("Failed to save feedback");
+      console.error(error);
+    } finally {
+      setFeedbackLoading(null);
     }
   };
 
@@ -158,6 +197,27 @@ export default function ScansClient({ scans: initialScans }: ScansClientProps) {
                     </ul>
                   </div>
                 )}
+
+                <div className="border-t pt-4 mt-4">
+                  <p className="text-sm font-medium mb-2">Feedback (ground truth):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(["safe", "phishing", "unsure"] as FeedbackLabel[]).map((label) => {
+                      const active = getCurrentFeedback(scan) === label;
+                      const key = `${scan.id}:${label}`;
+                      return (
+                        <Button
+                          key={label}
+                          size="sm"
+                          variant={active ? "default" : "outline"}
+                          onClick={() => handleFeedback(scan.id, label)}
+                          disabled={feedbackLoading === key}
+                        >
+                          {label.toUpperCase()}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}

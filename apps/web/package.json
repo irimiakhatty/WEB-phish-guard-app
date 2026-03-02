@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "export:evaluation:csv": "bunx tsx scripts/export-evaluation-csv.ts",
+    "keys:analyze": "bunx tsx scripts/generate-analyze-keypair.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",

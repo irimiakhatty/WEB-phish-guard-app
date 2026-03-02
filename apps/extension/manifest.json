@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PhishGuard - AI Phishing Detector",
   "version": "1.1.1",
-  "description": "Detects phishing in emails using Deep Learning (LSTM + CNN).",
+  "description": "Detects phishing in emails using server-side AI and threat intelligence.",
   "permissions": [
     "activeTab",
     "storage",
@@ -47,8 +47,7 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/*",
-        "tf.min.js"
+        "assets/*"
       ],
       "matches": [
         "*://mail.google.com/*",

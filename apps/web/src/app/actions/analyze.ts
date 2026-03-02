@@ -1,19 +1,88 @@
 "use server";
 
 import prisma from "@phish-guard-app/db";
+import { createHash } from "crypto";
 import { requireAuth } from "@/lib/auth-helpers";
 import { checkSafeBrowsing, getThreatSeverity } from "@/lib/safe-browsing";
-import { analyzeTextML, analyzeUrlML } from "@/lib/ml-service";
+import { analyzeTextMLDetailed, analyzeUrlMLDetailed } from "@/lib/ml-service";
 import { checkScanLimits, getUserSubscriptionInfo } from "@/lib/subscription-helpers";
 import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
 
-type AnalyzeInput = {
+const SCORING_VERSION = "weighted_v1";
+const WEIGHTED_SCORE_CONFIG = {
+  urlSignal: 0.55,
+  textSignal: 0.45,
+  mlInsideSignal: 0.75,
+  heuristicInsideSignal: 0.25,
+} as const;
+
+function readBooleanEnv(keys: string[], fallback: boolean): boolean {
+  for (const key of keys) {
+    const raw = process.env[key];
+    if (typeof raw === "string") {
+      return raw.toLowerCase() === "true";
+    }
+  }
+  return fallback;
+}
+
+const FORENSICS_MODE = readBooleanEnv(["FORENSICS_MODE", "PG_FORENSICS_MODE"], false);
+
+const STORAGE_POLICY = {
+  // New names first, PG_* kept for backward compatibility.
+  storeSafeContent: readBooleanEnv(["STORE_SAFE_CONTENT", "PG_STORE_SAFE_CONTENT"], false),
+  storePhishingContent: readBooleanEnv(["STORE_PHISHING_CONTENT", "PG_STORE_PHISHING_CONTENT"], false),
+  storeSafeUrl: readBooleanEnv(["STORE_SAFE_URL", "PG_STORE_SAFE_URL"], false),
+  storePhishingUrl: readBooleanEnv(["STORE_PHISHING_URL", "PG_STORE_PHISHING_URL"], true),
+  storeFullUrl: readBooleanEnv(["STORE_FULL_URL", "PG_STORE_FULL_URL"], false),
+} as const;
+
+const ENFORCEMENT_POLICY = {
+  hardBlockRisk: (process.env.PG_HARD_BLOCK_RISK || "critical").toLowerCase(),
+  minConfidenceForHardBlock: Number(process.env.PG_HARD_BLOCK_MIN_CONFIDENCE || "0.9"),
+} as const;
+
+export type AnalyzeInput = {
   url?: string;
   textContent?: string;
   imageUrl?: string;
 };
 
-type AnalysisResult = {
+export type ScoreBreakdown = {
+  urlMlScore: number;
+  urlHeuristicScore: number;
+  textMlScore: number;
+  textHeuristicScore: number;
+  safeBrowsingScore: number;
+  weightedScore: number;
+};
+
+export type ModelVersions = {
+  urlModel: string | null;
+  textModel: string | null;
+  safeBrowsingHit: boolean;
+};
+
+export type PolicyDecision = {
+  action: "allow" | "warn" | "block";
+  reason: string;
+  hardBlock: boolean;
+};
+
+export type RetentionPolicy = {
+  storedText: boolean;
+  storedUrl: boolean;
+  usedUrlHostOnly: boolean;
+  forensicsMode: boolean;
+};
+
+type AnalyzeContext = {
+  userId?: string;
+  source?: "web" | "extension" | "api";
+  enforceLimits?: boolean;
+};
+
+export type AnalysisResult = {
   textScore: number;
   urlScore: number;
   overallScore: number;
@@ -22,6 +91,12 @@ type AnalysisResult = {
   confidence: number;
   detectedThreats: string[];
   analysis: string;
+  scanId: string;
+  scoringVersion: string;
+  scoreBreakdown: ScoreBreakdown;
+  modelVersions: ModelVersions;
+  policyDecision: PolicyDecision;
+  retentionPolicy: RetentionPolicy;
 };
 
 // Heuristic analysis for URLs
@@ -423,16 +498,154 @@ function analyzeTextHeuristic(text: string): { score: number; threats: string[] 
   return { score, threats };
 }
 
-export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResult> {
-  const session = await requireAuth();
+function roundScore(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  const clamped = Math.min(Math.max(score, 0), 1);
+  return Number(clamped.toFixed(4));
+}
 
-  // Check scan limits based on subscription (can be bypassed in dev)
+function computeSignalScore(mlScore: number, heuristicScore: number): number {
+  if (mlScore > 0) {
+    return roundScore(
+      mlScore * WEIGHTED_SCORE_CONFIG.mlInsideSignal +
+        heuristicScore * WEIGHTED_SCORE_CONFIG.heuristicInsideSignal
+    );
+  }
+
+  return roundScore(heuristicScore);
+}
+
+function computeWeightedScore(urlSignal: number, textSignal: number, hasUrl: boolean, hasText: boolean): number {
+  const activeWeights: Array<{ score: number; weight: number }> = [];
+
+  if (hasUrl) {
+    activeWeights.push({ score: urlSignal, weight: WEIGHTED_SCORE_CONFIG.urlSignal });
+  }
+
+  if (hasText) {
+    activeWeights.push({ score: textSignal, weight: WEIGHTED_SCORE_CONFIG.textSignal });
+  }
+
+  if (activeWeights.length === 0) return 0;
+
+  const totalWeight = activeWeights.reduce((sum, item) => sum + item.weight, 0);
+  const weighted = activeWeights.reduce((sum, item) => sum + item.score * item.weight, 0);
+  return roundScore(weighted / totalWeight);
+}
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+function parseHardBlockRiskLevel(level: string): number {
+  const normalized = level.toLowerCase();
+  if (normalized === "low") return 1;
+  if (normalized === "medium") return 2;
+  if (normalized === "high") return 3;
+  if (normalized === "critical") return 4;
+  return 4;
+}
+
+function riskLevelToRank(level: string): number {
+  if (level === "low") return 1;
+  if (level === "medium") return 2;
+  if (level === "high") return 3;
+  if (level === "critical") return 4;
+  return 0;
+}
+
+function computePolicyDecision(
+  riskLevel: "safe" | "low" | "medium" | "high" | "critical",
+  confidence: number,
+  safeBrowsingHit: boolean
+): PolicyDecision {
+  const blockRiskRank = parseHardBlockRiskLevel(ENFORCEMENT_POLICY.hardBlockRisk);
+  const currentRiskRank = riskLevelToRank(riskLevel);
+
+  if (
+    currentRiskRank >= blockRiskRank &&
+    confidence >= ENFORCEMENT_POLICY.minConfidenceForHardBlock &&
+    safeBrowsingHit
+  ) {
+    return {
+      action: "block",
+      reason: "high_confidence_reputation_hit",
+      hardBlock: true,
+    };
+  }
+
+  if (currentRiskRank >= riskLevelToRank("high")) {
+    return {
+      action: "warn",
+      reason: "high_risk_requires_user_confirmation",
+      hardBlock: false,
+    };
+  }
+
+  if (currentRiskRank >= riskLevelToRank("medium")) {
+    return {
+      action: "warn",
+      reason: "medium_risk_advisory",
+      hardBlock: false,
+    };
+  }
+
+  return {
+    action: "allow",
+    reason: "risk_below_enforcement_threshold",
+    hardBlock: false,
+  };
+}
+
+function sanitizeUrlForStorage(url: string | undefined, shouldStore: boolean): { value: string | null; host: string | null; usedHostOnly: boolean } {
+  if (!url || !shouldStore) {
+    return { value: null, host: null, usedHostOnly: false };
+  }
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+
+    if (STORAGE_POLICY.storeFullUrl) {
+      return {
+        value: `${parsed.protocol}//${parsed.host}${parsed.pathname}${parsed.search}`,
+        host,
+        usedHostOnly: false,
+      };
+    }
+
+    return {
+      value: host,
+      host,
+      usedHostOnly: true,
+    };
+  } catch {
+    return {
+      value: STORAGE_POLICY.storeFullUrl ? url : null,
+      host: null,
+      usedHostOnly: !STORAGE_POLICY.storeFullUrl,
+    };
+  }
+}
+
+export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeContext = {}): Promise<AnalysisResult> {
+  const session = context.userId ? null : await requireAuth();
+  const userId = context.userId || session?.user.id;
+
+  if (!userId) {
+    throw new Error("Unauthorized - missing user context");
+  }
+
+  const source = context.source || (context.userId ? "api" : "web");
+  const enforceLimits = context.enforceLimits ?? !context.userId;
+
+  // Check scan limits based on subscription (can be bypassed in dev or disabled per context)
   const disableLimits = process.env.DISABLE_SCAN_LIMITS === "true";
-  if (!disableLimits) {
-    const limitsCheck = await checkScanLimits(session.user.id);
+  if (enforceLimits && !disableLimits) {
+    const limitsCheck = await checkScanLimits(userId);
     if (!limitsCheck.allowed) {
       // Attach context so the client can show an upgrade CTA
-      const subInfo = await getUserSubscriptionInfo(session.user.id);
+      const subInfo = await getUserSubscriptionInfo(userId);
       const payload = {
         code: "SCAN_LIMIT_REACHED",
         message: limitsCheck.reason || "Scan limit exceeded",
@@ -481,6 +694,8 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
   // === URL ANALYSIS ===
   let safeBrowsingScore = 0;
   let urlMLScore = 0;
+  let urlHeuristicScore = 0;
+  let urlModelVersion: string | null = null;
   if (input.url) {
     // 1. Google Safe Browsing (authoritative database)
     const safeBrowsingResult = await checkSafeBrowsing(input.url);
@@ -492,43 +707,39 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
 
     // 1. ML Model via Service (trained on phishing URLs)
     try {
-      const mlScore = await analyzeUrlML(input.url);
-      if (mlScore !== null && mlScore >= 0) {
-        urlMLScore = mlScore;
+      const mlResult = await analyzeUrlMLDetailed(input.url);
+      if (mlResult && mlResult.score >= 0) {
+        urlMLScore = mlResult.score;
+        urlModelVersion = mlResult.modelVersion;
         mlDetectionUsed = true;
-        if (mlScore > 0.7) {
-          allThreats.push(`ML model detected phishing patterns (confidence: ${(mlScore * 100).toFixed(0)}%)`);
+        if (mlResult.score > 0.7) {
+          allThreats.push(`ML model detected phishing patterns (confidence: ${(mlResult.score * 100).toFixed(0)}%)`);
         }
       }
     } catch (error) {
       console.error('URL ML analysis error:', error);
     }
 
-    // 3. Heuristic analysis (rule-based)
+    // 2. Heuristic analysis (rule-based)
     const urlAnalysis = analyzeUrlHeuristic(input.url);
+    urlHeuristicScore = urlAnalysis.score;
     allThreats.push(...urlAnalysis.threats);
-
-    // Combine scores: prioritize Safe Browsing > ML > Heuristics
-    if (safeBrowsingScore > 0) {
-      urlScore = safeBrowsingScore; // Google flagged it - highest confidence
-    } else if (urlMLScore > 0) {
-      urlScore = Math.max(urlMLScore, urlAnalysis.score); // ML or heuristics, whichever higher
-    } else {
-      urlScore = urlAnalysis.score; // Only heuristics
-    }
   }
 
   // === TEXT ANALYSIS ===
   let textMLScore = 0;
+  let textHeuristicScore = 0;
+  let textModelVersion: string | null = null;
   if (extractedText && extractedText.length > 0) {
     // 1. ML Model via Service (trained on phishing emails)
     try {
-      const mlScore = await analyzeTextML(extractedText);
-      if (mlScore !== null && mlScore >= 0) {
-        textMLScore = mlScore;
+      const mlResult = await analyzeTextMLDetailed(extractedText);
+      if (mlResult && mlResult.score >= 0) {
+        textMLScore = mlResult.score;
+        textModelVersion = mlResult.modelVersion;
         mlDetectionUsed = true;
-        if (mlScore > 0.7) {
-          allThreats.push(`ML model detected suspicious text patterns (confidence: ${(mlScore * 100).toFixed(0)}%)`);
+        if (mlResult.score > 0.7) {
+          allThreats.push(`ML model detected suspicious text patterns (confidence: ${(mlResult.score * 100).toFixed(0)}%)`);
         }
       }
     } catch (error) {
@@ -537,18 +748,15 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
 
     // 2. Heuristic analysis
     const textAnalysis = analyzeTextHeuristic(extractedText);
+    textHeuristicScore = textAnalysis.score;
     allThreats.push(...textAnalysis.threats);
-
-    // Combine scores: ML takes priority if available
-    textScore = textMLScore > 0 ? Math.max(textMLScore, textAnalysis.score) : textAnalysis.score;
   }
 
-  // Calculate overall score (Google Safe Browsing has priority)
-  const overallScore = safeBrowsingScore > 0 
-    ? safeBrowsingScore // If Google flags it, that's the score
-    : input.url && input.textContent 
-      ? (urlScore + textScore) / 2 
-      : urlScore || textScore;
+  // Weighted score composition (with Safe Browsing override for critical reputation hits)
+  urlScore = computeSignalScore(urlMLScore, urlHeuristicScore);
+  textScore = computeSignalScore(textMLScore, textHeuristicScore);
+  const weightedScore = computeWeightedScore(urlScore, textScore, Boolean(input.url), Boolean(extractedText));
+  const overallScore = roundScore(Math.max(weightedScore, safeBrowsingScore));
 
   const riskLevel = getRiskLevel(overallScore);
   const isPhishing = isPhishingScore(overallScore);
@@ -565,6 +773,64 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
     confidence = Math.min(0.65 + (allThreats.length * 0.05), 0.85); // Only heuristics
   }
 
+  const scoreBreakdown: ScoreBreakdown = {
+    urlMlScore: roundScore(urlMLScore),
+    urlHeuristicScore: roundScore(urlHeuristicScore),
+    textMlScore: roundScore(textMLScore),
+    textHeuristicScore: roundScore(textHeuristicScore),
+    safeBrowsingScore: roundScore(safeBrowsingScore),
+    weightedScore: roundScore(weightedScore),
+  };
+
+  const modelVersions: ModelVersions = {
+    urlModel: urlModelVersion,
+    textModel: textModelVersion,
+    safeBrowsingHit: safeBrowsingScore > 0,
+  };
+
+  const policyDecision = computePolicyDecision(riskLevel, confidence, modelVersions.safeBrowsingHit);
+
+  // Forensics mode is an explicit override used for incident investigations.
+  const shouldStoreText = FORENSICS_MODE
+    ? true
+    : isPhishing
+      ? STORAGE_POLICY.storePhishingContent
+      : STORAGE_POLICY.storeSafeContent;
+  const shouldStoreUrl = isPhishing
+    ? STORAGE_POLICY.storePhishingUrl
+    : STORAGE_POLICY.storeSafeUrl;
+  const storedUrl = sanitizeUrlForStorage(input.url, shouldStoreUrl);
+
+  const persistedText = shouldStoreText ? (extractedText || input.textContent || null) : null;
+  const persistedImageUrl = shouldStoreText ? input.imageUrl : null;
+  const retentionPolicy: RetentionPolicy = {
+    storedText: Boolean(persistedText),
+    storedUrl: Boolean(storedUrl.value),
+    usedUrlHostOnly: storedUrl.usedHostOnly,
+    forensicsMode: FORENSICS_MODE,
+  };
+
+  const textHash = extractedText ? sha256Hex(extractedText) : null;
+  const urlHash = input.url ? sha256Hex(input.url) : null;
+  const indicatorCount = allThreats.length;
+
+  allThreats.push(
+    `scoring_version:${SCORING_VERSION}`,
+    `weighted_score:${scoreBreakdown.weightedScore.toFixed(4)}`,
+    urlModelVersion ? `model_url:${urlModelVersion}` : "model_url:none",
+    textModelVersion ? `model_text:${textModelVersion}` : "model_text:none",
+    modelVersions.safeBrowsingHit ? "safe_browsing:hit" : "safe_browsing:miss",
+    `policy_action:${policyDecision.action}`,
+    `policy_reason:${policyDecision.reason}`,
+    `policy_forensics_mode:${FORENSICS_MODE ? "on" : "off"}`,
+    `policy_store_safe_content:${STORAGE_POLICY.storeSafeContent ? "on" : "off"}`,
+    `retention_text:${retentionPolicy.storedText ? "stored" : "redacted"}`,
+    `retention_url:${retentionPolicy.storedUrl ? (retentionPolicy.usedUrlHostOnly ? "host_only" : "full") : "redacted"}`,
+    textHash ? `text_sha256:${textHash}` : "text_sha256:none",
+    urlHash ? `url_sha256:${urlHash}` : "url_sha256:none"
+  );
+  const uniqueThreats = Array.from(new Set(allThreats));
+
   // Generate analysis message
   let analysisMethod = '';
   if (safeBrowsingScore > 0) {
@@ -574,37 +840,37 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
   }
 
   const analysis = isPhishing
-    ? `This ${input.url ? "URL" : input.imageUrl ? "image" : "content"} shows ${allThreats.length} suspicious indicator${allThreats.length !== 1 ? 's' : ''} commonly associated with phishing attempts. ${analysisMethod}Risk score: ${(overallScore * 100).toFixed(1)}%. Exercise caution and verify the source before proceeding.`
+    ? `This ${input.url ? "URL" : input.imageUrl ? "image" : "content"} shows ${indicatorCount} suspicious indicator${indicatorCount !== 1 ? 's' : ''} commonly associated with phishing attempts. ${analysisMethod}Risk score: ${(overallScore * 100).toFixed(1)}%. Exercise caution and verify the source before proceeding.`
     : `No significant threats detected in this ${input.url ? "URL" : input.imageUrl ? "image" : "content"}. ${mlDetectionUsed ? 'AI models analyzed the content and found it safe. ' : ''}Risk score: ${(overallScore * 100).toFixed(1)}%. However, always verify the sender's identity and be cautious with personal information.`;
 
   // Get subscription info to determine organization context
-  const subInfo = await getUserSubscriptionInfo(session.user.id);
+  const subInfo = await getUserSubscriptionInfo(userId);
 
   // Save to database (with organization if applicable)
-  await prisma.scan.create({
+  const scan = await prisma.scan.create({
     data: {
-      userId: session.user.id,
+      userId,
       organizationId: subInfo.organizationId || null,
-      url: input.url,
-      textContent: extractedText || input.textContent,
-      imageUrl: input.imageUrl,
+      url: storedUrl.value,
+      textContent: persistedText,
+      imageUrl: persistedImageUrl,
       textScore,
       urlScore,
       overallScore,
       riskLevel,
       isPhishing,
       confidence,
-      detectedThreats: allThreats,
+      detectedThreats: uniqueThreats,
       analysis,
-      source: "web",
+      source,
     },
   });
 
   // Update user stats
   await prisma.dashboardStats.upsert({
-    where: { userId: session.user.id },
+    where: { userId },
     create: {
-      userId: session.user.id,
+      userId,
       totalScans: 1,
       threatsBlocked: isPhishing ? 1 : 0,
       safeSites: isPhishing ? 0 : 1,
@@ -629,7 +895,13 @@ export async function analyzePhishing(input: AnalyzeInput): Promise<AnalysisResu
     riskLevel,
     isPhishing,
     confidence,
-    detectedThreats: allThreats,
+    detectedThreats: uniqueThreats,
     analysis,
+    scanId: scan.id,
+    scoringVersion: SCORING_VERSION,
+    scoreBreakdown,
+    modelVersions,
+    policyDecision,
+    retentionPolicy,
   };
 }

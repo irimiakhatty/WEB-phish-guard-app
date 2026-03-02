@@ -121,6 +121,29 @@ function ensureStyles() {
             gap: 8px;
             flex-wrap: wrap;
         }
+        .pg-flag__feedback {
+            border: 1px solid var(--pg-border);
+            background: rgba(255, 255, 255, 0.85);
+            color: var(--pg-text);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .pg-flag__feedback[disabled] {
+            opacity: 0.7;
+            cursor: default;
+        }
+        .pg-flag__feedback.is-selected {
+            border-color: #2563eb;
+            color: #1d4ed8;
+            background: #dbeafe;
+        }
+        .pg-flag__feedback-status {
+            font-size: 11px;
+            color: var(--pg-muted);
+        }
         .pg-flag__cta {
             border: none;
             background: #2563eb;
@@ -395,6 +418,12 @@ function injectScanFlag(response) {
             <div class="pg-flag__desc">${config.description}</div>
             <div class="pg-flag__meta">${metaParts.join(" | ")}</div>
             ${showDeepScan ? `<div class="pg-flag__actions"><button class="pg-flag__cta">Deep Scan with AI</button></div>` : ""}
+            <div class="pg-flag__actions">
+                <button class="pg-flag__feedback" data-label="safe">Mark Safe</button>
+                <button class="pg-flag__feedback" data-label="phishing">Mark Phishing</button>
+                <button class="pg-flag__feedback" data-label="unsure">Unsure</button>
+            </div>
+            <div class="pg-flag__feedback-status" style="display:none;"></div>
             <div class="pg-flag__ai" style="display:none;"></div>
         </div>
     `;
@@ -451,6 +480,62 @@ function injectScanFlag(response) {
 
                 deepScanResult.style.display = "block";
                 deepScanResult.textContent = `${aiRisk}${aiScore ? ` (${aiScore})` : ""}: ${trimmed}`;
+            });
+        });
+    }
+
+    // Feedback handler (safe/phishing/unsure)
+    const feedbackButtons = Array.from(flag.querySelectorAll(".pg-flag__feedback"));
+    const feedbackStatus = flag.querySelector(".pg-flag__feedback-status");
+    if (feedbackButtons.length > 0 && feedbackStatus) {
+        feedbackButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                if (!(btn instanceof HTMLElement)) return;
+                const label = btn.dataset.label;
+                if (!label) return;
+
+                feedbackButtons.forEach((b) => {
+                    if (b instanceof HTMLButtonElement) b.disabled = true;
+                });
+                feedbackStatus.style.display = "block";
+                feedbackStatus.textContent = "Saving feedback...";
+
+                chrome.runtime.sendMessage(
+                    {
+                        action: "scan_feedback",
+                        label,
+                        note: `risk=${riskLevel}; score=${formatPercent(overallScore)}; page=${location.hostname}`
+                    },
+                    (result) => {
+                        feedbackButtons.forEach((b) => {
+                            if (b instanceof HTMLButtonElement) b.disabled = false;
+                        });
+
+                        if (chrome.runtime.lastError || !result) {
+                            feedbackStatus.textContent = "Feedback failed. Try again.";
+                            return;
+                        }
+
+                        if (result.error) {
+                            if (result.error === "NO_SCAN_CONTEXT") {
+                                feedbackStatus.textContent = "Scan context missing. Re-open email and scan again.";
+                            } else if (result.error === "UNAUTHORIZED") {
+                                feedbackStatus.textContent = "Sign in to send feedback.";
+                            } else {
+                                feedbackStatus.textContent = "Feedback failed. Try again.";
+                            }
+                            return;
+                        }
+
+                        feedbackButtons.forEach((b) => {
+                            if (b instanceof HTMLElement) {
+                                if (b.dataset.label === label) b.classList.add("is-selected");
+                                else b.classList.remove("is-selected");
+                            }
+                        });
+                        feedbackStatus.textContent = `Feedback saved: ${String(label).toUpperCase()}`;
+                    }
+                );
             });
         });
     }
@@ -520,7 +605,9 @@ window.addEventListener("message", (event) => {
         action: "AUTH_HANDOFF",
         token: event.data.token,
         user: event.data.user,
-        subscription: event.data.subscription
+        subscription: event.data.subscription,
+        deepScanPublicKey: event.data.deepScanPublicKey || null,
+        analyzePayloadPublicKey: event.data.analyzePayloadPublicKey || null
     }, (response) => {
         // console.log("ContentScript: Handed off to background", response);
     });
