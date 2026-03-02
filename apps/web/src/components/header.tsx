@@ -159,7 +159,7 @@ export function Header() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="rounded-xl bg-zinc-900 p-2 shadow-sm dark:bg-zinc-100">
-              <Shield className="h-5 w-5 text-white" />
+              <Shield className="h-5 w-5 text-white dark:text-zinc-900" />
             </div>
             <div className="leading-tight">
               <div className="font-semibold text-zinc-900 dark:text-zinc-50">PhishGuard</div>
@@ -217,7 +217,7 @@ export function Header() {
               title={isCollapsed ? "PhishGuard" : undefined}
             >
               <div className="rounded-xl bg-zinc-900 p-2.5 shadow-sm dark:bg-zinc-100">
-                <Shield className="h-5 w-5 text-white" />
+                <Shield className="h-5 w-5 text-white dark:text-zinc-900" />
               </div>
               {!isCollapsed ? (
                 <div className="leading-tight">

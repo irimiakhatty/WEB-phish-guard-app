@@ -22,11 +22,9 @@ export const metadata: Metadata = {
   title: "PhishGuard",
   description: "Advanced phishing detection and protection platform",
   icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png", sizes: "64x64" },
-      { url: "/favicon.ico", type: "image/x-icon" },
-    ],
-    shortcut: ["/favicon.ico"],
+    icon: [{ url: "/icon.png", type: "image/png", sizes: "64x64" }],
+    shortcut: ["/icon.png"],
+    apple: [{ url: "/icon.png", sizes: "64x64", type: "image/png" }],
   },
 };
 
