@@ -1160,6 +1160,99 @@ export async function assignMemberTraining(input: {
   };
 }
 
+export async function updateTrainingAssignmentStatus(input: {
+  organizationId: string;
+  assignmentId: string;
+  status: "assigned" | "in_progress" | "completed" | "dismissed";
+}) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
+
+  if (!isSuperAdmin && !adminMembership) {
+    return {
+      success: false,
+      error: "You don't have permission to update training assignments",
+    };
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { id: true, slug: true },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  const assignment = await prisma.trainingAssignment.findFirst({
+    where: {
+      id: input.assignmentId,
+      organizationId: input.organizationId,
+    },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+    },
+  });
+
+  if (!assignment) {
+    return {
+      success: false,
+      error: "Training assignment not found",
+    };
+  }
+
+  if (assignment.status === input.status) {
+    return {
+      success: true,
+      assignmentId: assignment.id,
+      status: assignment.status,
+      unchanged: true,
+      message: "Assignment already has this status.",
+    };
+  }
+
+  const updatedAssignment = await prisma.trainingAssignment.update({
+    where: { id: assignment.id },
+    data: {
+      status: input.status,
+      completedAt: input.status === "completed" ? new Date() : null,
+    },
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      userId: true,
+    },
+  });
+
+  revalidatePath(`/org/${organization.slug}`);
+  revalidatePath(`/org/${organization.slug}/members`);
+  revalidatePath(`/org/${organization.slug}/members/${updatedAssignment.userId}`);
+
+  return {
+    success: true,
+    assignmentId: updatedAssignment.id,
+    status: updatedAssignment.status,
+    completedAt: updatedAssignment.completedAt?.toISOString() ?? null,
+    message: "Training assignment updated.",
+  };
+}
+
 // ==========================================
 // INVITE ACCEPTANCE
 // ==========================================

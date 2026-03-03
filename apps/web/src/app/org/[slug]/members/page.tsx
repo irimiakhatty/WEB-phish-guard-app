@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Users, AlertTriangle, Shield, Activity, TrendingUp } from "lucide-react";
 import TrainingAssignmentButton from "./training-assignment-button";
+import TrainingAssignmentStatusActions from "./training-assignment-status-actions";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -115,6 +116,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
         status: true,
         attackType: true,
         dueAt: true,
+        completedAt: true,
         createdAt: true,
       },
     }),
@@ -143,6 +145,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
       status: string;
       attackType: string;
       dueAt: Date | null;
+      completedAt: Date | null;
       createdAt: Date;
     }
   >();
@@ -418,6 +421,27 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
                         year: "numeric",
                       })}
                     </p>
+                  ) : null}
+
+                  {member.latestAssignment?.completedAt ? (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                      Completed:{" "}
+                      {new Date(member.latestAssignment.completedAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </p>
+                  ) : null}
+
+                  {member.latestAssignment ? (
+                    <div className="pt-1">
+                      <TrainingAssignmentStatusActions
+                        organizationId={organization.id}
+                        assignmentId={member.latestAssignment.id}
+                        status={member.latestAssignment.status}
+                      />
+                    </div>
                   ) : null}
 
                   <div className="pt-1">
