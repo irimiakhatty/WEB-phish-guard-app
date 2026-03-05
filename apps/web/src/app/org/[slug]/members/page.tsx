@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Users, AlertTriangle, Shield, Activity, TrendingUp } from "lucide-react";
+import { ArrowLeft, Users, AlertTriangle, Shield, Activity, TrendingUp, Building2 } from "lucide-react";
 import TrainingAssignmentButton from "./training-assignment-button";
 import TrainingAssignmentStatusActions from "./training-assignment-status-actions";
 
@@ -203,6 +203,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
       id: member.id,
       userId: member.userId,
       role: member.role,
+      department: member.department || null,
       joinedAt: new Date(member.joinedAt).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "2-digit",
@@ -220,6 +221,50 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
   });
 
   const riskyUsersCount = membersWithStats.filter((m) => m.riskyCount > 0).length;
+  const departmentSummaryMap = new Map<
+    string,
+    {
+      departmentId: string;
+      departmentName: string;
+      members: number;
+      totalScans: number;
+      riskyScans: number;
+      avgScoreSum: number;
+    }
+  >();
+
+  for (const member of membersWithStats) {
+    const departmentId = member.department?.id || "unassigned";
+    const departmentName = member.department?.name || "Unassigned";
+    const current = departmentSummaryMap.get(departmentId) || {
+      departmentId,
+      departmentName,
+      members: 0,
+      totalScans: 0,
+      riskyScans: 0,
+      avgScoreSum: 0,
+    };
+
+    current.members += 1;
+    current.totalScans += member.totalScans;
+    current.riskyScans += member.riskyCount;
+    current.avgScoreSum += member.avgScore;
+    departmentSummaryMap.set(departmentId, current);
+  }
+
+  const departmentSummaries = Array.from(departmentSummaryMap.values())
+    .map((summary) => ({
+      ...summary,
+      avgScore: summary.members > 0 ? summary.avgScoreSum / summary.members : 0,
+      riskyRate: summary.totalScans > 0 ? summary.riskyScans / summary.totalScans : 0,
+    }))
+    .sort((a, b) => {
+      if (b.riskyScans !== a.riskyScans) {
+        return b.riskyScans - a.riskyScans;
+      }
+      return b.totalScans - a.totalScans;
+    });
+
   const sortedMembers = [...membersWithStats].sort((a, b) => {
     if (b.riskyCount !== a.riskyCount) {
       return b.riskyCount - a.riskyCount;
@@ -291,6 +336,61 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Department analytics
+            </CardTitle>
+            <CardDescription>
+              Exposure breakdown by department for business-level prioritization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {departmentSummaries.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No department data yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {departmentSummaries.map((department) => (
+                  <div
+                    key={department.departmentId}
+                    className="grid grid-cols-2 md:grid-cols-5 gap-3 rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-3"
+                  >
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Department</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {department.departmentName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Members</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {department.members}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Total scans</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {department.totalScans}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Risky events</p>
+                      <p className="text-sm font-semibold text-red-600">{department.riskyScans}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Avg risk</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {(department.avgScore * 100).toFixed(0)}% ({(department.riskyRate * 100).toFixed(0)} risky)
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {sortedMembers.map((member) => (

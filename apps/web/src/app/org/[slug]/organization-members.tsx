@@ -9,6 +9,8 @@ import {
   bulkInviteMembers,
   resendInvite,
   copyInviteLink,
+  createOrganizationDepartment,
+  assignMemberDepartment,
 } from "@/app/actions/organizations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,10 @@ interface Member {
   userId: string;
   role: string;
   joinedAt: Date;
+  department?: {
+    id: string;
+    name: string;
+  } | null;
   user: {
     id: string;
     email: string;
@@ -75,6 +81,11 @@ interface Organization {
   name: string;
   slug: string;
   members: Member[];
+  organizationDepartments: Array<{
+    id: string;
+    name: string;
+    nameNormalized: string;
+  }>;
   invites: Invite[];
   subscription: {
     maxMembers: number;
@@ -96,6 +107,11 @@ export default function OrganizationMembers({
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
+  const [departmentLoading, setDepartmentLoading] = useState(false);
+  const [departmentError, setDepartmentError] = useState("");
+  const [departmentSuccess, setDepartmentSuccess] = useState("");
+  const [memberDepartmentLoadingId, setMemberDepartmentLoadingId] = useState<string | null>(null);
   const [bulkInvites, setBulkInvites] = useState<Array<{ email: string; name?: string; department?: string; role?: "admin" | "member" }>>([]);
   const [bulkSummary, setBulkSummary] = useState<{ invited: number; added: number; skipped: number; total: number } | null>(null);
   const [bulkError, setBulkError] = useState("");
@@ -113,6 +129,14 @@ export default function OrganizationMembers({
     canceled: "bg-zinc-100 text-zinc-700 border-zinc-200",
     expired: "bg-amber-100 text-amber-700 border-amber-200",
   };
+
+  const departmentMemberCounts = new Map<string, number>();
+  organization.members.forEach((member) => {
+    const key = member.department?.id || "unassigned";
+    departmentMemberCounts.set(key, (departmentMemberCounts.get(key) || 0) + 1);
+  });
+
+  const unassignedMembersCount = departmentMemberCounts.get("unassigned") || 0;
 
   const parseCsvLine = (line: string) => {
     const result: string[] = [];
@@ -250,6 +274,49 @@ export default function OrganizationMembers({
     }
   };
 
+  const handleCreateDepartment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDepartmentError("");
+    setDepartmentSuccess("");
+    setDepartmentLoading(true);
+
+    const result = await createOrganizationDepartment({
+      organizationId: organization.id,
+      name: departmentName,
+    });
+
+    setDepartmentLoading(false);
+
+    if (!result.success) {
+      setDepartmentError(result.error || "Failed to create department");
+      return;
+    }
+
+    setDepartmentName("");
+    setDepartmentSuccess(
+      "reused" in result && result.reused ? "Department already existed." : "Department created."
+    );
+    router.refresh();
+  };
+
+  const handleAssignDepartment = async (memberId: string, departmentId: string) => {
+    setMemberDepartmentLoadingId(memberId);
+    const result = await assignMemberDepartment({
+      organizationId: organization.id,
+      memberId,
+      departmentId: departmentId === "unassigned" ? "unassigned" : departmentId,
+    });
+    setMemberDepartmentLoadingId(null);
+
+    if (!result.success) {
+      toast.error(result.error || "Failed to assign department");
+      return;
+    }
+
+    toast.success("Department updated");
+    router.refresh();
+  };
+
   const handleChangeRole = async (memberId: string, newRole: "admin" | "member") => {
     const result = await updateMemberRole(organization.id, memberId, newRole);
     if (result.success) {
@@ -330,6 +397,68 @@ export default function OrganizationMembers({
           </CardContent>
         </Card>
       )}
+
+      {isAdmin && (
+        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <CardHeader>
+            <CardTitle>Departments</CardTitle>
+            <CardDescription>
+              Organize members by department for clearer risk analytics and training priorities.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {departmentError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{departmentError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {departmentSuccess ? (
+              <Alert>
+                <AlertDescription>{departmentSuccess}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <form onSubmit={handleCreateDepartment} className="flex flex-col md:flex-row gap-3">
+              <Input
+                placeholder="e.g. Finance, HR, IT Security"
+                value={departmentName}
+                onChange={(e) => setDepartmentName(e.target.value)}
+                disabled={departmentLoading}
+                required
+              />
+              <Button type="submit" disabled={departmentLoading}>
+                {departmentLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Add department"
+                )}
+              </Button>
+            </form>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {organization.organizationDepartments.map((department) => (
+                <div
+                  key={department.id}
+                  className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 bg-white/60 dark:bg-gray-900/60 p-3"
+                >
+                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{department.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Members: {departmentMemberCounts.get(department.id) || 0}
+                  </p>
+                </div>
+              ))}
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white/40 dark:bg-gray-900/40 p-3">
+                <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Unassigned</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Members: {unassignedMembersCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Invite Form */}
       {isAdmin && (
         <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
@@ -514,6 +643,30 @@ export default function OrganizationMembers({
                   </div>
 
                   <div className="flex items-center gap-3">
+                    {isAdmin ? (
+                      <div className="w-[180px]">
+                        <Select
+                          value={member.department?.id || "unassigned"}
+                          onValueChange={(value) => handleAssignDepartment(member.id, value)}
+                          disabled={memberDepartmentLoadingId === member.id}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {organization.organizationDepartments.map((department) => (
+                              <SelectItem key={department.id} value={department.id}>
+                                {department.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <Badge variant="outline">{member.department?.name || "Unassigned"}</Badge>
+                    )}
+
                     <Badge variant={member.role === "admin" ? "default" : "secondary"}>
                       {member.role === "admin" ? (
                         <>

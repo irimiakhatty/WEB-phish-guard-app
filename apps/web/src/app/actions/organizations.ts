@@ -36,6 +36,74 @@ function buildInviteLink(token: string) {
   return `${getAppBaseUrl()}/invite/${token}`;
 }
 
+function toDepartmentNameKey(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function ensureUnassignedDepartment(organizationId: string) {
+  const existing = await prisma.organizationDepartment.findFirst({
+    where: {
+      organizationId,
+      nameNormalized: "unassigned",
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const created = await prisma.organizationDepartment.create({
+    data: {
+      organizationId,
+      name: "Unassigned",
+      nameNormalized: "unassigned",
+    },
+    select: { id: true },
+  });
+
+  return created.id;
+}
+
+async function findOrCreateDepartmentByName(organizationId: string, name?: string | null) {
+  const cleanedName = (name || "").trim();
+  if (!cleanedName) {
+    return null;
+  }
+
+  const normalizedName = toDepartmentNameKey(cleanedName);
+  if (!normalizedName) {
+    return null;
+  }
+
+  const existing = await prisma.organizationDepartment.findFirst({
+    where: {
+      organizationId,
+      nameNormalized: normalizedName,
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const created = await prisma.organizationDepartment.create({
+    data: {
+      organizationId,
+      name: cleanedName,
+      nameNormalized: normalizedName,
+    },
+    select: { id: true },
+  });
+
+  return created.id;
+}
+
 async function logInviteDelivery(params: {
   inviteId: string;
   organizationId: string;
@@ -211,11 +279,38 @@ export async function createOrganization(data: {
             role: "admin",
           },
         },
+        organizationDepartments: {
+          create: {
+            name: "Unassigned",
+            nameNormalized: "unassigned",
+          },
+        },
       },
       include: {
         subscription: true,
       },
     });
+
+    const unassignedDepartment = await prisma.organizationDepartment.findFirst({
+      where: {
+        organizationId: organization.id,
+        nameNormalized: "unassigned",
+      },
+      select: { id: true },
+    });
+
+    if (unassignedDepartment) {
+      await prisma.organizationMember.updateMany({
+        where: {
+          organizationId: organization.id,
+          userId: user.id,
+          departmentId: null,
+        },
+        data: {
+          departmentId: unassignedDepartment.id,
+        },
+      });
+    }
 
     revalidatePath("/dashboard");
     revalidatePath("/organizations");
@@ -429,7 +524,7 @@ export async function upgradeOrganizationPlan(
 
 export async function inviteMember(
   organizationId: string,
-  data: { email: string; role: "admin" | "member" }
+  data: { email: string; role: "admin" | "member"; departmentName?: string }
 ) {
   const { user } = await requireAuth();
   const isSuperAdmin = user.role === "super_admin";
@@ -527,11 +622,16 @@ export async function inviteMember(
     }
 
     // Add directly as member
+    const departmentId =
+      (await findOrCreateDepartmentByName(organizationId, data.departmentName)) ??
+      (await ensureUnassignedDepartment(organizationId));
+
     await prisma.organizationMember.create({
       data: {
         organizationId,
         userId: existingUser.id,
         role: data.role,
+        departmentId,
       },
     });
 
@@ -695,11 +795,16 @@ export async function bulkInviteMembers(
         continue;
       }
 
+      const departmentId =
+        (await findOrCreateDepartmentByName(organizationId, invite.department)) ??
+        (await ensureUnassignedDepartment(organizationId));
+
       await prisma.organizationMember.create({
         data: {
           organizationId,
           userId: existingUser.id,
           role,
+          departmentId,
         },
       });
 
@@ -807,11 +912,13 @@ export async function acceptInviteSignUp(input: { token: string; name: string; p
       where: { organizationId: invite.organizationId, userId: existingUser.id },
     });
     if (!membership) {
+      const departmentId = await ensureUnassignedDepartment(invite.organizationId);
       await prisma.organizationMember.create({
         data: {
           organizationId: invite.organizationId,
           userId: existingUser.id,
           role: invite.role,
+          departmentId,
         },
       });
     }
@@ -842,12 +949,15 @@ export async function acceptInviteSignUp(input: { token: string; name: string; p
     return { success: false, error: "Failed to create user" };
   }
 
+  const departmentId = await ensureUnassignedDepartment(invite.organizationId);
+
   await prisma.$transaction([
     prisma.organizationMember.create({
       data: {
         organizationId: invite.organizationId,
         userId: created.user.id,
         role: invite.role,
+        departmentId,
       },
     }),
     prismaAny.organizationInvite.update({
@@ -1000,6 +1110,217 @@ export async function updateMemberRole(
       error: "Failed to update member role",
     };
   }
+}
+
+export async function createOrganizationDepartment(input: {
+  organizationId: string;
+  name: string;
+}) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+  const cleanedName = input.name.trim().replace(/\s+/g, " ");
+
+  if (cleanedName.length < 2) {
+    return {
+      success: false,
+      error: "Department name must be at least 2 characters",
+    };
+  }
+
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
+
+  if (!isSuperAdmin && !adminMembership) {
+    return {
+      success: false,
+      error: "You don't have permission to manage departments",
+    };
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { id: true, slug: true },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  const nameNormalized = toDepartmentNameKey(cleanedName);
+  if (!nameNormalized) {
+    return {
+      success: false,
+      error: "Invalid department name",
+    };
+  }
+
+  try {
+    const existing = await prisma.organizationDepartment.findFirst({
+      where: {
+        organizationId: input.organizationId,
+        nameNormalized,
+      },
+      select: { id: true, name: true },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        reused: true,
+        departmentId: existing.id,
+        name: existing.name,
+      };
+    }
+
+    const created = await prisma.organizationDepartment.create({
+      data: {
+        organizationId: input.organizationId,
+        name: cleanedName,
+        nameNormalized,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    revalidatePath(`/org/${organization.slug}`);
+    revalidatePath(`/org/${organization.slug}/members`);
+
+    return {
+      success: true,
+      departmentId: created.id,
+      name: created.name,
+    };
+  } catch (error) {
+    const err = error as { code?: string };
+    if (err.code === "P2002") {
+      return {
+        success: false,
+        error: "Department already exists",
+      };
+    }
+    console.error("Error creating department:", error);
+    return {
+      success: false,
+      error: "Failed to create department",
+    };
+  }
+}
+
+export async function assignMemberDepartment(input: {
+  organizationId: string;
+  memberId: string;
+  departmentId: string | "unassigned" | null;
+}) {
+  const { user } = await requireAuth();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const adminMembership = isSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          userId: user.id,
+          role: "admin",
+        },
+      });
+
+  if (!isSuperAdmin && !adminMembership) {
+    return {
+      success: false,
+      error: "You don't have permission to assign departments",
+    };
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { id: true, slug: true },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  const member = await prisma.organizationMember.findFirst({
+    where: {
+      id: input.memberId,
+      organizationId: input.organizationId,
+    },
+    select: {
+      id: true,
+      userId: true,
+    },
+  });
+
+  if (!member) {
+    return {
+      success: false,
+      error: "Member not found in organization",
+    };
+  }
+
+  let targetDepartmentId: string;
+  if (!input.departmentId || input.departmentId === "unassigned") {
+    targetDepartmentId = await ensureUnassignedDepartment(input.organizationId);
+  } else {
+    const department = await prisma.organizationDepartment.findFirst({
+      where: {
+        id: input.departmentId,
+        organizationId: input.organizationId,
+      },
+      select: { id: true },
+    });
+
+    if (!department) {
+      return {
+        success: false,
+        error: "Department not found",
+      };
+    }
+
+    targetDepartmentId = department.id;
+  }
+
+  await prisma.organizationMember.update({
+    where: { id: member.id },
+    data: {
+      departmentId: targetDepartmentId,
+    },
+  });
+
+  await prisma.scan.updateMany({
+    where: {
+      organizationId: input.organizationId,
+      userId: member.userId,
+      departmentId: null,
+    },
+    data: {
+      departmentId: targetDepartmentId,
+    },
+  });
+
+  revalidatePath(`/org/${organization.slug}`);
+  revalidatePath(`/org/${organization.slug}/members`);
+  revalidatePath(`/org/${organization.slug}/members/${member.userId}`);
+
+  return {
+    success: true,
+    departmentId: targetDepartmentId,
+  };
 }
 
 export async function assignMemberTraining(input: {
@@ -1337,6 +1658,8 @@ export async function acceptInvite(token: string) {
   }
 
   try {
+    const departmentId = await ensureUnassignedDepartment(invite.organizationId);
+
     // Add as member and mark invite accepted
     await prisma.$transaction([
       prisma.organizationMember.create({
@@ -1344,6 +1667,7 @@ export async function acceptInvite(token: string) {
           organizationId: invite.organizationId,
           userId: user.id,
           role: invite.role,
+          departmentId,
         },
       }),
       prismaAny.organizationInvite.update({
@@ -1635,8 +1959,17 @@ export async function getOrganization(slug: string) {
               image: true,
             },
           },
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
         orderBy: { joinedAt: "asc" },
+      },
+      organizationDepartments: {
+        orderBy: { name: "asc" },
       },
       invites: {
         where: {
