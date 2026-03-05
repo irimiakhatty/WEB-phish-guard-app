@@ -17,6 +17,13 @@ export interface UserSubscriptionInfo {
   status?: string;
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
+  expiredPaidSubscription?: {
+    subscriptionType: "personal" | "team";
+    planId: PlanId;
+    status?: string | null;
+    currentPeriodEnd?: Date | null;
+    organizationSlug?: string;
+  };
   limits: {
     scansPerMonth: number;
     scansPerHour: number;
@@ -40,6 +47,60 @@ function getScansPerHourLimit(planId: PlanId): number {
   return features.scansPerHourPerUser ?? features.scansPerHour ?? 25;
 }
 
+const PAID_SUBSCRIPTION_ACTIVE_STATUSES = new Set(["active", "trialing"]);
+
+function isPaidPlan(planId: PlanId): boolean {
+  return getPlanById(planId).price > 0;
+}
+
+function isSubscriptionCurrentlyUsable(params: {
+  planId: PlanId;
+  status?: string | null;
+  currentPeriodEnd?: Date | null;
+  now: Date;
+}): boolean {
+  const { planId, status, currentPeriodEnd, now } = params;
+  if (!status) {
+    return false;
+  }
+
+  // Free plans are usable while marked active.
+  if (!isPaidPlan(planId)) {
+    return status === "active";
+  }
+
+  if (!currentPeriodEnd) {
+    return false;
+  }
+
+  return (
+    PAID_SUBSCRIPTION_ACTIVE_STATUSES.has(status) &&
+    currentPeriodEnd.getTime() > now.getTime()
+  );
+}
+
+type InactivePaidSubscriptionCandidate = {
+  subscriptionType: "personal" | "team";
+  planId: PlanId;
+  status?: string | null;
+  currentPeriodEnd?: Date | null;
+  organizationSlug?: string;
+};
+
+function pickMostRecentInactivePaidSubscription(
+  candidates: InactivePaidSubscriptionCandidate[]
+): InactivePaidSubscriptionCandidate | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  return candidates.reduce((latest, candidate) => {
+    const latestTs = latest.currentPeriodEnd?.getTime() ?? 0;
+    const candidateTs = candidate.currentPeriodEnd?.getTime() ?? 0;
+    return candidateTs > latestTs ? candidate : latest;
+  });
+}
+
 /**
  * Get comprehensive subscription info for a user
  * Checks both personal subscription and organization memberships
@@ -48,6 +109,9 @@ function getScansPerHourLimit(planId: PlanId): number {
 export async function getUserSubscriptionInfo(
   userId: string
 ): Promise<UserSubscriptionInfo> {
+  const now = new Date();
+  const inactivePaidCandidates: InactivePaidSubscriptionCandidate[] = [];
+
   // Fetch user with personal subscription and org memberships
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -74,12 +138,67 @@ export async function getUserSubscriptionInfo(
 
   // Check personal subscription
   const personalSub = user.personalSubscription;
-  const hasPersonalSub = personalSub?.status === "active";
+  let hasPersonalSub = false;
+  if (personalSub) {
+    const personalPlanId = (personalSub.plan as PlanId) || "free";
+    hasPersonalSub = isSubscriptionCurrentlyUsable({
+      planId: personalPlanId,
+      status: personalSub.status,
+      currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
+      now,
+    });
+
+    if (isPaidPlan(personalPlanId) && !hasPersonalSub) {
+      inactivePaidCandidates.push({
+        subscriptionType: "personal",
+        planId: personalPlanId,
+        status: personalSub.status,
+        currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
+      });
+    }
+  }
 
   // Check organization subscriptions
   const activeOrgMemberships = user.memberships.filter(
-    (m) => m.organization.subscription?.status === "active"
+    (m) => {
+      const orgSub = m.organization.subscription;
+      if (!orgSub) return false;
+
+      return isSubscriptionCurrentlyUsable({
+        planId: (orgSub.plan as PlanId) || "team_free",
+        status: orgSub.status,
+        currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
+        now,
+      });
+    }
   );
+
+  user.memberships.forEach((m) => {
+    const orgSub = m.organization.subscription;
+    if (!orgSub) return;
+
+    const orgPlanId = (orgSub.plan as PlanId) || "team_free";
+    if (!isPaidPlan(orgPlanId)) return;
+
+    const isUsable = isSubscriptionCurrentlyUsable({
+      planId: orgPlanId,
+      status: orgSub.status,
+      currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
+      now,
+    });
+    if (isUsable) return;
+
+    inactivePaidCandidates.push({
+      subscriptionType: "team",
+      planId: orgPlanId,
+      status: orgSub.status,
+      currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
+      organizationSlug: m.organization.slug,
+    });
+  });
+
+  const expiredPaidSubscription =
+    pickMostRecentInactivePaidSubscription(inactivePaidCandidates);
 
   // Determine best subscription
   if (activeOrgMemberships.length > 0) {
@@ -90,7 +209,7 @@ export async function getUserSubscriptionInfo(
     const plan = getPlanById(planId);
 
     return {
-      hasActiveSubscription: true,
+      hasActiveSubscription: isPaidPlan(planId),
       subscriptionType: "team",
       planId,
       status: orgSub.status,
@@ -109,13 +228,13 @@ export async function getUserSubscriptionInfo(
       organizationSlug: orgMembership.organization.slug,
       isOrgAdmin: orgMembership.role === "admin",
     };
-  } else if (hasPersonalSub) {
+  } else if (hasPersonalSub && personalSub) {
     // Use personal subscription
     const planId = personalSub.plan as PlanId;
     const plan = getPlanById(planId);
 
     return {
-      hasActiveSubscription: true,
+      hasActiveSubscription: isPaidPlan(planId),
       subscriptionType: "personal",
       planId,
       status: personalSub.status,
@@ -139,6 +258,7 @@ export async function getUserSubscriptionInfo(
       subscriptionType: "none",
       planId: "free",
       status: "free",
+      expiredPaidSubscription,
       limits: {
         scansPerMonth: freePlan.features.scansPerMonth,
         scansPerHour: freePlan.features.scansPerHour,
