@@ -845,12 +845,24 @@ export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeConte
 
   // Get subscription info to determine organization context
   const subInfo = await getUserSubscriptionInfo(userId);
+  const memberDepartment = subInfo.organizationId
+    ? await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: subInfo.organizationId,
+          userId,
+        },
+        select: {
+          departmentId: true,
+        },
+      })
+    : null;
 
   // Save to database (with organization if applicable)
   const scan = await prisma.scan.create({
     data: {
       userId,
       organizationId: subInfo.organizationId || null,
+      departmentId: memberDepartment?.departmentId || null,
       url: storedUrl.value,
       textContent: persistedText,
       imageUrl: persistedImageUrl,

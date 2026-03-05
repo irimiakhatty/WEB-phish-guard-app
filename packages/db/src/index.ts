@@ -18,6 +18,7 @@ export type {
   Scan, 
   DashboardStats,
   Subscription,
+  OrganizationDepartment,
   MemberRiskSnapshot,
   TrainingAssignment
 } from "../prisma/generated/client";

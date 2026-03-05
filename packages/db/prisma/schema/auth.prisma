@@ -94,6 +94,7 @@ model Organization {
 
   subscription Subscription?
   members      OrganizationMember[]
+  organizationDepartments OrganizationDepartment[]
   invites      OrganizationInvite[]
   apiTokens    ApiToken[]
   scans        Scan[]
@@ -119,6 +120,8 @@ model OrganizationMember {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId   String?      @map("department_id")
+  department     OrganizationDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   role           String // "admin", "member", "viewer"
   joinedAt       DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -126,7 +129,26 @@ model OrganizationMember {
   @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
+  @@index([organizationId, departmentId])
   @@map("organization_member")
+}
+
+model OrganizationDepartment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  nameNormalized String       @map("name_normalized")
+
+  members OrganizationMember[]
+  scans   Scan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, nameNormalized])
+  @@index([organizationId])
+  @@map("organization_department")
 }
 
 model MemberRiskSnapshot {

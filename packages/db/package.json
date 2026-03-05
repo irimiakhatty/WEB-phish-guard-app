@@ -14,6 +14,7 @@
     "db:generate": "prisma generate --schema=./prisma/schema",
     "db:migrate": "prisma migrate dev --schema=./prisma/schema",
     "db:studio": "prisma studio --schema=./prisma/schema",
+    "db:backfill:org-departments": "prisma db execute --schema=./prisma/schema --file=./prisma/scripts/backfill_org_departments.sql",
     "db:seed": "tsx seed.ts"
   },
   "dependencies": {

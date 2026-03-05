@@ -6,6 +6,8 @@ model Scan {
   // Organization context (nullable for personal scans)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId   String?       @map("department_id")
+  department     OrganizationDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -40,6 +42,8 @@ model Scan {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([organizationId, departmentId])
+  @@index([organizationId, departmentId, createdAt])
   @@index([userId])
   @@index([createdAt])
   @@index([riskLevel])

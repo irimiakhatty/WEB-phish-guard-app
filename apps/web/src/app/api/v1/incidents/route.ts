@@ -53,11 +53,23 @@ export async function POST(request: NextRequest) {
     const isPhishing = isPhishingScore(computedOverall);
 
     const subInfo = await getUserSubscriptionInfo(authResult.user.id);
+    const memberDepartment = subInfo.organizationId
+      ? await prisma.organizationMember.findFirst({
+          where: {
+            organizationId: subInfo.organizationId,
+            userId: authResult.user.id,
+          },
+          select: {
+            departmentId: true,
+          },
+        })
+      : null;
 
     const scan = await prisma.scan.create({
       data: {
         userId: authResult.user.id,
         organizationId: subInfo.organizationId || null,
+        departmentId: memberDepartment?.departmentId || null,
         url,
         textScore: textScore || 0,
         urlScore: urlScore || 0,

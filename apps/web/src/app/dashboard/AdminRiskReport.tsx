@@ -4,11 +4,34 @@ import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 
+type DepartmentReportRow = {
+  departmentId: string;
+  departmentName: string;
+  organizationName: string | null;
+  _count: { id: number };
+};
+
+type UserReportRow = {
+  userId: string;
+  _count: { id: number };
+};
+
+type IncidentReportRow = {
+  detectedAt: string;
+  _count: { id: number };
+};
+
+type AdminRiskReportPayload = {
+  departments: DepartmentReportRow[];
+  users: UserReportRow[];
+  incidents: IncidentReportRow[];
+};
+
 export default function AdminRiskReport() {
   const { data: session, isPending } = authClient.useSession();
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isSuperAdmin = userRole === "super_admin";
-  const [report, setReport] = useState<any>(null);
+  const [report, setReport] = useState<AdminRiskReportPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,9 +81,13 @@ export default function AdminRiskReport() {
           </CardHeader>
           <CardContent>
             <ol className="list-decimal ml-6">
-              {report.departments.map((d: any, i: number) => (
-                <li key={d.departmentId}>
-                  Dept: <b>{d.departmentId}</b> — <span className="text-red-600 font-semibold">{d._count.id} risky actions</span>
+              {report.departments.map((department) => (
+                <li key={department.departmentId}>
+                  Dept: <b>{department.departmentName}</b>
+                  {department.organizationName ? ` (${department.organizationName})` : ""} -{" "}
+                  <span className="text-red-600 font-semibold">
+                    {department._count.id} risky actions
+                  </span>
                 </li>
               ))}
             </ol>
@@ -72,9 +99,12 @@ export default function AdminRiskReport() {
           </CardHeader>
           <CardContent>
             <ol className="list-decimal ml-6">
-              {report.users.map((u: any, i: number) => (
-                <li key={u.userId}>
-                  User: <b>{u.userId}</b> — <span className="text-red-600 font-semibold">{u._count.id} risky actions</span>
+              {report.users.map((user) => (
+                <li key={user.userId}>
+                  User: <b>{user.userId}</b> -{" "}
+                  <span className="text-red-600 font-semibold">
+                    {user._count.id} risky actions
+                  </span>
                 </li>
               ))}
             </ol>
@@ -87,9 +117,10 @@ export default function AdminRiskReport() {
         </CardHeader>
         <CardContent>
           <ul className="ml-6">
-            {report.incidents.map((inc: any, i: number) => (
-              <li key={i}>
-                {new Date(inc.detectedAt).toLocaleDateString()} — <b>{inc._count.id}</b> incidents
+            {report.incidents.map((incident, index) => (
+              <li key={index}>
+                {new Date(incident.detectedAt).toLocaleDateString()} -{" "}
+                <b>{incident._count.id}</b> incidents
               </li>
             ))}
           </ul>
