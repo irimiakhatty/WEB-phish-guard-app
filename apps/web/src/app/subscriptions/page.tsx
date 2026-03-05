@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth-helpers";
 import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import { getUserOrganizations } from "@/app/actions/organizations";
 import PricingPage from "@/components/pricing-page";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -11,6 +12,11 @@ export default async function SubscriptionsPage() {
   const userRole = (session?.user as { role?: string } | undefined)?.role;
   const isSuperAdmin = userRole === "super_admin";
   const backHref = session?.user ? "/settings" : "/";
+  const organizations = session?.user ? await getUserOrganizations() : [];
+  const adminOrganizations = organizations.filter(
+    (org) => org.role === "admin" || org.role === "Super Admin"
+  );
+  const fallbackAdminOrganizationSlug = adminOrganizations[0]?.slug;
   const subInfo = session?.user
     ? await getUserSubscriptionInfo(session.user.id)
     : {
@@ -18,7 +24,21 @@ export default async function SubscriptionsPage() {
         subscriptionType: "none" as const,
         organizationSlug: undefined,
         isOrgAdmin: false,
+        expiredPaidSubscription: undefined,
       };
+  const teamOrganizationSlug =
+    subInfo.organizationSlug ||
+    (subInfo.expiredPaidSubscription?.subscriptionType === "team"
+      ? subInfo.expiredPaidSubscription.organizationSlug
+      : undefined) ||
+    fallbackAdminOrganizationSlug;
+  const canManageTeamBilling =
+    isSuperAdmin ||
+    Boolean(subInfo.isOrgAdmin) ||
+    Boolean(
+      teamOrganizationSlug &&
+        adminOrganizations.some((org) => org.slug === teamOrganizationSlug)
+    );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-100/70 text-zinc-900 dark:from-zinc-950 dark:via-zinc-950 dark:to-black dark:text-zinc-100">
@@ -50,8 +70,8 @@ export default async function SubscriptionsPage() {
         <PricingPage
           currentPlanId={subInfo.planId}
           subscriptionType={subInfo.subscriptionType}
-          organizationSlug={subInfo.organizationSlug}
-          canManageTeamBilling={Boolean(subInfo.isOrgAdmin) || isSuperAdmin}
+          organizationSlug={teamOrganizationSlug}
+          canManageTeamBilling={canManageTeamBilling}
           canManageCurrentSubscription={
             subInfo.subscriptionType !== "team" ||
             Boolean(subInfo.isOrgAdmin) ||
