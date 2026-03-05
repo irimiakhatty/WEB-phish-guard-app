@@ -172,7 +172,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Stripe checkout is enabled in test mode. Complete payment to activate the new plan.
+                      Stripe checkout is enabled in test mode. You can also open the full billing page for all plans.
                     </p>
                   </div>
                 </CardContent>

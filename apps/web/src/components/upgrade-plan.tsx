@@ -2,7 +2,15 @@
 
 import { useTransition, useState, useMemo } from "react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import { TEAM_PLANS, type TeamPlanId, canUpgrade, canDowngrade } from "@/lib/subscription-plans";
 
 type Props = {
@@ -62,22 +70,34 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <select
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <Select
         value={selectedPlan}
-        onChange={(e) => setSelectedPlan(e.target.value as TeamPlanId)}
-        className="border rounded-md px-3 py-2 text-sm"
+        onValueChange={(value) => setSelectedPlan(value as TeamPlanId)}
         disabled={pending}
       >
-        {teamPlanOptions.map((plan) => (
-          <option key={plan.id} value={plan.id}>
-            {plan.label}
-          </option>
-        ))}
-      </select>
-      <Button onClick={handleUpgrade} disabled={pending || selectedPlan === currentPlan}>
-        {pending ? "Saving..." : label}
-      </Button>
+        <SelectTrigger className="w-full sm:w-[420px] bg-white text-gray-900 border-gray-300 dark:bg-zinc-950 dark:text-zinc-100 dark:border-zinc-700">
+          <SelectValue placeholder="Choose a team plan" />
+        </SelectTrigger>
+        <SelectContent className="bg-white text-gray-900 border-gray-200 dark:bg-zinc-950 dark:text-zinc-100 dark:border-zinc-800">
+          {teamPlanOptions.map((plan) => (
+            <SelectItem key={plan.id} value={plan.id}>
+              {plan.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <div className="flex items-center gap-2">
+        <Button onClick={handleUpgrade} disabled={pending || selectedPlan === currentPlan}>
+          {pending ? "Saving..." : label}
+        </Button>
+        <Link href="/subscriptions">
+          <Button type="button" variant="outline">
+            Open billing page
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
