@@ -1,5 +1,8 @@
 import { getSession } from "@/lib/auth-helpers";
-import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import {
+  getUserSubscriptionInfo,
+  type UserSubscriptionInfo,
+} from "@/lib/subscription-helpers";
 import { getUserOrganizations } from "@/app/actions/organizations";
 import PricingPage from "@/components/pricing-page";
 import Link from "next/link";
@@ -17,16 +20,30 @@ export default async function SubscriptionsPage() {
     (org) => org.role === "admin" || org.role === "Super Admin"
   );
   const fallbackAdminOrganizationSlug = adminOrganizations[0]?.slug;
-  const subInfo = session?.user
+  const subInfo: UserSubscriptionInfo = session?.user
     ? await getUserSubscriptionInfo(session.user.id)
     : {
         planId: "free",
+        hasActiveSubscription: false,
         subscriptionType: "none" as const,
+        status: "free",
+        cancelAtPeriodEnd: false,
+        limits: {
+          scansPerMonth: 0,
+          scansPerHour: 0,
+          maxApiTokens: 0,
+          advancedAnalytics: false,
+          prioritySupport: false,
+          apiAccess: false,
+        },
         organizationSlug: undefined,
         isOrgAdmin: false,
+        isAnyOrgAdmin: false,
         expiredPaidSubscription: undefined,
       };
   const teamOrganizationSlug =
+    subInfo.adminOrganizationSlug ||
+    subInfo.preferredOrganizationSlug ||
     subInfo.organizationSlug ||
     (subInfo.expiredPaidSubscription?.subscriptionType === "team"
       ? subInfo.expiredPaidSubscription.organizationSlug
@@ -34,6 +51,7 @@ export default async function SubscriptionsPage() {
     fallbackAdminOrganizationSlug;
   const canManageTeamBilling =
     isSuperAdmin ||
+    Boolean(subInfo.isAnyOrgAdmin) ||
     Boolean(subInfo.isOrgAdmin) ||
     Boolean(
       teamOrganizationSlug &&
@@ -74,6 +92,7 @@ export default async function SubscriptionsPage() {
           canManageTeamBilling={canManageTeamBilling}
           canManageCurrentSubscription={
             subInfo.subscriptionType !== "team" ||
+            Boolean(subInfo.isAnyOrgAdmin) ||
             Boolean(subInfo.isOrgAdmin) ||
             isSuperAdmin
           }

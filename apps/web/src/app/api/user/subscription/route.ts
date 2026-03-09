@@ -28,13 +28,19 @@ export async function GET(req: Request) {
 
     const subInfo = await getUserSubscriptionInfo(session.user.id);
     const plan = getPlanById(subInfo.planId);
+    const organizationSlug =
+      subInfo.adminOrganizationSlug ??
+      subInfo.preferredOrganizationSlug ??
+      subInfo.organizationSlug ??
+      null;
+    const isOrgAdmin = subInfo.isAnyOrgAdmin ?? subInfo.isOrgAdmin ?? false;
 
     return NextResponse.json({
       planId: subInfo.planId,
       planLabel: plan.name,
       status: subInfo.status ?? "active",
-      organizationSlug: subInfo.organizationSlug ?? null,
-      isOrgAdmin: subInfo.isOrgAdmin ?? false,
+      organizationSlug,
+      isOrgAdmin,
     });
   } catch (error: any) {
     return NextResponse.json(

@@ -31,13 +31,17 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       ? (expiredPaidSubscription?.subscriptionType ?? "none")
       : subInfo.subscriptionType;
   const effectiveOrganizationSlug =
-    subInfo.organizationSlug ?? expiredPaidSubscription?.organizationSlug;
+    subInfo.adminOrganizationSlug ??
+    subInfo.preferredOrganizationSlug ??
+    subInfo.organizationSlug ??
+    expiredPaidSubscription?.organizationSlug;
   const currentPlan = getPlanById(subInfo.planId);
   const userRole = (session.user as any).role || "user";
   const isSuperAdmin = userRole === "super_admin";
   const isAnyOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
   const isTeamContext = effectiveSubscriptionType === "team";
-  const isTeamAdmin = isSuperAdmin || subInfo.isOrgAdmin === true;
+  const isTeamAdmin =
+    isSuperAdmin || subInfo.isAnyOrgAdmin === true || subInfo.isOrgAdmin === true;
   const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
   const stripePortalHref =
     effectiveSubscriptionType === "team" && effectiveOrganizationSlug

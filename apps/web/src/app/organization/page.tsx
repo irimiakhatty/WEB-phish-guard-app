@@ -10,9 +10,14 @@ export default async function OrganizationLandingPage() {
   }
 
   const subInfo = await getUserSubscriptionInfo(session.user.id);
-  if (subInfo.organizationSlug) {
-    redirect(`/org/${subInfo.organizationSlug}`);
+  const organizationSlug =
+    subInfo.adminOrganizationSlug ??
+    subInfo.preferredOrganizationSlug ??
+    subInfo.organizationSlug;
+
+  if (organizationSlug) {
+    redirect(`/org/${organizationSlug}`);
   }
 
-  redirect("/dashboard");
+  redirect("/organizations");
 }

@@ -2058,15 +2058,24 @@ export async function getUserOrganizations() {
     orderBy: { joinedAt: "desc" },
   });
 
-  return memberships.map((m) => ({
-    id: m.organization.id,
-    name: m.organization.name,
-    slug: m.organization.slug,
-    role: m.role,
-    subscription: m.organization.subscription,
-    memberCount: m.organization._count.members,
-    scanCount: m.organization._count.scans,
-    joinedAt: m.joinedAt,
-    admins: m.organization.members.map((mem) => mem.user),
-  }));
+  return memberships
+    .map((m) => ({
+      id: m.organization.id,
+      name: m.organization.name,
+      slug: m.organization.slug,
+      role: m.role,
+      subscription: m.organization.subscription,
+      memberCount: m.organization._count.members,
+      scanCount: m.organization._count.scans,
+      joinedAt: m.joinedAt,
+      admins: m.organization.members.map((mem) => mem.user),
+    }))
+    .sort((a, b) => {
+      const adminDiff = Number(b.role === "admin") - Number(a.role === "admin");
+      if (adminDiff !== 0) {
+        return adminDiff;
+      }
+
+      return new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime();
+    });
 }

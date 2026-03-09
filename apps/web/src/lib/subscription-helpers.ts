@@ -36,6 +36,14 @@ export interface UserSubscriptionInfo {
   organizationName?: string;
   organizationSlug?: string;
   isOrgAdmin?: boolean;
+  preferredOrganizationId?: string;
+  preferredOrganizationName?: string;
+  preferredOrganizationSlug?: string;
+  preferredOrganizationRole?: string;
+  adminOrganizationId?: string;
+  adminOrganizationName?: string;
+  adminOrganizationSlug?: string;
+  isAnyOrgAdmin?: boolean;
 }
 
 function getScansPerHourLimit(planId: PlanId): number {
@@ -87,6 +95,30 @@ type InactivePaidSubscriptionCandidate = {
   organizationSlug?: string;
 };
 
+type UserOrganizationMembership = {
+  organizationId: string;
+  role: string;
+  joinedAt: Date;
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    subscription: {
+      plan: string;
+      status?: string | null;
+      currentPeriodEnd?: Date | null;
+      cancelAtPeriodEnd?: boolean | null;
+    } | null;
+  };
+};
+
+type OrganizationContext = {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  role: string;
+};
+
 function pickMostRecentInactivePaidSubscription(
   candidates: InactivePaidSubscriptionCandidate[]
 ): InactivePaidSubscriptionCandidate | undefined {
@@ -99,6 +131,75 @@ function pickMostRecentInactivePaidSubscription(
     const candidateTs = candidate.currentPeriodEnd?.getTime() ?? 0;
     return candidateTs > latestTs ? candidate : latest;
   });
+}
+
+function isUsableOrganizationMembership(
+  membership: UserOrganizationMembership,
+  now: Date
+): boolean {
+  const subscription = membership.organization.subscription;
+  if (!subscription) {
+    return false;
+  }
+
+  return isSubscriptionCurrentlyUsable({
+    planId: (subscription.plan as PlanId) || "team_free",
+    status: subscription.status,
+    currentPeriodEnd: subscription.currentPeriodEnd ?? null,
+    now,
+  });
+}
+
+function sortMembershipsForOrganizationContext(
+  memberships: UserOrganizationMembership[],
+  now: Date
+): UserOrganizationMembership[] {
+  return [...memberships].sort((a, b) => {
+    const adminDiff = Number(b.role === "admin") - Number(a.role === "admin");
+    if (adminDiff !== 0) {
+      return adminDiff;
+    }
+
+    const usableDiff =
+      Number(isUsableOrganizationMembership(b, now)) -
+      Number(isUsableOrganizationMembership(a, now));
+    if (usableDiff !== 0) {
+      return usableDiff;
+    }
+
+    return b.joinedAt.getTime() - a.joinedAt.getTime();
+  });
+}
+
+function sortActiveOrganizationMemberships(
+  memberships: UserOrganizationMembership[]
+): UserOrganizationMembership[] {
+  return [...memberships].sort((a, b) => {
+    const aPlanId = (a.organization.subscription?.plan as PlanId) || "team_free";
+    const bPlanId = (b.organization.subscription?.plan as PlanId) || "team_free";
+    const priceDiff = getPlanById(bPlanId).price - getPlanById(aPlanId).price;
+    if (priceDiff !== 0) {
+      return priceDiff;
+    }
+
+    const adminDiff = Number(b.role === "admin") - Number(a.role === "admin");
+    if (adminDiff !== 0) {
+      return adminDiff;
+    }
+
+    return b.joinedAt.getTime() - a.joinedAt.getTime();
+  });
+}
+
+function toOrganizationContext(
+  membership: UserOrganizationMembership
+): OrganizationContext {
+  return {
+    organizationId: membership.organizationId,
+    organizationName: membership.organization.name,
+    organizationSlug: membership.organization.slug,
+    role: membership.role,
+  };
 }
 
 /**
@@ -136,6 +237,34 @@ export async function getUserSubscriptionInfo(
     throw new Error("User not found");
   }
 
+  const memberships = [...(user.memberships as UserOrganizationMembership[])].sort(
+    (a, b) => b.joinedAt.getTime() - a.joinedAt.getTime()
+  );
+  const membershipsForContext = sortMembershipsForOrganizationContext(
+    memberships,
+    now
+  );
+  const preferredOrganizationMembership = membershipsForContext[0];
+  const adminOrganizationMembership = membershipsForContext.find(
+    (membership) => membership.role === "admin"
+  );
+  const preferredOrganization = preferredOrganizationMembership
+    ? toOrganizationContext(preferredOrganizationMembership)
+    : null;
+  const adminOrganization = adminOrganizationMembership
+    ? toOrganizationContext(adminOrganizationMembership)
+    : null;
+  const organizationContext = {
+    preferredOrganizationId: preferredOrganization?.organizationId,
+    preferredOrganizationName: preferredOrganization?.organizationName,
+    preferredOrganizationSlug: preferredOrganization?.organizationSlug,
+    preferredOrganizationRole: preferredOrganization?.role,
+    adminOrganizationId: adminOrganization?.organizationId,
+    adminOrganizationName: adminOrganization?.organizationName,
+    adminOrganizationSlug: adminOrganization?.organizationSlug,
+    isAnyOrgAdmin: Boolean(adminOrganization),
+  };
+
   // Check personal subscription
   const personalSub = user.personalSubscription;
   let hasPersonalSub = false;
@@ -159,8 +288,8 @@ export async function getUserSubscriptionInfo(
   }
 
   // Check organization subscriptions
-  const activeOrgMemberships = user.memberships.filter(
-    (m) => {
+  const activeOrgMemberships = sortActiveOrganizationMemberships(
+    memberships.filter((m) => {
       const orgSub = m.organization.subscription;
       if (!orgSub) return false;
 
@@ -170,10 +299,10 @@ export async function getUserSubscriptionInfo(
         currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
         now,
       });
-    }
+    })
   );
 
-  user.memberships.forEach((m) => {
+  memberships.forEach((m) => {
     const orgSub = m.organization.subscription;
     if (!orgSub) return;
 
@@ -201,9 +330,20 @@ export async function getUserSubscriptionInfo(
     pickMostRecentInactivePaidSubscription(inactivePaidCandidates);
 
   // Determine best subscription
-  if (activeOrgMemberships.length > 0) {
-    // Use organization subscription (typically higher limits)
-    const orgMembership = activeOrgMemberships[0]; // Take first active org
+  const bestActiveOrgMembership = activeOrgMemberships[0];
+  const personalPlanId = (personalSub?.plan as PlanId) || "free";
+  const bestActiveOrgPlanId = bestActiveOrgMembership
+    ? ((bestActiveOrgMembership.organization.subscription?.plan as PlanId) || "team_free")
+    : null;
+  const shouldUseOrgSubscription =
+    Boolean(bestActiveOrgMembership) &&
+    (!hasPersonalSub ||
+      (bestActiveOrgPlanId !== null &&
+        getPlanById(bestActiveOrgPlanId).price >= getPlanById(personalPlanId).price));
+
+  if (shouldUseOrgSubscription && bestActiveOrgMembership) {
+    // Prefer the strongest active team plan. Personal plans still win over team_free.
+    const orgMembership = bestActiveOrgMembership;
     const orgSub = orgMembership.organization.subscription!;
     const planId = orgSub.plan as PlanId;
     const plan = getPlanById(planId);
@@ -212,9 +352,11 @@ export async function getUserSubscriptionInfo(
       hasActiveSubscription: isPaidPlan(planId),
       subscriptionType: "team",
       planId,
-      status: orgSub.status,
+      status: orgSub.status ?? undefined,
       currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: orgSub.cancelAtPeriodEnd ?? false,
+      expiredPaidSubscription,
+      ...organizationContext,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: getScansPerHourLimit(planId),
@@ -237,9 +379,11 @@ export async function getUserSubscriptionInfo(
       hasActiveSubscription: isPaidPlan(planId),
       subscriptionType: "personal",
       planId,
-      status: personalSub.status,
+      status: personalSub.status ?? undefined,
       currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
       cancelAtPeriodEnd: personalSub.cancelAtPeriodEnd ?? false,
+      expiredPaidSubscription,
+      ...organizationContext,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: getScansPerHourLimit(planId),
@@ -259,6 +403,7 @@ export async function getUserSubscriptionInfo(
       planId: "free",
       status: "free",
       expiredPaidSubscription,
+      ...organizationContext,
       limits: {
         scansPerMonth: freePlan.features.scansPerMonth,
         scansPerHour: freePlan.features.scansPerHour,

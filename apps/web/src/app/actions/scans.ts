@@ -384,11 +384,11 @@ export async function getOrgAdminStats() {
   const session = await requireAuth();
   const subInfo = await getUserSubscriptionInfo(session.user.id);
 
-  if (!subInfo.organizationId || !subInfo.isOrgAdmin) {
+  if (!subInfo.adminOrganizationId) {
     return null;
   }
 
-  const organizationId = subInfo.organizationId;
+  const organizationId = subInfo.adminOrganizationId;
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -478,8 +478,8 @@ export async function getOrgAdminStats() {
 
   return {
     organizationId,
-    organizationName: subInfo.organizationName || "",
-    organizationSlug: subInfo.organizationSlug || "",
+    organizationName: subInfo.adminOrganizationName || "",
+    organizationSlug: subInfo.adminOrganizationSlug || "",
     threatsThisMonth,
     scansThisMonth,
     attackHeatmap,
