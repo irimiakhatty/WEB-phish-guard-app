@@ -30,11 +30,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     subInfo.subscriptionType === "none"
       ? (expiredPaidSubscription?.subscriptionType ?? "none")
       : subInfo.subscriptionType;
-  const effectiveOrganizationSlug =
-    subInfo.adminOrganizationSlug ??
-    subInfo.preferredOrganizationSlug ??
-    subInfo.organizationSlug ??
-    expiredPaidSubscription?.organizationSlug;
   const currentPlan = getPlanById(subInfo.planId);
   const userRole = (session.user as any).role || "user";
   const isSuperAdmin = userRole === "super_admin";
@@ -43,16 +38,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const isTeamAdmin =
     isSuperAdmin || subInfo.isAnyOrgAdmin === true || subInfo.isOrgAdmin === true;
   const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
-  const stripePortalHref =
-    effectiveSubscriptionType === "team" && effectiveOrganizationSlug
-      ? `/api/stripe/portal?organizationSlug=${encodeURIComponent(effectiveOrganizationSlug)}`
-      : "/api/stripe/portal";
   const canChangePlan = !isTeamContext || isTeamAdmin;
-  const canOpenStripePortal =
-    (subInfo.subscriptionType === "personal" && subInfo.planId !== "free") ||
-    (subInfo.subscriptionType === "team" && subInfo.planId !== "team_free" && isTeamAdmin) ||
-    expiredPaidSubscription?.subscriptionType === "personal" ||
-    (expiredPaidSubscription?.subscriptionType === "team" && isTeamAdmin);
   const billingAccessNotice =
     isTeamContext && !isTeamAdmin
       ? "Doar adminul organizatiei poate modifica planul sau billing-ul Stripe pentru acest abonament."
@@ -69,7 +55,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         expiredPaidSubscription.currentPeriodEnd
       )
     : null;
-  const expiredBillingNotice = expiredPaidSubscription
+  const expiredBillingNotice =
+    expiredPaidSubscription &&
+    expiredPaidPlan &&
+    expiredPaidPlan.price > 0 &&
+    !subInfo.hasActiveSubscription
     ? `Your ${expiredPaidPlan?.name ?? "paid"} ${
         expiredPaidSubscription.subscriptionType
       } subscription is no longer active${
@@ -138,11 +128,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                     Change plan
                   </Button>
                 )}
-                {canOpenStripePortal ? (
-                  <Button variant="outline" asChild>
-                    <a href={stripePortalHref}>Open Stripe billing portal</a>
-                  </Button>
-                ) : null}
               </div>
               {billingAccessNotice ? (
                 <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">

@@ -3,6 +3,7 @@ import {
   getPlanById,
   isPersonalPlan,
   PERSONAL_PLANS,
+  isValidPlan,
   type PlanId,
 } from "./subscription-plans";
 
@@ -78,7 +79,7 @@ function isSubscriptionCurrentlyUsable(params: {
   }
 
   if (!currentPeriodEnd) {
-    return false;
+    return PAID_SUBSCRIPTION_ACTIVE_STATUSES.has(status);
   }
 
   return (
@@ -301,6 +302,14 @@ export async function getUserSubscriptionInfo(
       });
     })
   );
+  const hasAnyActivePaidSubscription =
+    hasPersonalSub ||
+    activeOrgMemberships.some((membership) => {
+      const planId =
+        (membership.organization.subscription?.plan as PlanId | undefined) ||
+        "team_free";
+      return isValidPlan(planId) && isPaidPlan(planId);
+    });
 
   memberships.forEach((m) => {
     const orgSub = m.organization.subscription;
@@ -402,7 +411,9 @@ export async function getUserSubscriptionInfo(
       subscriptionType: "none",
       planId: "free",
       status: "free",
-      expiredPaidSubscription,
+      expiredPaidSubscription: hasAnyActivePaidSubscription
+        ? undefined
+        : expiredPaidSubscription,
       ...organizationContext,
       limits: {
         scansPerMonth: freePlan.features.scansPerMonth,
