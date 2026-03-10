@@ -18,6 +18,12 @@ type CheckoutFlowResult = {
   message?: string;
 };
 
+function getBillingPath(scope: "personal" | "business") {
+  return scope === "business"
+    ? "/subscriptions/business"
+    : "/subscriptions/personal";
+}
+
 function getDefaultPeriodEnd() {
   return new Date(Date.now() + THIRTY_DAYS_MS);
 }
@@ -65,6 +71,7 @@ async function createSubscriptionUpdateUrl(params: {
   currentSubscription: Stripe.Subscription;
   targetPriceId: string;
   origin: string;
+  returnPath: string;
   metadata: Record<string, string>;
 }): Promise<CheckoutFlowResult> {
   const currentItem = params.currentSubscription.items.data[0];
@@ -99,7 +106,7 @@ async function createSubscriptionUpdateUrl(params: {
   try {
     const portalSession = await params.stripe.billingPortal.sessions.create({
       customer: params.stripeCustomerId,
-      return_url: `${params.origin}/subscriptions`,
+      return_url: `${params.origin}${params.returnPath}`,
       flow_data: {
         type: "subscription_update_confirm",
         subscription_update_confirm: {
@@ -188,6 +195,8 @@ export async function POST(req: Request) {
       req.headers.get("origin") ||
       process.env.BETTER_AUTH_URL ||
       "http://localhost:3001";
+    const personalBillingPath = getBillingPath("personal");
+    const businessBillingPath = getBillingPath("business");
     const stripe = getStripe();
 
     if (isTeamPlan(planId as any)) {
@@ -274,7 +283,7 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({
-          url: `${origin}/subscriptions/success?updated=1`,
+          url: `${origin}/subscriptions/success?updated=1&scope=business`,
         });
       }
 
@@ -314,6 +323,7 @@ export async function POST(req: Request) {
             currentSubscription: currentStripeSubscription,
             targetPriceId: plan.stripePriceId,
             origin,
+            returnPath: businessBillingPath,
             metadata: {
               planId,
               organizationId: organization.id,
@@ -338,8 +348,8 @@ export async function POST(req: Request) {
         mode: "subscription",
         customer: stripeCustomerId,
         line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-        success_url: `${origin}/subscriptions/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/subscriptions/cancel`,
+        success_url: `${origin}/subscriptions/success?session_id={CHECKOUT_SESSION_ID}&scope=business`,
+        cancel_url: `${origin}/subscriptions/cancel?scope=business`,
         metadata: {
           planId,
           organizationId: organization.id,
@@ -355,6 +365,22 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({ url: checkoutSession.url });
+    }
+
+    const adminMembershipCount = await prisma.organizationMember.count({
+      where: {
+        userId: session.user.id,
+        role: "admin",
+      },
+    });
+    if (adminMembershipCount > 0 || session.user.role === "super_admin") {
+      return NextResponse.json(
+        {
+          error:
+            "Organization admins can only manage business subscriptions from the business billing page.",
+        },
+        { status: 403 }
+      );
     }
 
     let personalSubscription = await prisma.personalSubscription.findUnique({
@@ -406,7 +432,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({
-        message: "Free plan is now active.",
+        url: `${origin}/subscriptions/success?updated=1&scope=personal`,
       });
     }
 
@@ -443,12 +469,13 @@ export async function POST(req: Request) {
         const updateFlow = await createSubscriptionUpdateUrl({
           stripe,
           stripeCustomerId,
-          currentSubscription: currentStripeSubscription,
-          targetPriceId: plan.stripePriceId,
-          origin,
-          metadata: {
-            planId,
-            userId: session.user.id,
+            currentSubscription: currentStripeSubscription,
+            targetPriceId: plan.stripePriceId,
+            origin,
+            returnPath: personalBillingPath,
+            metadata: {
+              planId,
+              userId: session.user.id,
             subscriptionType: "personal",
           },
         });
@@ -470,8 +497,8 @@ export async function POST(req: Request) {
       mode: "subscription",
       customer: stripeCustomerId,
       line_items: [{ price: plan.stripePriceId, quantity: 1 }],
-      success_url: `${origin}/subscriptions/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/subscriptions/cancel`,
+      success_url: `${origin}/subscriptions/success?session_id={CHECKOUT_SESSION_ID}&scope=personal`,
+      cancel_url: `${origin}/subscriptions/cancel?scope=personal`,
       metadata: {
         planId,
         userId: session.user.id,

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { getSession } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
@@ -10,6 +11,7 @@ interface PageProps {
   searchParams?: {
     session_id?: string | string[];
     updated?: string | string[];
+    scope?: string | string[];
   };
 }
 
@@ -18,12 +20,19 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
     typeof searchParams?.session_id === "string" ? searchParams.session_id : undefined;
   const updated =
     typeof searchParams?.updated === "string" ? searchParams.updated : undefined;
+  const scope =
+    typeof searchParams?.scope === "string" && searchParams.scope === "business"
+      ? "business"
+      : "personal";
+  const returnPath = (
+    scope === "business" ? "/subscriptions/business" : "/subscriptions/personal"
+  ) as Route;
   const session = await getSession();
   if (!session?.user) {
     const redirectTarget = sessionId
-      ? `/subscriptions/success?session_id=${sessionId}`
-      : "/subscriptions/success";
-    redirect(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+      ? `/subscriptions/success?session_id=${sessionId}&scope=${scope}`
+      : `/subscriptions/success?scope=${scope}`;
+    redirect(`/login?next=${encodeURIComponent(redirectTarget)}`);
   }
   let status: "success" | "warning" | "error" = "success";
   let message = "Your subscription is active. You can continue using PhishGuard.";
@@ -71,7 +80,7 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
               <Link href="/dashboard">Go to dashboard</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/subscriptions">View plans</Link>
+              <Link href={returnPath}>View plans</Link>
             </Button>
           </CardContent>
         </Card>

@@ -270,7 +270,7 @@ export default function ManualAnalysis() {
 
   const upgradeHref: Route = limitInfo?.organizationSlug
     ? (`/org/${limitInfo.organizationSlug}` as Route)
-    : "/subscriptions";
+    : "/subscription";
 
   return (
     <div className="min-h-screen bg-background">

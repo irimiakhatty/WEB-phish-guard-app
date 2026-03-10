@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { useEffect, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "next/navigation";
@@ -53,6 +54,14 @@ function getErrorMessage(error: unknown): string {
   return "Invalid value";
 }
 
+function resolveSafeNextPath(raw: string | null, fallback: string): string {
+  if (!raw || !raw.startsWith("/")) {
+    return fallback;
+  }
+
+  return raw;
+}
+
 export default function SignUpForm({
   onSwitchToSignIn,
   defaultAccountType = "personal",
@@ -69,6 +78,7 @@ export default function SignUpForm({
   const inviteEmail = searchParams.get("email") || "";
   const inviteOrg = searchParams.get("org");
   const isInvite = Boolean(searchParams.get("invite"));
+  const nextPath = searchParams.get("next") || searchParams.get("redirect");
 
   const form = useForm({
     defaultValues: {
@@ -100,7 +110,11 @@ export default function SignUpForm({
           },
           {
             onSuccess: () => {
-              router.push("/dashboard");
+              const fallbackPath =
+                value.accountType === "organization"
+                  ? "/subscriptions/business"
+                  : "/subscriptions/personal";
+              router.push(resolveSafeNextPath(nextPath, fallbackPath) as Route);
               toast.success("Account created successfully");
             },
             onError: (error) => {

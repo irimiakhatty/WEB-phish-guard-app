@@ -92,7 +92,7 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
         <Button onClick={handleUpgrade} disabled={pending || selectedPlan === currentPlan}>
           {pending ? "Saving..." : label}
         </Button>
-        <Link href="/subscriptions">
+        <Link href="/subscription">
           <Button type="button" variant="outline">
             Open billing page
           </Button>

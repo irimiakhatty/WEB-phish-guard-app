@@ -1,6 +1,7 @@
+import type { Route } from "next";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import z from "zod";
 import { Eye, EyeOff, Shield } from "lucide-react";
@@ -13,14 +14,24 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 
+function resolveSafeNextPath(raw: string | null, fallback: string): string {
+  if (!raw || !raw.startsWith("/")) {
+    return fallback;
+  }
+
+  return raw;
+}
+
 export default function SignInForm({
   onSwitchToSignUp,
 }: {
   onSwitchToSignUp: () => void;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isPending } = authClient.useSession();
   const [showPassword, setShowPassword] = useState(false);
+  const nextPath = searchParams.get("next") || searchParams.get("redirect");
 
   const form = useForm({
     defaultValues: {
@@ -35,7 +46,7 @@ export default function SignInForm({
         },
         {
           onSuccess: () => {
-            router.push("/dashboard");
+            router.push(resolveSafeNextPath(nextPath, "/dashboard") as Route);
             toast.success("Sign in successful");
           },
           onError: (error) => {

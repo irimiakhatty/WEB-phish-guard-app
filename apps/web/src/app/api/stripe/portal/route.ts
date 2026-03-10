@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     const stripe = getStripe();
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: `${appOrigin}/subscriptions`,
+      return_url: `${appOrigin}/subscription`,
     });
 
     return NextResponse.redirect(portalSession.url, 303);

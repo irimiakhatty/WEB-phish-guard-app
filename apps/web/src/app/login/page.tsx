@@ -12,6 +12,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
   const accountParam = searchParams.get("account");
+  const nextParam = searchParams.get("next") || searchParams.get("redirect");
 
   const [showSignIn, setShowSignIn] = useState(modeParam !== "signup");
   const [defaultAccountType, setDefaultAccountType] = useState<"personal" | "organization">(
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AuthRedirectGuard redirectTo="/dashboard" />
+      <AuthRedirectGuard redirectTo={nextParam?.startsWith("/") ? nextParam : "/dashboard"} />
       <div className="fixed right-4 top-4 z-50">
         <ModeToggle />
       </div>

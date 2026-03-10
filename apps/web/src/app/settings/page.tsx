@@ -1,9 +1,13 @@
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@phish-guard-app/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AvatarUpload from "@/components/avatar-upload";
 import { getUserOrganizations } from "@/app/actions/organizations";
-import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import {
+  getBillingRouteForScope,
+  getUserBillingSummaries,
+} from "@/lib/billing-helpers";
 import { getPlanById } from "@/lib/subscription-plans";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,31 +28,29 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   }
 
   const organizations = await getUserOrganizations();
-  const subInfo = await getUserSubscriptionInfo(session.user.id);
-  const currentPlan = getPlanById(subInfo.planId);
+  const billing = await getUserBillingSummaries(session.user.id);
   const userRole = (session.user as any).role || "user";
   const isSuperAdmin = userRole === "super_admin";
   const isAnyOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
-  const isTeamContext = subInfo.subscriptionType === "team";
-  const isTeamAdmin =
-    isSuperAdmin || subInfo.isAnyOrgAdmin === true || subInfo.isOrgAdmin === true;
   const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
-  const canChangePlan = !isTeamContext || isTeamAdmin;
-  const billingAccessNotice =
-    isTeamContext && !isTeamAdmin
-      ? "Doar adminul organizatiei poate modifica planul sau billing-ul Stripe pentru acest abonament."
-      : undefined;
+  const billingScope = billing.business ? "business" : "personal";
+  const activeBilling = billing.business ?? billing.personal;
+  const currentPlan = getPlanById(activeBilling.planId);
+  const canChangePlan = isSuperAdmin || billingScope === "personal" || Boolean(billing.business);
+  const changePlanHref = (isSuperAdmin
+    ? "/subscriptions/business"
+    : getBillingRouteForScope(billingScope)) as Route;
   const billingError =
     typeof searchParams?.billingError === "string"
       ? searchParams.billingError
       : undefined;
-  const scheduledDowngradeAtLabel = subInfo.currentPeriodEnd
+  const scheduledDowngradeAtLabel = activeBilling.currentPeriodEnd
     ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
-        subInfo.currentPeriodEnd
+        activeBilling.currentPeriodEnd
       )
     : null;
   const scheduledDowngradeNotice =
-    currentPlan.price > 0 && subInfo.cancelAtPeriodEnd
+    currentPlan.price > 0 && activeBilling.cancelAtPeriodEnd
       ? scheduledDowngradeAtLabel
         ? `You switched back to Free, but your ${currentPlan.name} benefits remain active until ${scheduledDowngradeAtLabel}. After that date, the account automatically moves to Free with no further charges.`
         : `You switched back to Free, but your ${currentPlan.name} benefits remain active until the current billing period ends. After that, the account automatically moves to Free with no further charges.`
@@ -95,7 +97,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                     Subscription type
                   </p>
                   <p className="mt-1 text-base font-semibold capitalize text-gray-900 dark:text-white">
-                    {subInfo.subscriptionType === "none" ? "personal" : subInfo.subscriptionType}
+                    {billingScope}
                   </p>
                 </div>
               </div>
@@ -105,7 +107,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                     asChild
                     className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                   >
-                    <Link href="/subscriptions">Change plan</Link>
+                    <Link href={changePlanHref}>Change plan</Link>
                   </Button>
                 ) : (
                   <Button
@@ -116,11 +118,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   </Button>
                 )}
               </div>
-              {billingAccessNotice ? (
-                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  {billingAccessNotice}
-                </p>
-              ) : null}
             </CardContent>
           </Card>
 

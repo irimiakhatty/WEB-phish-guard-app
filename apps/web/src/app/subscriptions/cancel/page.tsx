@@ -1,9 +1,24 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
-export default function SubscriptionCancelPage() {
+interface PageProps {
+  searchParams?: {
+    scope?: string | string[];
+  };
+}
+
+export default function SubscriptionCancelPage({ searchParams }: PageProps) {
+  const scope =
+    typeof searchParams?.scope === "string" && searchParams.scope === "business"
+      ? "business"
+      : "personal";
+  const returnPath = (
+    scope === "business" ? "/subscriptions/business" : "/subscriptions/personal"
+  ) as Route;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-2xl px-4 py-16">
@@ -21,7 +36,7 @@ export default function SubscriptionCancelPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <Button asChild className="w-full">
-              <Link href="/subscriptions">Return to plans</Link>
+              <Link href={returnPath}>Return to plans</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
               <Link href="/dashboard">Go to dashboard</Link>

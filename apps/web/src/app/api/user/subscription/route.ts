@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@phish-guard-app/auth";
+import { getUserBillingSummaries } from "@/lib/billing-helpers";
 import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
 import { getPlanById } from "@/lib/subscription-plans";
 
@@ -26,19 +27,23 @@ export async function GET(req: Request) {
       });
     }
 
-    const subInfo = await getUserSubscriptionInfo(session.user.id);
-    const plan = getPlanById(subInfo.planId);
+    const [billing, accessInfo] = await Promise.all([
+      getUserBillingSummaries(session.user.id),
+      getUserSubscriptionInfo(session.user.id),
+    ]);
+    const activeBilling = billing.business ?? billing.personal;
+    const plan = getPlanById(activeBilling.planId);
     const organizationSlug =
-      subInfo.adminOrganizationSlug ??
-      subInfo.preferredOrganizationSlug ??
-      subInfo.organizationSlug ??
+      accessInfo.adminOrganizationSlug ??
+      accessInfo.preferredOrganizationSlug ??
+      accessInfo.organizationSlug ??
       null;
-    const isOrgAdmin = subInfo.isAnyOrgAdmin ?? subInfo.isOrgAdmin ?? false;
+    const isOrgAdmin = accessInfo.isAnyOrgAdmin ?? accessInfo.isOrgAdmin ?? false;
 
     return NextResponse.json({
-      planId: subInfo.planId,
+      planId: activeBilling.planId,
       planLabel: plan.name,
-      status: subInfo.status ?? "active",
+      status: activeBilling.status ?? "active",
       organizationSlug,
       isOrgAdmin,
     });
