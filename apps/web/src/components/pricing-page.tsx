@@ -16,6 +16,8 @@ import { Mail, Zap, Eye } from "lucide-react";
 type Props = {
   currentPlanId: string;
   subscriptionType: "personal" | "team" | "none";
+  cancelAtPeriodEnd?: boolean;
+  currentPeriodEndLabel?: string | null;
   organizationSlug?: string;
   canManageTeamBilling?: boolean;
   canManageCurrentSubscription?: boolean;
@@ -25,6 +27,8 @@ type Props = {
 export default function PricingPage({
   currentPlanId,
   subscriptionType,
+  cancelAtPeriodEnd = false,
+  currentPeriodEndLabel,
   organizationSlug,
   canManageTeamBilling = false,
   canManageCurrentSubscription = true,
@@ -32,15 +36,14 @@ export default function PricingPage({
 }: Props) {
   const [pending, startTransition] = useTransition();
   const hasTeamContext = subscriptionType === "team";
-  const isLockedTeamMember = hasTeamContext && !canManageCurrentSubscription;
+  const currentPlan = SUBSCRIPTION_PLANS[currentPlanId as PlanId];
+  const hasScheduledDowngrade =
+    cancelAtPeriodEnd && Boolean(currentPlan && currentPlan.price > 0);
+  const canModifyTeamPlans = !hasTeamContext || canManageCurrentSubscription;
 
   const handleCheckout = (planId: PlanId) => {
     if (!isAuthenticated) {
       window.location.href = "/login?next=/subscriptions";
-      return;
-    }
-    if (isLockedTeamMember) {
-      toast.error("Only organization admins can modify this team subscription.");
       return;
     }
 
@@ -51,6 +54,10 @@ export default function PricingPage({
     }
 
     if (plan.category === "team") {
+      if (!canModifyTeamPlans) {
+        toast.error("Only organization admins can modify this team subscription.");
+        return;
+      }
       if (!organizationSlug) {
         toast.error("Create or select an organization before upgrading.");
         return;
@@ -88,13 +95,21 @@ export default function PricingPage({
   };
 
   const getButtonText = (planId: PlanId) => {
+    const isCurrentPlan = planId === currentPlanId;
+
     if (!isAuthenticated) {
       return "Sign in to continue";
     }
-    if (isLockedTeamMember) {
+    if (
+      SUBSCRIPTION_PLANS[planId].category === "team" &&
+      !canModifyTeamPlans
+    ) {
       return "Admin only";
     }
-    if (planId === currentPlanId) {
+    if (isCurrentPlan && hasScheduledDowngrade) {
+      return "Keep plan";
+    }
+    if (isCurrentPlan) {
       return "Current plan";
     }
     if (canUpgrade(currentPlanId as PlanId, planId)) {
@@ -106,26 +121,37 @@ export default function PricingPage({
     return "Change plan";
   };
 
-  const renderPlanCards = (plans: Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>, highlightedPlanId: PlanId) =>
-    plans.map((plan) => (
-      <PricingCard
-        key={plan.id}
-        name={plan.name}
-        price={plan.price === 0 ? "Free" : `$${plan.price}`}
-        period={plan.price === 0 ? undefined : plan.interval ?? undefined}
-        description={plan.description}
-        features={[...plan.features.features]}
-        highlighted={plan.id === highlightedPlanId}
-        badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
-        buttonText={getButtonText(plan.id as PlanId)}
-        disabled={
-          pending ||
-          isLockedTeamMember ||
-          (isAuthenticated && plan.id === currentPlanId)
-        }
-        onSelect={() => handleCheckout(plan.id as PlanId)}
-      />
-    ));
+  const renderPlanCards = (
+    plans: Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>,
+    highlightedPlanId: PlanId
+  ) =>
+    plans.map((plan) => {
+      const planId = plan.id as PlanId;
+      const isCurrentPlan = planId === currentPlanId;
+      const isResumeAction = isCurrentPlan && hasScheduledDowngrade;
+      const teamPlanReadOnly =
+        plan.category === "team" && !canModifyTeamPlans;
+
+      return (
+        <PricingCard
+          key={plan.id}
+          name={plan.name}
+          price={plan.price === 0 ? "Free" : `$${plan.price}`}
+          period={plan.price === 0 ? undefined : plan.interval ?? undefined}
+          description={plan.description}
+          features={[...plan.features.features]}
+          highlighted={plan.id === highlightedPlanId}
+          badge={plan.id === highlightedPlanId ? "Recommended" : undefined}
+          buttonText={getButtonText(planId)}
+          disabled={
+            pending ||
+            teamPlanReadOnly ||
+            (isAuthenticated && isCurrentPlan && !isResumeAction)
+          }
+          onSelect={() => handleCheckout(planId)}
+        />
+      );
+    });
 
   const personalPlans = Object.values(PERSONAL_PLANS);
   const teamPlans = Object.values(TEAM_PLANS);
@@ -141,10 +167,17 @@ export default function PricingPage({
             Compare all available plans below. Personal and Team tiers are displayed together so
             you can decide faster.
           </p>
-          {isLockedTeamMember ? (
+          {hasScheduledDowngrade ? (
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              You are a member of this organization. Only organization admins can change the team
-              subscription.
+              {currentPeriodEndLabel
+                ? `You switched back to Free, but ${currentPlan?.name ?? "your paid plan"} stays active until ${currentPeriodEndLabel}. After that date, the account moves to Free with no further charges.`
+                : `You switched back to Free, but ${currentPlan?.name ?? "your paid plan"} stays active until the current billing period ends. After that, the account moves to Free with no further charges.`}
+            </p>
+          ) : null}
+          {!canModifyTeamPlans ? (
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              You are a member of this organization. Only organization admins can change team
+              billing, but you can still start a personal plan for your own account.
             </p>
           ) : hasTeamContext ? (
             <p className="text-sm text-zinc-700 dark:text-zinc-300">

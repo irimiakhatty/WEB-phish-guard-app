@@ -25,16 +25,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   const organizations = await getUserOrganizations();
   const subInfo = await getUserSubscriptionInfo(session.user.id);
-  const expiredPaidSubscription = subInfo.expiredPaidSubscription;
-  const effectiveSubscriptionType =
-    subInfo.subscriptionType === "none"
-      ? (expiredPaidSubscription?.subscriptionType ?? "none")
-      : subInfo.subscriptionType;
   const currentPlan = getPlanById(subInfo.planId);
   const userRole = (session.user as any).role || "user";
   const isSuperAdmin = userRole === "super_admin";
   const isAnyOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
-  const isTeamContext = effectiveSubscriptionType === "team";
+  const isTeamContext = subInfo.subscriptionType === "team";
   const isTeamAdmin =
     isSuperAdmin || subInfo.isAnyOrgAdmin === true || subInfo.isOrgAdmin === true;
   const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
@@ -47,25 +42,17 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     typeof searchParams?.billingError === "string"
       ? searchParams.billingError
       : undefined;
-  const expiredPaidPlan = expiredPaidSubscription
-    ? getPlanById(expiredPaidSubscription.planId)
-    : null;
-  const expiredAtLabel = expiredPaidSubscription?.currentPeriodEnd
+  const scheduledDowngradeAtLabel = subInfo.currentPeriodEnd
     ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
-        expiredPaidSubscription.currentPeriodEnd
+        subInfo.currentPeriodEnd
       )
     : null;
-  const expiredBillingNotice =
-    expiredPaidSubscription &&
-    expiredPaidPlan &&
-    expiredPaidPlan.price > 0 &&
-    !subInfo.hasActiveSubscription
-    ? `Your ${expiredPaidPlan?.name ?? "paid"} ${
-        expiredPaidSubscription.subscriptionType
-      } subscription is no longer active${
-        expiredAtLabel ? ` (period ended on ${expiredAtLabel})` : ""
-      }. Complete payment in Stripe to restore paid limits.`
-    : undefined;
+  const scheduledDowngradeNotice =
+    currentPlan.price > 0 && subInfo.cancelAtPeriodEnd
+      ? scheduledDowngradeAtLabel
+        ? `You switched back to Free, but your ${currentPlan.name} benefits remain active until ${scheduledDowngradeAtLabel}. After that date, the account automatically moves to Free with no further charges.`
+        : `You switched back to Free, but your ${currentPlan.name} benefits remain active until the current billing period ends. After that, the account automatically moves to Free with no further charges.`
+      : undefined;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-950 dark:to-black">
@@ -89,9 +76,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   {billingError}
                 </p>
               ) : null}
-              {expiredBillingNotice ? (
+              {scheduledDowngradeNotice ? (
                 <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  {expiredBillingNotice}
+                  {scheduledDowngradeNotice}
                 </p>
               ) : null}
               <div className="grid gap-4 md:grid-cols-2">

@@ -62,6 +62,12 @@ function isPaidPlan(planId: PlanId): boolean {
   return getPlanById(planId).price > 0;
 }
 
+function getSubscriptionUsableUntil(currentPeriodEnd: Date): Date {
+  const inclusiveEnd = new Date(currentPeriodEnd);
+  inclusiveEnd.setHours(23, 59, 59, 999);
+  return inclusiveEnd;
+}
+
 function isSubscriptionCurrentlyUsable(params: {
   planId: PlanId;
   status?: string | null;
@@ -84,7 +90,7 @@ function isSubscriptionCurrentlyUsable(params: {
 
   return (
     PAID_SUBSCRIPTION_ACTIVE_STATUSES.has(status) &&
-    currentPeriodEnd.getTime() > now.getTime()
+    getSubscriptionUsableUntil(currentPeriodEnd).getTime() >= now.getTime()
   );
 }
 
@@ -268,9 +274,9 @@ export async function getUserSubscriptionInfo(
 
   // Check personal subscription
   const personalSub = user.personalSubscription;
+  const personalPlanId = (personalSub?.plan as PlanId) || "free";
   let hasPersonalSub = false;
   if (personalSub) {
-    const personalPlanId = (personalSub.plan as PlanId) || "free";
     hasPersonalSub = isSubscriptionCurrentlyUsable({
       planId: personalPlanId,
       status: personalSub.status,
@@ -302,8 +308,10 @@ export async function getUserSubscriptionInfo(
       });
     })
   );
+  const hasActivePaidPersonalSubscription =
+    hasPersonalSub && isPaidPlan(personalPlanId);
   const hasAnyActivePaidSubscription =
-    hasPersonalSub ||
+    hasActivePaidPersonalSubscription ||
     activeOrgMemberships.some((membership) => {
       const planId =
         (membership.organization.subscription?.plan as PlanId | undefined) ||
@@ -340,7 +348,6 @@ export async function getUserSubscriptionInfo(
 
   // Determine best subscription
   const bestActiveOrgMembership = activeOrgMemberships[0];
-  const personalPlanId = (personalSub?.plan as PlanId) || "free";
   const bestActiveOrgPlanId = bestActiveOrgMembership
     ? ((bestActiveOrgMembership.organization.subscription?.plan as PlanId) || "team_free")
     : null;

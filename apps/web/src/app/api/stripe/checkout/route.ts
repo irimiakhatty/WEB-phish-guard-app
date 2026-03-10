@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 import prisma from "@phish-guard-app/db";
 import { requireAuth } from "@/lib/auth-helpers";
@@ -8,30 +9,91 @@ import { syncStripeSubscription } from "@/lib/stripe-sync";
 export const runtime = "nodejs";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const NON_REUSABLE_STRIPE_SUBSCRIPTION_STATUSES = new Set<
+  Stripe.Subscription.Status
+>(["canceled", "incomplete", "incomplete_expired"]);
+
+type CheckoutFlowResult = {
+  url?: string;
+  message?: string;
+};
 
 function getDefaultPeriodEnd() {
   return new Date(Date.now() + THIRTY_DAYS_MS);
 }
 
+function formatPeriodEnd(epochSeconds?: number | null) {
+  if (!epochSeconds) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "long",
+  }).format(new Date(epochSeconds * 1000));
+}
+
+async function retrieveReusableStripeSubscription(params: {
+  stripe: ReturnType<typeof getStripe>;
+  stripeSubscriptionId: string;
+}) {
+  try {
+    const subscription = await params.stripe.subscriptions.retrieve(
+      params.stripeSubscriptionId
+    );
+
+    if (
+      NON_REUSABLE_STRIPE_SUBSCRIPTION_STATUSES.has(
+        subscription.status as Stripe.Subscription.Status
+      )
+    ) {
+      return null;
+    }
+
+    return subscription;
+  } catch (error: any) {
+    if (error?.code === "resource_missing" || error?.statusCode === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 async function createSubscriptionUpdateUrl(params: {
   stripe: ReturnType<typeof getStripe>;
   stripeCustomerId: string;
-  stripeSubscriptionId: string;
+  currentSubscription: Stripe.Subscription;
   targetPriceId: string;
   origin: string;
   metadata: Record<string, string>;
-}) {
-  const currentSubscription = await params.stripe.subscriptions.retrieve(
-    params.stripeSubscriptionId
-  );
-  const currentItem = currentSubscription.items.data[0];
+}): Promise<CheckoutFlowResult> {
+  const currentItem = params.currentSubscription.items.data[0];
 
   if (!currentItem) {
     throw new Error("Stripe subscription item is missing.");
   }
 
   if (currentItem.price.id === params.targetPriceId) {
-    return `${params.origin}/subscriptions?updated=1`;
+    if (params.currentSubscription.cancel_at_period_end) {
+      const resumedSubscription = await params.stripe.subscriptions.update(
+        params.currentSubscription.id,
+        {
+          cancel_at_period_end: false,
+          metadata: {
+            ...params.currentSubscription.metadata,
+            ...params.metadata,
+          },
+        }
+      );
+      await syncStripeSubscription(resumedSubscription);
+
+      return {
+        message:
+          "Automatic downgrade removed. Your paid plan will continue renewing normally.",
+      };
+    }
+
+    return { message: "This plan is already active." };
   }
 
   try {
@@ -41,7 +103,7 @@ async function createSubscriptionUpdateUrl(params: {
       flow_data: {
         type: "subscription_update_confirm",
         subscription_update_confirm: {
-          subscription: params.stripeSubscriptionId,
+          subscription: params.currentSubscription.id,
           items: [
             {
               id: currentItem.id,
@@ -53,23 +115,57 @@ async function createSubscriptionUpdateUrl(params: {
       },
     });
 
-    return portalSession.url;
+    return { url: portalSession.url };
   } catch {
-    const updatedSubscription = await params.stripe.subscriptions.update(
-      params.stripeSubscriptionId,
-      {
-        items: [{ id: currentItem.id, price: params.targetPriceId, quantity: 1 }],
-        proration_behavior: "create_prorations",
-        metadata: {
-          ...currentSubscription.metadata,
-          ...params.metadata,
-        },
-      }
-    );
-    await syncStripeSubscription(updatedSubscription);
-
-    return `${params.origin}/subscriptions/success?updated=1`;
+    throw new Error("Could not open Stripe to confirm the billing change.");
   }
+}
+
+async function scheduleCancellationAtPeriodEnd(params: {
+  stripe: ReturnType<typeof getStripe>;
+  stripeSubscriptionId: string;
+  metadata: Record<string, string>;
+}): Promise<CheckoutFlowResult | null> {
+  const currentSubscription = await retrieveReusableStripeSubscription({
+    stripe: params.stripe,
+    stripeSubscriptionId: params.stripeSubscriptionId,
+  });
+
+  if (!currentSubscription) {
+    return null;
+  }
+
+  const periodEndLabel = formatPeriodEnd(currentSubscription.current_period_end);
+
+  if (currentSubscription.cancel_at_period_end) {
+    return {
+      message: periodEndLabel
+        ? `Downgrade to Free already scheduled. Your paid benefits stay active until ${periodEndLabel}, then the account switches to Free with no further charges.`
+        : "Downgrade to Free already scheduled at the end of the paid billing period.",
+    };
+  }
+
+  const updatedSubscription = await params.stripe.subscriptions.update(
+    currentSubscription.id,
+    {
+      cancel_at_period_end: true,
+      metadata: {
+        ...currentSubscription.metadata,
+        ...params.metadata,
+      },
+    }
+  );
+  await syncStripeSubscription(updatedSubscription);
+
+  const updatedPeriodEndLabel = formatPeriodEnd(
+    updatedSubscription.current_period_end
+  );
+
+  return {
+    message: updatedPeriodEndLabel
+      ? `Downgrade scheduled. Your paid plan remains active until ${updatedPeriodEndLabel}. After that, the account switches to Free with no further charges.`
+      : "Downgrade scheduled. Your paid plan remains active until the current billing period ends, then the account switches to Free with no further charges.",
+  };
 }
 
 export async function POST(req: Request) {
@@ -143,10 +239,17 @@ export async function POST(req: Request) {
       }
       if (planId === "team_free") {
         if (subscription.stripeSubscriptionId) {
-          try {
-            await stripe.subscriptions.cancel(subscription.stripeSubscriptionId);
-          } catch (err) {
-            console.error("Failed to cancel team Stripe subscription:", err);
+          const scheduledDowngrade = await scheduleCancellationAtPeriodEnd({
+            stripe,
+            stripeSubscriptionId: subscription.stripeSubscriptionId,
+            metadata: {
+              organizationId: organization.id,
+              subscriptionType: "team",
+            },
+          });
+
+          if (scheduledDowngrade) {
+            return NextResponse.json(scheduledDowngrade);
           }
         }
 
@@ -199,20 +302,36 @@ export async function POST(req: Request) {
         });
       }
       if (subscription.stripeSubscriptionId) {
-        const updateUrl = await createSubscriptionUpdateUrl({
+        const currentStripeSubscription = await retrieveReusableStripeSubscription({
           stripe,
-          stripeCustomerId,
           stripeSubscriptionId: subscription.stripeSubscriptionId,
-          targetPriceId: plan.stripePriceId,
-          origin,
-          metadata: {
-            planId,
-            organizationId: organization.id,
-            subscriptionType: "team",
-          },
         });
 
-        return NextResponse.json({ url: updateUrl });
+        if (currentStripeSubscription) {
+          const updateFlow = await createSubscriptionUpdateUrl({
+            stripe,
+            stripeCustomerId,
+            currentSubscription: currentStripeSubscription,
+            targetPriceId: plan.stripePriceId,
+            origin,
+            metadata: {
+              planId,
+              organizationId: organization.id,
+              subscriptionType: "team",
+            },
+          });
+
+          return NextResponse.json(updateFlow);
+        }
+
+        await prisma.subscription.update({
+          where: { organizationId: organization.id },
+          data: {
+            stripeSubscriptionId: null,
+            stripePriceId: null,
+            cancelAtPeriodEnd: false,
+          },
+        });
       }
 
       const checkoutSession = await stripe.checkout.sessions.create({
@@ -254,10 +373,17 @@ export async function POST(req: Request) {
     }
     if (planId === "free") {
       if (personalSubscription.stripeSubscriptionId) {
-        try {
-          await stripe.subscriptions.cancel(personalSubscription.stripeSubscriptionId);
-        } catch (err) {
-          console.error("Failed to cancel personal Stripe subscription:", err);
+        const scheduledDowngrade = await scheduleCancellationAtPeriodEnd({
+          stripe,
+          stripeSubscriptionId: personalSubscription.stripeSubscriptionId,
+          metadata: {
+            userId: session.user.id,
+            subscriptionType: "personal",
+          },
+        });
+
+        if (scheduledDowngrade) {
+          return NextResponse.json(scheduledDowngrade);
         }
       }
 
@@ -280,7 +406,7 @@ export async function POST(req: Request) {
       });
 
       return NextResponse.json({
-        url: `${origin}/subscriptions/success?updated=1`,
+        message: "Free plan is now active.",
       });
     }
 
@@ -308,20 +434,36 @@ export async function POST(req: Request) {
       });
     }
     if (personalSubscription.stripeSubscriptionId) {
-      const updateUrl = await createSubscriptionUpdateUrl({
+      const currentStripeSubscription = await retrieveReusableStripeSubscription({
         stripe,
-        stripeCustomerId,
         stripeSubscriptionId: personalSubscription.stripeSubscriptionId,
-        targetPriceId: plan.stripePriceId,
-        origin,
-        metadata: {
-          planId,
-          userId: session.user.id,
-          subscriptionType: "personal",
-        },
       });
 
-      return NextResponse.json({ url: updateUrl });
+      if (currentStripeSubscription) {
+        const updateFlow = await createSubscriptionUpdateUrl({
+          stripe,
+          stripeCustomerId,
+          currentSubscription: currentStripeSubscription,
+          targetPriceId: plan.stripePriceId,
+          origin,
+          metadata: {
+            planId,
+            userId: session.user.id,
+            subscriptionType: "personal",
+          },
+        });
+
+        return NextResponse.json(updateFlow);
+      }
+
+      await prisma.personalSubscription.update({
+        where: { userId: session.user.id },
+        data: {
+          stripeSubscriptionId: null,
+          stripePriceId: null,
+          cancelAtPeriodEnd: false,
+        },
+      });
     }
 
     const checkoutSession = await stripe.checkout.sessions.create({

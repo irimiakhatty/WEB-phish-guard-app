@@ -3,6 +3,7 @@ import {
   getUserSubscriptionInfo,
   type UserSubscriptionInfo,
 } from "@/lib/subscription-helpers";
+import { getPlanById } from "@/lib/subscription-plans";
 import { getUserOrganizations } from "@/app/actions/organizations";
 import PricingPage from "@/components/pricing-page";
 import Link from "next/link";
@@ -41,6 +42,12 @@ export default async function SubscriptionsPage() {
         isAnyOrgAdmin: false,
         expiredPaidSubscription: undefined,
       };
+  const currentPlan = getPlanById(subInfo.planId);
+  const scheduledDowngradeAtLabel = subInfo.currentPeriodEnd
+    ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+        subInfo.currentPeriodEnd
+      )
+    : null;
   const teamOrganizationSlug =
     subInfo.adminOrganizationSlug ||
     subInfo.preferredOrganizationSlug ||
@@ -88,6 +95,8 @@ export default async function SubscriptionsPage() {
         <PricingPage
           currentPlanId={subInfo.planId}
           subscriptionType={subInfo.subscriptionType}
+          cancelAtPeriodEnd={Boolean(subInfo.cancelAtPeriodEnd && currentPlan.price > 0)}
+          currentPeriodEndLabel={scheduledDowngradeAtLabel}
           organizationSlug={teamOrganizationSlug}
           canManageTeamBilling={canManageTeamBilling}
           canManageCurrentSubscription={
