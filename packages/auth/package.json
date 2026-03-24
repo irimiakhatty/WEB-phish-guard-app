@@ -1,24 +1,24 @@
 {
-  "name": "@phish-guard-app/auth",
-  "type": "module",
-  "exports": {
-    ".": {
-      "default": "./src/index.ts"
-    },
-    "./*": {
-      "default": "./src/*.ts"
-    }
-  },
-  "scripts": {},
-  "dependencies": {
-    "@phish-guard-app/db": "workspace:*",
-    "@phish-guard-app/env": "workspace:*",
-    "better-auth": "^1.4.9",
-    "dotenv": "^17.2.2",
-    "zod": "^4.1.13"
-  },
-  "devDependencies": {
-    "@phish-guard-app/config": "workspace:*",
-    "typescript": "^5.0.0"
-  }
+    "name":  "@phish-guard-app/auth",
+    "type":  "module",
+    "exports":  {
+                    ".":  {
+                              "default":  "./src/index.ts"
+                          },
+                    "./*":  {
+                                "default":  "./src/*.ts"
+                            }
+                },
+    "scripts":  {
+
+                },
+    "dependencies":  {
+                         "@phish-guard-app/db":  "workspace:*",
+                         "@phish-guard-app/env":  "workspace:*",
+                         "better-auth":  "^1.4.9"
+                     },
+    "devDependencies":  {
+                            "@phish-guard-app/config":  "workspace:*",
+                            "typescript":  "^5.0.0"
+                        }
 }

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { TEAM_PLANS, type TeamPlanId, canUpgrade, canDowngrade } from "@/lib/subscription-plans";
+import { TEAM_PLANS, type TeamPlanId, canUpgrade, canDowngrade } from "@/lib/billing/subscription-plans";
 
 type Props = {
   organizationSlug: string;
@@ -20,7 +20,7 @@ type Props = {
 
 const teamPlanOptions = Object.values(TEAM_PLANS).map((plan) => ({
   id: plan.id,
-  label: `${plan.name} — ${plan.features.scansPerMonth} scans/mo, ${plan.features.scansPerHourPerUser} scans/hr/user`,
+  label: `${plan.name} â€” ${plan.features.scansPerMonth} scans/mo, ${plan.features.scansPerHourPerUser} scans/hr/user`,
 }));
 
 export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props) {

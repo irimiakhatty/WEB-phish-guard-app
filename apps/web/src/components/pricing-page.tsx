@@ -11,7 +11,7 @@ import {
   canDowngrade,
   canUpgrade,
   type PlanId,
-} from "@/lib/subscription-plans";
+} from "@/lib/billing/subscription-plans";
 
 import PricingCard from "./pricing-card";
 

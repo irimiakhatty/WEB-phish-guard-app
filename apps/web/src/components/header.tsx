@@ -20,8 +20,8 @@ import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
+import { authClient } from "@/lib/auth/auth-client";
+import { cn } from "@/lib/shared/utils";
 
 type HeaderPlanResponse = {
   planId: string;

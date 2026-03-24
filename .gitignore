@@ -60,3 +60,6 @@ venv
 
 # Better-T-Stack
 bts.jsonc
+
+# Extension package artifact
+apps/phishguard-extension.zip

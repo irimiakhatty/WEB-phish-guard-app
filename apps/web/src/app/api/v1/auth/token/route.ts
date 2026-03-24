@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth-helpers";
-import { createApiToken, listUserApiTokens } from "@/lib/api-auth";
-import { canCreateApiToken } from "@/lib/subscription-helpers";
+import { requireAuth } from "@/lib/auth/auth-helpers";
+import { createApiToken, listUserApiTokens } from "@/lib/auth/api-auth";
+import { canCreateApiToken } from "@/lib/billing/subscription-helpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

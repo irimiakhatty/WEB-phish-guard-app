@@ -6,14 +6,14 @@ import { toast } from "sonner";
 import z from "zod";
 import { ArrowLeft, Building2, Eye, EyeOff, Shield, User } from "lucide-react";
 
-import { signUpWithOrganization } from "@/app/actions/auth";
-import { authClient } from "@/lib/auth-client";
+import { signUpWithOrganization } from "@/server/actions/auth";
+import { authClient } from "@/lib/auth/auth-client";
 import {
   getPasswordRuleStates,
   isPasswordStrong,
   PASSWORD_MIN_LENGTH,
   PASSWORD_POLICY_ERROR,
-} from "@/lib/password-policy";
+} from "@/lib/auth/password-policy";
 
 import Loader from "./loader";
 import { Button } from "./ui/button";
@@ -396,3 +396,4 @@ export default function SignUpForm({
     </Card>
   );
 }
+

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { copyInviteLink } from "@/app/actions/organizations";
+import { copyInviteLink } from "@/server/actions/organizations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

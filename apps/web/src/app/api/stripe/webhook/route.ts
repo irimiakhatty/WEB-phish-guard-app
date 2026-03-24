@@ -1,7 +1,7 @@
 import type Stripe from "stripe";
 import { NextResponse } from "next/server";
-import { getStripe } from "@/lib/stripe";
-import { syncStripeSubscription } from "@/lib/stripe-sync";
+import { getStripe } from "@/lib/billing/stripe";
+import { syncStripeSubscription } from "@/lib/billing/stripe-sync";
 
 export const runtime = "nodejs";
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@phish-guard-app/db";
-import { requireAuth } from "@/lib/auth-helpers";
-import { getStripe } from "@/lib/stripe";
+import { requireAuth } from "@/lib/auth/auth-helpers";
+import { getStripe } from "@/lib/billing/stripe";
 
 export const runtime = "nodejs";
 

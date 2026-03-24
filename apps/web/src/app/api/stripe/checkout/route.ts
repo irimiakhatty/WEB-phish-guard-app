@@ -1,10 +1,10 @@
 import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 import prisma from "@phish-guard-app/db";
-import { requireAuth } from "@/lib/auth-helpers";
-import { getPlanById, isTeamPlan, isValidPlan } from "@/lib/subscription-plans";
-import { getStripe } from "@/lib/stripe";
-import { syncStripeSubscription } from "@/lib/stripe-sync";
+import { requireAuth } from "@/lib/auth/auth-helpers";
+import { getPlanById, isTeamPlan, isValidPlan } from "@/lib/billing/subscription-plans";
+import { getStripe } from "@/lib/billing/stripe";
+import { syncStripeSubscription } from "@/lib/billing/stripe-sync";
 
 export const runtime = "nodejs";
 

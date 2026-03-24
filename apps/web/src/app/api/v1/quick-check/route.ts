@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkSafeBrowsing, getThreatSeverity } from "@/lib/safe-browsing";
-import { analyzeUrlML } from "@/lib/ml-service";
-import { analyzeHeuristics } from "@/lib/phishing-heuristics";
-import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
+import { checkSafeBrowsing, getThreatSeverity } from "@/lib/integrations/safe-browsing";
+import { analyzeUrlML } from "@/lib/integrations/ml-service";
+import { analyzeHeuristics } from "@/lib/security/phishing-heuristics";
+import { getRiskLevel, isPhishingScore } from "@/lib/security/risk-levels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

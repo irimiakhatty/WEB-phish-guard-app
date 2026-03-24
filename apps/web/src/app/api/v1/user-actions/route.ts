@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiToken } from "@/lib/api-auth";
+import { verifyApiToken } from "@/lib/auth/api-auth";
 import prisma from "@phish-guard-app/db";
 
 export const runtime = "nodejs";

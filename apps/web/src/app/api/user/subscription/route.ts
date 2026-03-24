@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@phish-guard-app/auth";
-import { getUserBillingSummaries } from "@/lib/billing-helpers";
-import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
-import { getPlanById } from "@/lib/subscription-plans";
+import { getUserBillingSummaries } from "@/lib/billing/billing-helpers";
+import { getUserSubscriptionInfo } from "@/lib/billing/subscription-helpers";
+import { getPlanById } from "@/lib/billing/subscription-plans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

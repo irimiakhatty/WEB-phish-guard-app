@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiToken } from "@/lib/api-auth";
-import { getMyScans } from "@/app/actions/scans";
+import { verifyApiToken } from "@/lib/auth/api-auth";
+import { getMyScans } from "@/server/actions/scans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,3 +75,4 @@ export async function OPTIONS(request: NextRequest) {
     },
   });
 }
+

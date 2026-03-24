@@ -8,10 +8,10 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { analyzePhishing } from "@/app/actions/analyze";
+import { analyzePhishing } from "@/server/actions/analyze";
 import Link from "next/link";
-import { uploadScanImage } from "@/app/actions/upload";
-import { extractTextFromImage } from "@/lib/ocr";
+import { uploadScanImage } from "@/server/actions/upload";
+import { extractTextFromImage } from "@/lib/integrations/ocr";
 
 type AnalysisResult = {
   textScore: number;
@@ -568,4 +568,5 @@ export default function ManualAnalysis() {
     </div>
   );
 }
+
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiToken } from "@/lib/api-auth";
-import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
+import { verifyApiToken } from "@/lib/auth/api-auth";
+import { getUserSubscriptionInfo } from "@/lib/billing/subscription-helpers";
 
 export const runtime = "nodejs";
 

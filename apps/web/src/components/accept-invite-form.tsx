@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
-import { acceptInviteSignUp } from "@/app/actions/organizations";
+import { authClient } from "@/lib/auth/auth-client";
+import { acceptInviteSignUp } from "@/server/actions/organizations";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -156,3 +156,4 @@ export default function AcceptInviteForm({ token, email, orgSlug, orgName, role 
     </Card>
   );
 }
+

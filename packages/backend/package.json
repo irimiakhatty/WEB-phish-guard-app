@@ -1,0 +1,23 @@
+{
+  "name": "@phish-guard-app/backend",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./admin": {
+      "default": "./src/admin/index.ts"
+    },
+    "./organizations": {
+      "default": "./src/organizations/index.ts"
+    }
+  },
+  "dependencies": {
+    "@phish-guard-app/auth": "workspace:*",
+    "@phish-guard-app/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@phish-guard-app/config": "workspace:*",
+    "typescript": "^5.0.0"
+  }
+}

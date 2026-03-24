@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resendInvite } from "@/app/actions/organizations";
+import { resendInvite } from "@/server/actions/organizations";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

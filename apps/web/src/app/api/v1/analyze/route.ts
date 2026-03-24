@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiToken } from "@/lib/api-auth";
-import { analyzePhishing } from "@/app/actions/analyze";
-import { decryptTextPayload, type EncryptedPayloadEnvelope } from "@/lib/payload-crypto";
+import { verifyApiToken } from "@/lib/auth/api-auth";
+import { analyzePhishing } from "@/server/actions/analyze";
+import { decryptTextPayload, type EncryptedPayloadEnvelope } from "@/lib/security/payload-crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,3 +146,4 @@ export async function OPTIONS(request: NextRequest) {
     },
   });
 }
+

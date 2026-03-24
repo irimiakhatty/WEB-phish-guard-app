@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiToken } from "@/lib/api-auth";
-import { getUserSubscriptionInfo } from "@/lib/subscription-helpers";
-import { getRiskLevel, isPhishingScore } from "@/lib/risk-levels";
+import { verifyApiToken } from "@/lib/auth/api-auth";
+import { getUserSubscriptionInfo } from "@/lib/billing/subscription-helpers";
+import { getRiskLevel, isPhishingScore } from "@/lib/security/risk-levels";
 import prisma from "@phish-guard-app/db";
 
 export const runtime = "nodejs";

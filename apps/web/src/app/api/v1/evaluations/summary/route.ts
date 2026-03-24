@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@phish-guard-app/db";
-import { verifyApiToken } from "@/lib/api-auth";
+import { verifyApiToken } from "@/lib/auth/api-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

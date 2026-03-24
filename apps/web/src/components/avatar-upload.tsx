@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef } from "react";
 import { Upload, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { uploadAvatar } from "@/app/actions/upload";
+import { uploadAvatar } from "@/server/actions/upload";
 import { useRouter } from "next/navigation";
 
 type AvatarUploadProps = {
@@ -84,3 +84,4 @@ export default function AvatarUpload({ currentImageUrl }: AvatarUploadProps) {
     </div>
   );
 }
+

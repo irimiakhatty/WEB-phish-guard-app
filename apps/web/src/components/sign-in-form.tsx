@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import z from "zod";
 import { Eye, EyeOff, Shield } from "lucide-react";
 
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 
 import Loader from "./loader";
 import { Button } from "./ui/button";
