@@ -1,75 +1,106 @@
-// Save options to chrome.storage
-function save_options() {
-    var autoScan = document.getElementById('autoScan').checked;
-    var apiUrl = document.getElementById('apiUrl').value;
-    var apiToken = document.getElementById('apiToken').value;
+const DEFAULT_API_URL = "https://phish-guard-rho.vercel.app";
+const LOCAL_DEV_API_URL = "http://localhost:3001";
 
-    const status = document.getElementById('status');
-    const saveBtn = document.getElementById('save');
+function sendRuntimeMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
 
-    // Remove trailing slash if present
-    if (apiUrl.endsWith('/')) {
-        apiUrl = apiUrl.slice(0, -1);
+async function fetchExtensionContext(apiUrl, token) {
+  const response = await fetch(`${apiUrl}/api/v1/extension/context`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success || !payload?.data) {
+    throw new Error(payload?.error || "Invalid token or connection failed");
+  }
+
+  return payload.data;
+}
+
+async function save_options() {
+  const autoScan = document.getElementById("autoScan").checked;
+  let apiUrl = document.getElementById("apiUrl").value.trim() || DEFAULT_API_URL;
+  const apiToken = document.getElementById("apiToken").value.trim();
+  const status = document.getElementById("status");
+  const saveBtn = document.getElementById("save");
+
+  if (!apiToken) {
+    await chrome.storage.sync.set({ autoScan, apiUrl });
+    try {
+      await sendRuntimeMessage({ action: "LOGOUT" });
+    } catch (_error) {
+      // Ignore runtime cleanup failures and keep the new URL saved.
     }
+    status.textContent = "Settings saved. Use Sign In / Sign Up in the main extension popup to connect your account.";
+    status.className = "success";
+    status.style.display = "block";
+    setTimeout(() => {
+      status.style.display = "none";
+    }, 4000);
+    return;
+  }
 
-    saveBtn.disabled = true;
-    saveBtn.innerText = 'Verifying...';
+  if (apiUrl.endsWith("/")) {
+    apiUrl = apiUrl.slice(0, -1);
+  }
 
-    // Verify token with backend
-    fetch(`${apiUrl}/api/v1/auth/verify`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${apiToken}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Invalid Token or Connection Failed');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Save to storage if valid
-        chrome.storage.sync.set({
-            autoScan: autoScan,
-            apiUrl: apiUrl,
-            apiToken: apiToken,
-            authToken: apiToken, // Keep for compatibility
-            userPlan: data.data.plan,
-            scansRemaining: data.data.scansRemaining
-        }, function () {
-            status.textContent = 'Settings saved! Plan: ' + data.data.plan;
-            status.className = 'success';
-            status.style.display = 'block';
-            setTimeout(function () {
-                status.style.display = 'none';
-            }, 3000);
-        });
-    })
-    .catch(error => {
-        status.textContent = 'Error: ' + error.message;
-        status.className = 'error';
-        status.style.display = 'block';
-    })
-    .finally(() => {
-        saveBtn.disabled = false;
-        saveBtn.innerText = 'Save Settings';
-    });
+  saveBtn.disabled = true;
+  saveBtn.innerText = "Verifying...";
+
+  try {
+    const context = await fetchExtensionContext(apiUrl, apiToken);
+    await chrome.storage.sync.set({ autoScan, apiUrl });
+    await sendRuntimeMessage({ action: "AUTH_HANDOFF", token: apiToken, context });
+    status.textContent = `Settings saved for ${context.user.email} on ${context.subscription.planName}.`;
+    status.className = "success";
+    status.style.display = "block";
+    setTimeout(() => {
+      status.style.display = "none";
+    }, 3000);
+  } catch (error) {
+    status.textContent = `Error: ${error instanceof Error ? error.message : "Could not save settings"}`;
+    status.className = "error";
+    status.style.display = "block";
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerText = "Save Settings";
+  }
 }
 
-// Restores select box and checkbox state using the preferences
-// stored in chrome.storage.
 function restore_options() {
-    chrome.storage.sync.get({
-        autoScan: true,
-        apiUrl: 'http://localhost:3000',
-        apiToken: ''
-    }, function (items) {
-        document.getElementById('autoScan').checked = items.autoScan;
-        document.getElementById('apiUrl').value = items.apiUrl;
-        document.getElementById('apiToken').value = items.apiToken || '';
-    });
+  chrome.storage.sync.get(
+    {
+      autoScan: true,
+      apiUrl: DEFAULT_API_URL,
+      apiToken: "",
+    },
+    function (items) {
+      document.getElementById("autoScan").checked = items.autoScan;
+      document.getElementById("apiUrl").value = items.apiUrl;
+      document.getElementById("apiToken").value = items.apiToken || "";
+    }
+  );
 }
 
-document.addEventListener('DOMContentLoaded', restore_options);
-document.getElementById('save').addEventListener('click', save_options);
+document.addEventListener("DOMContentLoaded", restore_options);
+document.getElementById("useLiveApp").addEventListener("click", () => {
+  document.getElementById("apiUrl").value = DEFAULT_API_URL;
+});
+document.getElementById("useLocalDev").addEventListener("click", () => {
+  document.getElementById("apiUrl").value = LOCAL_DEV_API_URL;
+});
+document.getElementById("save").addEventListener("click", () => {
+  void save_options();
+});

@@ -1,6 +1,9 @@
 import { Check, Sparkles } from "lucide-react";
-import { Button } from "./ui/button";
+
+import { cn } from "@/lib/shared/utils";
+
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 type PricingCardProps = {
   name: string;
@@ -29,63 +32,65 @@ export default function PricingCard({
 }: PricingCardProps) {
   return (
     <div
-      className={`relative rounded-2xl p-8 border-2 transition-all hover:scale-[1.01] ${
+      className={cn(
+        "relative flex h-full flex-col overflow-hidden rounded-[28px] border p-7 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl",
         highlighted
-          ? "border-zinc-900 bg-gradient-to-br from-zinc-100 to-white shadow-xl dark:border-zinc-100 dark:from-zinc-900 dark:to-zinc-950"
-          : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900/80"
-      }`}
+          ? "border-indigo-300/80 bg-gradient-to-b from-white via-indigo-50/75 to-sky-50/65 shadow-indigo-950/10 dark:border-indigo-400/25 dark:from-zinc-950 dark:via-indigo-950/28 dark:to-sky-950/20"
+          : "border-border/80 bg-card/95 shadow-zinc-950/5 dark:bg-zinc-950/82"
+      )}
     >
       {badge && (
-        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 border-0 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
-          <Sparkles className="w-3 h-3 mr-1" />
+        <Badge className="absolute left-7 top-6 border-0 bg-indigo-950 text-white shadow-sm dark:bg-indigo-100 dark:text-indigo-950">
+          <Sparkles className="mr-1 h-3 w-3" />
           {badge}
         </Badge>
       )}
 
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-gray-900 dark:text-white mb-2 text-xl font-semibold">{name}</h3>
-          <p className="text-gray-600 dark:text-gray-400">{description}</p>
-        </div>
+      <div className={cn("flex h-full flex-col", badge ? "pt-8" : "")}>
+        <div className="space-y-5">
+          <div className="space-y-3">
+            <h3 className="text-2xl font-semibold tracking-tight text-foreground">{name}</h3>
+            <p className="max-w-sm text-sm leading-6 text-muted-foreground">{description}</p>
+          </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-gray-900 dark:text-white text-5xl font-semibold leading-none">
-            {price}
-          </span>
-          {period && <span className="text-gray-500 dark:text-gray-400">/ {period}</span>}
+          <div className="flex items-end gap-2">
+            <span className="text-4xl font-semibold leading-none tracking-tight text-foreground sm:text-5xl">
+              {price}
+            </span>
+            {period ? (
+              <span className="pb-1 text-sm text-muted-foreground">/ {period}</span>
+            ) : null}
+          </div>
         </div>
 
         <Button
-          className={`w-full ${
+          variant={highlighted ? "default" : "outline"}
+          className={cn(
+            "mt-7 w-full",
             highlighted
-              ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-              : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-          }`}
+              ? "bg-indigo-950 text-white shadow-lg shadow-indigo-950/15 hover:bg-indigo-900 dark:bg-indigo-300 dark:text-indigo-950 dark:hover:bg-indigo-200"
+              : "border-border/80 bg-background/90 hover:bg-indigo-50/70 hover:text-foreground dark:bg-zinc-950/60 dark:hover:bg-indigo-950/30"
+          )}
           onClick={onSelect}
           disabled={disabled}
         >
           {buttonText}
         </Button>
 
-        <div className="pt-6 space-y-3 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="mt-7 space-y-3 border-t border-border/80 pt-6">
           {features.map((feature) => (
             <div key={feature} className="flex items-start gap-3">
               <div
-                className={`rounded-full p-1 flex-shrink-0 ${
+                className={cn(
+                  "flex-shrink-0 rounded-full p-1",
                   highlighted
-                    ? "bg-zinc-200 dark:bg-zinc-700"
-                    : "bg-zinc-100 dark:bg-zinc-800"
-                }`}
+                    ? "bg-indigo-100 text-indigo-950 dark:bg-indigo-400/20 dark:text-indigo-100"
+                    : "bg-muted text-muted-foreground"
+                )}
               >
-                <Check
-                  className={`w-3 h-3 ${
-                    highlighted
-                      ? "text-zinc-900 dark:text-zinc-100"
-                      : "text-zinc-600 dark:text-zinc-300"
-                  }`}
-                />
+                <Check className="h-3 w-3" />
               </div>
-              <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+              <span className="text-sm leading-6 text-foreground/88">{feature}</span>
             </div>
           ))}
         </div>

@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       {
         userId: authResult.user.id,
         source: source === "extension" ? "extension" : "api",
-        enforceLimits: false,
+        enforceLimits: source === "extension",
       }
     );
 
@@ -122,6 +122,29 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("PG_LIMIT:")) {
+      try {
+        const payload = JSON.parse(error.message.slice("PG_LIMIT:".length));
+        return NextResponse.json(
+          {
+            success: false,
+            error: payload?.code || "SCAN_LIMIT_REACHED",
+            details: payload,
+          },
+          { status: 429 }
+        );
+      } catch (parseError) {
+        console.error("API analyze limit payload parse error:", parseError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "SCAN_LIMIT_REACHED",
+          },
+          { status: 429 }
+        );
+      }
+    }
+
     console.error("API analyze error:", error);
     return NextResponse.json(
       {

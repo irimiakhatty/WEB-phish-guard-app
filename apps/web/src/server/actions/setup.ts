@@ -3,6 +3,7 @@
 import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
 import { revalidatePath } from "next/cache";
+import { FREE_TRIAL_DAYS, getPlanById } from "@/lib/billing/subscription-plans";
 import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/auth/password-policy";
 import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/shared/organization-name";
 
@@ -83,7 +84,16 @@ export async function createFirstAdmin(data: {
     // We can't easily transaction with auth.api but we can do prisma ops together.
     
     await prisma.$transaction(async (tx) => {
-        const currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 zile
+        const teamTrialPlan = getPlanById("team_free");
+        const teamTrialFeatures = teamTrialPlan.features as {
+            maxMembers?: number;
+            scansPerMonth?: number;
+            scansPerHourPerUser?: number;
+            maxApiTokens?: number;
+        };
+        const currentPeriodEnd = new Date(
+          Date.now() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000
+        );
 
         // Update user to admin
         await tx.user.update({
@@ -104,11 +114,11 @@ export async function createFirstAdmin(data: {
                 subscription: {
                     create: {
                         plan: "team_free",
-                        status: "active",
-                        maxMembers: 3,
-                        scansPerMonth: 500,
-                        scansPerHourPerUser: 25,
-                        maxApiTokens: 1,
+                        status: "trialing",
+                        maxMembers: teamTrialFeatures.maxMembers ?? 3,
+                        scansPerMonth: teamTrialFeatures.scansPerMonth ?? 500,
+                        scansPerHourPerUser: teamTrialFeatures.scansPerHourPerUser ?? 25,
+                        maxApiTokens: teamTrialFeatures.maxApiTokens ?? 1,
                         currentPeriodEnd,
                     }
                 },

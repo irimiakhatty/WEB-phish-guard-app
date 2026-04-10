@@ -176,7 +176,12 @@ bun run --filter web sync:notion -- --out apps/web/notion-sync
 
 1. Run the web app API on `http://localhost:3001`.
 2. Load `apps/extension` in `chrome://extensions` as unpacked extension.
-3. Sign in through extension auth handoff (`/ext-auth`) or use an API token.
+3. Open extension settings and switch the Dashboard/API URL to `http://localhost:3001` when you want real-time local development.
+4. Sign in through extension auth handoff (`/ext-auth`) or use an API token.
+
+Notes:
+- The extension defaults to the deployed app URL so sign-in still works when local dev is offline.
+- Your selected API URL and auth state now stay in storage across extension reloads, which makes iterating locally much faster.
 
 ## Extension Structure
 

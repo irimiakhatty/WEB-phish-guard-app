@@ -1,8 +1,7 @@
 import { env } from "@phish-guard-app/env/server";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// Reverting import path to point to the generated client file
-import { PrismaClient } from "../prisma/generated/client";
+import { PrismaClient } from "../prisma/generated-client/client";
 
 const adapter = new PrismaPg({
   connectionString: env.DATABASE_URL,
@@ -21,6 +20,6 @@ export type {
   OrganizationDepartment,
   MemberRiskSnapshot,
   TrainingAssignment
-} from "../prisma/generated/client";
+} from "../prisma/generated-client/client";
 
-export { PrismaClient } from "../prisma/generated/client";
+export { PrismaClient } from "../prisma/generated-client/client";

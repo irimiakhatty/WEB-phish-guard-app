@@ -1,4 +1,7 @@
 // --- CONFIGURATION ---
+// Default to the deployed app so sign-in works even when local dev is offline.
+const DEFAULT_API_URL = "https://phish-guard-rho.vercel.app";
+
 const RISK_THRESHOLDS = {
     low: 0.2,
     medium: 0.4,
@@ -42,6 +45,337 @@ function bootstrapPolicyDefaults(force = false) {
 }
 
 bootstrapPolicyDefaults();
+
+const AUTH_STORAGE_KEYS = [
+    "authToken",
+    "apiToken",
+    "userPlan",
+    "subscriptionStatus",
+    "userRole",
+    "userName",
+    "userEmail",
+    "planName",
+    "subscriptionType",
+    "scansRemaining",
+    "scansUsed",
+    "scansLimit",
+    "organizationName",
+    "organizationSlug",
+    "workspaceType",
+    "extensionAccount",
+    "recentScans",
+    "lastContextSyncAt",
+    "deepScanPublicKey",
+    "analyzePayloadPublicKey"
+];
+
+function isAdminRole(role) {
+    return role === "admin" || role === "super_admin";
+}
+
+function isLimitedPlan(planId, role) {
+    return !isAdminRole(role) && (!planId || planId === "free" || planId === "team_free");
+}
+
+function normalizeRecentScans(items) {
+    if (!Array.isArray(items)) {
+        return [];
+    }
+
+    return items
+        .filter((item) => item && typeof item === "object")
+        .slice(0, 5)
+        .map((item) => ({
+            id: typeof item.id === "string" ? item.id : "scan-" + Date.now(),
+            url: typeof item.url === "string" ? item.url : null,
+            riskLevel: typeof item.riskLevel === "string" ? item.riskLevel : "safe",
+            overallScore: typeof item.overallScore === "number" ? item.overallScore : 0,
+            isPhishing: Boolean(item.isPhishing),
+            source: typeof item.source === "string" ? item.source : null,
+            createdAt: typeof item.createdAt === "string" ? item.createdAt : new Date().toISOString()
+        }));
+}
+
+function buildLegacyContextFromRequest(request) {
+    const planId = request?.subscription?.planId || request?.user?.plan || "free";
+    const scansRemaining = typeof request?.subscription?.scansRemaining === "number"
+        ? request.subscription.scansRemaining
+        : typeof request?.subscription?.limit === "number"
+            ? request.subscription.limit
+            : 0;
+    const scansLimit = typeof request?.subscription?.scansLimit === "number"
+        ? request.subscription.scansLimit
+        : typeof request?.subscription?.limit === "number"
+            ? request.subscription.limit
+            : 0;
+    const derivedSubscriptionType = request?.subscription?.subscriptionType
+        || (planId.startsWith("team_") ? "team" : planId === "free" ? "none" : "personal");
+
+    return {
+        user: {
+            id: request?.user?.id || "",
+            email: request?.user?.email || "",
+            name: request?.user?.name || request?.user?.email || "",
+            role: request?.user?.role || "user"
+        },
+        account: request?.account || {
+            workspaceType: derivedSubscriptionType === "team" ? "organization" : "personal",
+            organizationId: null,
+            organizationName: null,
+            organizationSlug: null,
+            isOrgAdmin: false
+        },
+        subscription: {
+            subscriptionType: derivedSubscriptionType,
+            planId,
+            planName: request?.subscription?.planName || planId.replace(/_/g, " "),
+            status: request?.subscription?.status || null,
+            isPaid: !["free", "team_free"].includes(planId),
+            usageScope: request?.subscription?.usageScope
+                || (request?.account?.workspaceType === "organization" ? "organization" : "personal"),
+            scansUsed: typeof request?.subscription?.scansUsed === "number"
+                ? request.subscription.scansUsed
+                : Math.max(0, scansLimit - scansRemaining),
+            scansRemaining,
+            scansLimit,
+            currentPeriodEnd: request?.subscription?.currentPeriodEnd || null,
+            cancelAtPeriodEnd: Boolean(request?.subscription?.cancelAtPeriodEnd),
+            maxApiTokens: typeof request?.subscription?.maxApiTokens === "number"
+                ? request.subscription.maxApiTokens
+                : 0,
+            advancedAnalytics: Boolean(request?.subscription?.advancedAnalytics),
+            apiAccess: request?.subscription?.apiAccess !== false
+        },
+        activity: request?.activity || {
+            scansThisMonth: 0,
+            threatsThisMonth: 0,
+            safeScansThisMonth: 0
+        },
+        recentScans: normalizeRecentScans(request?.recentScans),
+        keys: request?.keys || {
+            deepScanPublicKey: request?.deepScanPublicKey || null,
+            analyzePayloadPublicKey: request?.analyzePayloadPublicKey || request?.deepScanPublicKey || null
+        }
+    };
+}
+
+function buildStoredAuthState(token, context) {
+    const safeContext = context && typeof context === "object"
+        ? context
+        : buildLegacyContextFromRequest({ user: { plan: "free" } });
+    const recentScans = normalizeRecentScans(safeContext.recentScans);
+
+    return {
+        authToken: token,
+        apiToken: token,
+        userPlan: safeContext.subscription?.planId || "free",
+        subscriptionStatus: safeContext.subscription?.status || null,
+        userRole: safeContext.user?.role || "user",
+        userName: safeContext.user?.name || safeContext.user?.email || "",
+        userEmail: safeContext.user?.email || "",
+        planName: safeContext.subscription?.planName || "Free",
+        subscriptionType: safeContext.subscription?.subscriptionType || "none",
+        scansRemaining: typeof safeContext.subscription?.scansRemaining === "number"
+            ? safeContext.subscription.scansRemaining
+            : 0,
+        scansUsed: typeof safeContext.subscription?.scansUsed === "number"
+            ? safeContext.subscription.scansUsed
+            : 0,
+        scansLimit: typeof safeContext.subscription?.scansLimit === "number"
+            ? safeContext.subscription.scansLimit
+            : 0,
+        organizationName: safeContext.account?.organizationName || null,
+        organizationSlug: safeContext.account?.organizationSlug || null,
+        workspaceType: safeContext.account?.workspaceType || "personal",
+        extensionAccount: {
+            user: safeContext.user || null,
+            account: safeContext.account || null,
+            subscription: safeContext.subscription || null,
+            activity: safeContext.activity || null,
+            recentScans
+        },
+        recentScans,
+        lastContextSyncAt: new Date().toISOString(),
+        deepScanPublicKey: safeContext.keys?.deepScanPublicKey || null,
+        analyzePayloadPublicKey:
+            safeContext.keys?.analyzePayloadPublicKey || safeContext.keys?.deepScanPublicKey || null
+    };
+}
+
+function getSyncStoragePayload(state) {
+    return {
+        authToken: state.authToken,
+        apiToken: state.apiToken,
+        userPlan: state.userPlan,
+        subscriptionStatus: state.subscriptionStatus,
+        userRole: state.userRole,
+        userName: state.userName,
+        userEmail: state.userEmail,
+        planName: state.planName,
+        subscriptionType: state.subscriptionType,
+        scansRemaining: state.scansRemaining,
+        scansUsed: state.scansUsed,
+        scansLimit: state.scansLimit,
+        organizationName: state.organizationName,
+        organizationSlug: state.organizationSlug,
+        workspaceType: state.workspaceType,
+        lastContextSyncAt: state.lastContextSyncAt,
+        deepScanPublicKey: state.deepScanPublicKey,
+        analyzePayloadPublicKey: state.analyzePayloadPublicKey
+    };
+}
+
+async function writeAuthState(token, context) {
+    const state = buildStoredAuthState(token, context);
+    await chrome.storage.sync.set(getSyncStoragePayload(state));
+    await chrome.storage.local.set(state);
+    return state;
+}
+
+async function getStoredRuntimeSettings() {
+    const syncState = await chrome.storage.sync.get({
+        apiUrl: DEFAULT_API_URL,
+        authToken: null,
+        apiToken: null
+    });
+    const localState = await chrome.storage.local.get({
+        authToken: null,
+        apiToken: null
+    });
+
+    return {
+        apiUrl: syncState.apiUrl || DEFAULT_API_URL,
+        authToken: syncState.authToken || localState.authToken || null,
+        apiToken: syncState.apiToken || localState.apiToken || null
+    };
+}
+
+async function fetchExtensionContext(authToken, apiUrl) {
+    const response = await fetch(apiUrl + "/api/v1/extension/context", {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + authToken
+        }
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.success || !payload?.data) {
+        const error = new Error(payload?.error || ("CONTEXT_FETCH_FAILED_" + response.status));
+        error.status = response.status;
+        throw error;
+    }
+
+    return payload.data;
+}
+
+async function refreshExtensionContext(explicitToken) {
+    const settings = await getStoredRuntimeSettings();
+    const authToken = explicitToken || settings.apiToken || settings.authToken;
+
+    if (!authToken) {
+        return null;
+    }
+
+    const context = await fetchExtensionContext(authToken, settings.apiUrl);
+    return writeAuthState(authToken, context);
+}
+
+function buildRecentScanSnapshot(result, request) {
+    return {
+        id: typeof result?.scanId === "string" && result.scanId.length > 0
+            ? result.scanId
+            : "scan-" + Date.now(),
+        url: typeof request?.url === "string" ? request.url : null,
+        riskLevel: typeof result?.riskLevel === "string" ? result.riskLevel : "safe",
+        overallScore: typeof result?.overallScore === "number" ? result.overallScore : 0,
+        isPhishing: Boolean(result?.isPhishing),
+        source: "extension",
+        createdAt: new Date().toISOString()
+    };
+}
+
+async function storeRecentScanSnapshot(result, request, remainingScans) {
+    const snapshot = buildRecentScanSnapshot(result, request);
+    const localState = await chrome.storage.local.get({
+        extensionAccount: null,
+        recentScans: []
+    });
+    const recentScans = normalizeRecentScans([
+        snapshot,
+        ...(Array.isArray(localState.recentScans) ? localState.recentScans : [])
+    ]);
+    const nextAccount = localState.extensionAccount && typeof localState.extensionAccount === "object"
+        ? { ...localState.extensionAccount }
+        : null;
+
+    if (nextAccount?.activity) {
+        nextAccount.activity = {
+            ...nextAccount.activity,
+            scansThisMonth: Number(nextAccount.activity.scansThisMonth || 0) + 1,
+            threatsThisMonth: Number(nextAccount.activity.threatsThisMonth || 0) + (result?.isPhishing ? 1 : 0)
+        };
+        nextAccount.activity.safeScansThisMonth = Math.max(
+            0,
+            Number(nextAccount.activity.scansThisMonth || 0) - Number(nextAccount.activity.threatsThisMonth || 0)
+        );
+    }
+
+    if (nextAccount?.subscription) {
+        nextAccount.subscription = {
+            ...nextAccount.subscription,
+            scansUsed: Number(nextAccount.subscription.scansUsed || 0),
+            scansRemaining: Number(nextAccount.subscription.scansRemaining || 0),
+            scansLimit: Number(nextAccount.subscription.scansLimit || 0)
+        };
+
+        if (typeof remainingScans === "number") {
+            nextAccount.subscription.scansRemaining = remainingScans;
+            if (Number.isFinite(nextAccount.subscription.scansLimit)) {
+                nextAccount.subscription.scansUsed = Math.max(
+                    0,
+                    nextAccount.subscription.scansLimit - remainingScans
+                );
+            }
+        } else {
+            nextAccount.subscription.scansUsed += 1;
+            if (Number.isFinite(nextAccount.subscription.scansLimit) && nextAccount.subscription.scansLimit > 0) {
+                nextAccount.subscription.scansRemaining = Math.max(
+                    0,
+                    nextAccount.subscription.scansLimit - nextAccount.subscription.scansUsed
+                );
+            }
+        }
+    }
+
+    if (nextAccount) {
+        nextAccount.recentScans = recentScans;
+    }
+
+    await chrome.storage.local.set({
+        recentScans,
+        extensionAccount: nextAccount || localState.extensionAccount || null
+    });
+
+    const syncUpdates = {};
+    if (typeof remainingScans === "number") {
+        syncUpdates.scansRemaining = remainingScans;
+    }
+    if (nextAccount?.subscription) {
+        if (typeof nextAccount.subscription.scansUsed === "number") {
+            syncUpdates.scansUsed = nextAccount.subscription.scansUsed;
+        }
+        if (typeof nextAccount.subscription.scansRemaining === "number") {
+            syncUpdates.scansRemaining = nextAccount.subscription.scansRemaining;
+        }
+        if (typeof nextAccount.subscription.scansLimit === "number") {
+            syncUpdates.scansLimit = nextAccount.subscription.scansLimit;
+        }
+    }
+
+    if (Object.keys(syncUpdates).length > 0) {
+        await chrome.storage.sync.set(syncUpdates);
+    }
+}
 
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -263,7 +597,7 @@ function runFallbackAnalysis(text, url) {
 
 async function analyzeViaApi(request, authToken) {
     const { apiUrl, analyzePayloadPublicKey, deepScanPublicKey } = await chrome.storage.sync.get({
-        apiUrl: "http://localhost:3001",
+        apiUrl: DEFAULT_API_URL,
         analyzePayloadPublicKey: null,
         deepScanPublicKey: null
     });
@@ -312,6 +646,8 @@ async function analyzeViaApi(request, authToken) {
         if (!response.ok || !payload?.success) {
             const err = new Error(payload?.error || `API_ANALYZE_FAILED_${response.status}`);
             err.status = response.status;
+            err.code = payload?.error || null;
+            err.details = payload?.details || null;
             throw err;
         }
 
@@ -356,7 +692,7 @@ async function analyzeViaApi(request, authToken) {
 async function logIncident(data) {
     try {
         const { apiUrl, authToken } = await chrome.storage.sync.get({
-            apiUrl: "http://localhost:3001",
+            apiUrl: DEFAULT_API_URL,
             authToken: null
         });
 
@@ -387,7 +723,6 @@ async function logIncident(data) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "scan_page") {
         chrome.storage.sync.get(["authToken", "apiToken", "userPlan", "userRole", "scansRemaining"], async (items) => {
-            const { userPlan, userRole, scansRemaining } = items;
             const authToken = items.apiToken || items.authToken;
 
             if (!authToken) {
@@ -396,24 +731,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 return;
             }
 
-            if (userRole === "admin" || userRole === "super_admin") {
-                processScan(request, sender, sendResponse, undefined, authToken);
-                return;
-            }
-
-            if (userPlan === "free") {
-                if (scansRemaining <= 0) {
-                    if (request.source === "auto") sendResponse({ error: "SILENT_FAIL" });
-                    else sendResponse({ error: "LIMIT_REACHED" });
-                    return;
-                }
-
-                const newRemaining = scansRemaining - 1;
-                await chrome.storage.sync.set({ scansRemaining: newRemaining });
-                processScan(request, sender, sendResponse, newRemaining, authToken);
-            } else {
-                processScan(request, sender, sendResponse, undefined, authToken);
-            }
+            processScan(request, sender, sendResponse, undefined, authToken);
         });
 
         return true;
@@ -449,7 +767,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const truncatedText = String(request.text || "").slice(0, DEEP_SCAN_MAX_CHARS);
                 const textHash = await hashTextSha256(truncatedText);
                 const encryptedPayload = await encryptDeepScanText(truncatedText, deepScanPublicKey);
-                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: DEFAULT_API_URL });
 
                 const response = await fetch(`${apiUrl}/api/v1/deep-scan`, {
                     method: "POST",
@@ -504,7 +822,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
 
             try {
-                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
+                const { apiUrl } = await chrome.storage.sync.get({ apiUrl: DEFAULT_API_URL });
                 const response = await fetch(`${apiUrl}/api/v1/scans/${scanId}/feedback`, {
                     method: "POST",
                     headers: {
@@ -540,7 +858,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const trustLevel = (items.userRole === "admin" || items.userRole === "super_admin")
                 ? "analyst"
                 : "user";
-            const { apiUrl } = await chrome.storage.sync.get({ apiUrl: "http://localhost:3001" });
+            const { apiUrl } = await chrome.storage.sync.get({ apiUrl: DEFAULT_API_URL });
             const tabId = sender?.tab?.id;
             const scanId = tabId !== undefined ? latestScanByTab.get(tabId) : null;
 
@@ -579,6 +897,24 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
         } catch (error) {
             if (error?.status === 401) {
                 sendResponse({ error: "UNAUTHORIZED" });
+                return;
+            }
+            if (error?.status === 429 || error?.code === "SCAN_LIMIT_REACHED") {
+                try {
+                    const refreshedState = await refreshExtensionContext(authToken);
+                    sendResponse({
+                        error: "LIMIT_REACHED",
+                        scansRemaining:
+                            typeof refreshedState?.scansRemaining === "number"
+                                ? refreshedState.scansRemaining
+                                : 0,
+                        subscriptionStatus: refreshedState?.subscriptionStatus || null,
+                        details: error?.details || null
+                    });
+                } catch (refreshError) {
+                    console.warn("PhishGuard: context refresh after limit hit failed", refreshError);
+                    sendResponse({ error: "LIMIT_REACHED", details: error?.details || null });
+                }
                 return;
             }
             if (!allowLocalFallback) {
@@ -658,6 +994,23 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
                 ? { action: "warn", reason: "hard_block_disabled_locally", hardBlock: false }
                 : backendPolicy;
 
+        let refreshedState = null;
+        try {
+            refreshedState = await refreshExtensionContext(authToken);
+        } catch (refreshError) {
+            console.warn("PhishGuard: context refresh after scan failed, using local fallback.", refreshError);
+            try {
+                await storeRecentScanSnapshot({
+                    scanId: result.scanId || null,
+                    overallScore: finalScore,
+                    riskLevel,
+                    isPhishing: isPhish
+                }, request, remainingScans);
+            } catch (storageError) {
+                console.warn("PhishGuard: failed to persist recent scan context", storageError);
+            }
+        }
+
         sendResponse({
             ...result,
             overallScore: finalScore,
@@ -666,7 +1019,10 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
             hardBlockApplied,
             policyDecision: effectivePolicyDecision,
             durationMs,
-            scansRemaining: remainingScans
+            scansRemaining:
+                typeof refreshedState?.scansRemaining === "number"
+                    ? refreshedState.scansRemaining
+                    : remainingScans
         });
     } catch (error) {
         console.error("PhishGuard: scan processing failed", error);
@@ -676,11 +1032,10 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
 
 function handleAuthHandoff(request, sender, sendResponse) {
     if (request.action === "LOGOUT") {
-        const keys = ["authToken", "apiToken", "userPlan", "scansRemaining", "deepScanPublicKey", "analyzePayloadPublicKey"];
         latestScanByTab.clear();
 
-        chrome.storage.sync.remove(keys, () => {});
-        chrome.storage.local.remove(keys, () => {
+        chrome.storage.sync.remove(AUTH_STORAGE_KEYS, () => {});
+        chrome.storage.local.remove(AUTH_STORAGE_KEYS, () => {
             sendResponse({ success: true });
         });
 
@@ -688,22 +1043,46 @@ function handleAuthHandoff(request, sender, sendResponse) {
         return true;
     }
 
-    if (request.action === "AUTH_HANDOFF") {
-        const { token, user, subscription, deepScanPublicKey, analyzePayloadPublicKey } = request;
-        const data = {
-            authToken: token,
-            apiToken: token,
-            userPlan: user.plan || "free",
-            userRole: user.role || "user",
-            scansRemaining: subscription ? subscription.scansRemaining : 10,
-            deepScanPublicKey: deepScanPublicKey || null,
-            analyzePayloadPublicKey: analyzePayloadPublicKey || deepScanPublicKey || null
-        };
+    if (request.action === "REFRESH_CONTEXT") {
+        (async () => {
+            try {
+                const data = await refreshExtensionContext();
+                if (!data) {
+                    sendResponse({ success: false, error: "UNAUTHORIZED" });
+                    return;
+                }
+                sendResponse({ success: true, data });
+            } catch (error) {
+                console.warn("PhishGuard: context refresh failed", error);
+                sendResponse({ success: false, error: "CONTEXT_REFRESH_FAILED" });
+            }
+        })();
+        return true;
+    }
 
-        chrome.storage.sync.set(data);
-        chrome.storage.local.set(data, () => {
-            sendResponse({ success: true });
-        });
+    if (request.action === "AUTH_HANDOFF") {
+        (async () => {
+            try {
+                if (!request.token) {
+                    sendResponse({ success: false, error: "MISSING_TOKEN" });
+                    return;
+                }
+
+                const context = request.context || buildLegacyContextFromRequest(request);
+                const initialState = await writeAuthState(request.token, context);
+
+                try {
+                    const refreshedState = await refreshExtensionContext(request.token);
+                    sendResponse({ success: true, data: refreshedState || initialState });
+                } catch (refreshError) {
+                    console.warn("PhishGuard: auth handoff refresh failed, using initial payload.", refreshError);
+                    sendResponse({ success: true, data: initialState });
+                }
+            } catch (error) {
+                console.error("PhishGuard: auth handoff failed", error);
+                sendResponse({ success: false, error: "AUTH_HANDOFF_FAILED" });
+            }
+        })();
 
         return true;
     }
@@ -713,14 +1092,21 @@ chrome.runtime.onMessageExternal.addListener(handleAuthHandoff);
 chrome.runtime.onMessage.addListener(handleAuthHandoff);
 
 chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === "install" || details.reason === "update") {
-        latestScanByTab.clear();
-        const keys = ["authToken", "apiToken", "userPlan", "userRole", "scansRemaining", "apiUrl", "deepScanPublicKey", "analyzePayloadPublicKey"];
+    latestScanByTab.clear();
+
+    if (details.reason === "install") {
+        const keys = [...AUTH_STORAGE_KEYS];
         chrome.storage.local.remove(keys);
         chrome.storage.sync.remove(keys);
-        // Re-apply strict defaults after auth/runtime keys are reset.
-        bootstrapPolicyDefaults(true);
     }
+
+    // Keep the selected environment and auth state across reloads/updates.
+    bootstrapPolicyDefaults(true);
+    refreshExtensionContext().catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    refreshExtensionContext().catch(() => {});
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

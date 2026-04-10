@@ -15,6 +15,13 @@ import {
 
 import PricingCard from "./pricing-card";
 
+type LandingActionConfig = {
+  authenticatedHref?: string;
+  authenticatedLabel?: string;
+  unauthenticatedHref?: string;
+  unauthenticatedLabel?: string;
+};
+
 type Props = {
   currentPlanId?: string;
   subscriptionType?: "personal" | "team" | "none";
@@ -26,6 +33,7 @@ type Props = {
   canManageTeamBilling?: boolean;
   canManageCurrentSubscription?: boolean;
   isAuthenticated?: boolean;
+  landingActions?: Partial<Record<"personal" | "team", LandingActionConfig>>;
 };
 
 function getBillingRoute(category: "personal" | "team"): string {
@@ -53,6 +61,7 @@ export default function PricingPage({
   canManageTeamBilling = false,
   canManageCurrentSubscription = true,
   isAuthenticated = true,
+  landingActions,
 }: Props) {
   const [pending, startTransition] = useTransition();
   const activePlanId =
@@ -68,13 +77,61 @@ export default function PricingPage({
   const canModifyTeamPlans = !hasTeamContext || canManageCurrentSubscription;
   const showPersonalPlans = visibleCategories.includes("personal");
   const showTeamPlans = visibleCategories.includes("team");
+  const comparisonDescription =
+    showPersonalPlans && showTeamPlans
+      ? "Compare personal coverage and team rollout plans in one place, then move into the billing flow that matches your setup."
+      : showTeamPlans
+        ? "Compare team tiers for rollout, admin control, and shared phishing visibility before you start setup."
+        : "Compare personal plans for daily browser protection, higher scan limits, and a faster individual setup.";
+
+  const highlightItems = showTeamPlans && !showPersonalPlans
+    ? [
+        {
+          icon: Zap,
+          title: "Fast rollout",
+          description: "Start with a small team trial, then upgrade without changing your workflow.",
+        },
+        {
+          icon: Mail,
+          title: "Inbox coverage",
+          description: "Protect Gmail and Outlook in the browser where users already work.",
+        },
+        {
+          icon: Eye,
+          title: "Admin visibility",
+          description: "See member activity, shared risk, and plan fit from one billing surface.",
+        },
+      ]
+    : [
+        {
+          icon: Zap,
+          title: "Real-time protection",
+          description: "Catch suspicious links and messages before the click.",
+        },
+        {
+          icon: Mail,
+          title: "Browser email checks",
+          description: "Use Gmail and Outlook with warnings that stay readable and fast.",
+        },
+        {
+          icon: Eye,
+          title: "Clear upgrade path",
+          description: "Start personal, then add team rollout when you need shared visibility.",
+        },
+      ];
+
+  const getLandingHref = (category: "personal" | "team") => {
+    const action = landingActions?.[category];
+
+    if (isAuthenticated) {
+      return action?.authenticatedHref ?? getBillingRoute(category);
+    }
+
+    return action?.unauthenticatedHref ?? getSignInHref(category);
+  };
 
   const navigateToBillingEntry = (category: "personal" | "team") => {
-    const href = isAuthenticated
-      ? getBillingRoute(category)
-      : getSignInHref(category);
-
-    window.location.href = href;
+    window.location.href = getLandingHref(category);
   };
 
   const handleCheckout = (planId: PlanId) => {
@@ -140,11 +197,23 @@ export default function PricingPage({
     const isCurrentPlan = activePlanId === planId;
 
     if (mode === "landing") {
+      const action = landingActions?.[plan.category];
+
       if (!isAuthenticated) {
-        return "Create account";
+        return (
+          action?.unauthenticatedLabel ??
+          (plan.category === "team"
+            ? "Create organization"
+            : planId === "free"
+              ? "Start free"
+              : "Create account")
+        );
       }
 
-      return plan.category === "team" ? "Open business plans" : "Open personal plans";
+      return (
+        action?.authenticatedLabel ??
+        (plan.category === "team" ? "Open business billing" : "Open personal billing")
+      );
     }
 
     if (!isAuthenticated) {
@@ -218,15 +287,22 @@ export default function PricingPage({
 
   return (
     <div className="space-y-12">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-semibold text-gray-900 dark:text-white">
-            Choose the plan that fits your needs
-          </h2>
-          <p className="max-w-2xl text-gray-600 dark:text-gray-400">
-            Compare all available plans below. Personal and Team tiers are displayed together so
-            you can decide faster.
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+            Plan comparison
           </p>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Choose the protection level that fits
+          </h2>
+          <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+            {comparisonDescription}
+          </p>
+          {mode === "landing" && !isAuthenticated ? (
+            <p className="text-sm text-indigo-950/75 dark:text-indigo-100/75">
+              You can compare every tier first. Account setup only starts when you choose a plan.
+            </p>
+          ) : null}
           {hasScheduledDowngrade ? (
             <p className="text-sm text-amber-700 dark:text-amber-300">
               {currentPeriodEndLabel
@@ -245,57 +321,45 @@ export default function PricingPage({
             </p>
           ) : null}
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-gradient-to-r from-zinc-50 to-white p-6 dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-950/60">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
-              <Zap className="h-5 w-5 text-white dark:text-zinc-900" />
-            </div>
-            <div>
-              <h4 className="text-zinc-900 dark:text-zinc-100">Real-time protection</h4>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                AI scans links, emails, and attachments instantly.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
-              <Mail className="h-5 w-5 text-white dark:text-zinc-900" />
-            </div>
-            <div>
-              <h4 className="text-zinc-900 dark:text-zinc-100">Email monitoring</h4>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Protect Gmail and Outlook in-browser with warnings.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-zinc-900 p-3 dark:bg-zinc-100">
-              <Eye className="h-5 w-5 text-white dark:text-zinc-900" />
-            </div>
-            <div>
-              <h4 className="text-zinc-900 dark:text-zinc-100">Business intelligence</h4>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                Heatmaps, risky users, and ROI-ready reporting.
-              </p>
-            </div>
-          </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {highlightItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div
+                key={item.title}
+                className="rounded-[24px] border border-indigo-200/70 bg-white/78 p-5 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/18 dark:bg-indigo-950/24"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-2xl bg-indigo-950 p-2.5 shadow-sm shadow-indigo-950/10 dark:bg-indigo-300">
+                    <Icon className="h-4 w-4 text-white dark:text-indigo-950" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="text-sm font-semibold text-foreground">{item.title}</h4>
+                    <p className="text-sm leading-6 text-muted-foreground">{item.description}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {showPersonalPlans ? (
         <section className="space-y-5">
-          <div>
-            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Personal plans
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+              Personal protection
+            </p>
+            <h3 className="text-2xl font-semibold tracking-tight text-foreground">
+              Plans for individual coverage
             </h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              For individuals who want browser-level scam protection.
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              For people who want browser-level phishing checks, history, and higher scan limits.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-3">
             {renderPlanCards(
               personalPlans as Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>,
               "personal_plus"
@@ -306,15 +370,19 @@ export default function PricingPage({
 
       {showTeamPlans ? (
         <section className="space-y-5">
-          <div>
-            <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Teams and organizations
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+              Team rollout
+            </p>
+            <h3 className="text-2xl font-semibold tracking-tight text-foreground">
+              Plans for admins and organizations
             </h3>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              For admins who need analytics, member controls, and organization visibility.
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              For teams that need shared visibility, member controls, and a scalable phishing
+              protection rollout.
             </p>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {renderPlanCards(
               teamPlans as Array<(typeof SUBSCRIPTION_PLANS)[PlanId]>,
               "team_startup"

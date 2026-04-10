@@ -62,7 +62,7 @@ export async function createOrganization(
     if (orgCount >= 1) {
       return {
         success: false,
-        error: "You can only create one organization on the free plan.",
+        error: "You can only create one organization while on the Free or Trial plan.",
       };
     }
   }
@@ -77,11 +77,11 @@ export async function createOrganization(
         subscription: {
           create: {
             plan: "team_free",
-            status: "active",
-            maxMembers: 3,
-            scansPerMonth: 500,
-            scansPerHourPerUser: 25,
-            maxApiTokens: 1,
+            status: "trialing",
+            maxMembers: TEAM_PLANS.team_free.maxMembers,
+            scansPerMonth: TEAM_PLANS.team_free.scansPerMonth,
+            scansPerHourPerUser: TEAM_PLANS.team_free.scansPerHourPerUser,
+            maxApiTokens: TEAM_PLANS.team_free.maxApiTokens,
             currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           },
         },
@@ -292,3 +292,4 @@ export async function upgradeOrganizationPlan(
     revalidatePaths: org?.slug ? ["/dashboard", `/org/${org.slug}`] : ["/dashboard"],
   };
 }
+

@@ -152,6 +152,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/extension/context",
+    visibility: "api-token",
+    ownerFile: "src/app/api/v1/extension/context/route.ts",
+    purpose: "Returns account, subscription, and recent scan context for the browser extension.",
+  },
+  {
+    method: "GET",
     path: "/api/v1/auth/token",
     visibility: "session",
     ownerFile: "src/app/api/v1/auth/token/route.ts",
@@ -198,6 +205,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     visibility: "public",
     ownerFile: "src/app/api/v1/incidents/route.ts",
     purpose: "Supports CORS preflight for incident reporting clients.",
+  },
+  {
+    method: "OPTIONS",
+    path: "/api/v1/extension/context",
+    visibility: "public",
+    ownerFile: "src/app/api/v1/extension/context/route.ts",
+    purpose: "Supports CORS preflight for extension account context requests.",
   },
   {
     method: "OPTIONS",

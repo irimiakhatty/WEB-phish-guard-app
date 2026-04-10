@@ -4,140 +4,55 @@
     <meta charset="UTF-8" />
     <title>PhishGuard Settings</title>
     <style>
-      :root {
-        --background: #ffffff;
-        --foreground: #09090b;
-        --card: #ffffff;
-        --muted: #71717a;
-        --border: #e4e4e7;
-        --primary: #111111;
-        --primary-foreground: #ffffff;
-      }
-
+      :root { --background: #ffffff; --foreground: #09090b; --card: #ffffff; --muted: #71717a; --border: #e4e4e7; --primary: #111111; --primary-foreground: #ffffff; }
       @media (prefers-color-scheme: dark) {
-        :root {
-          --background: #000000;
-          --foreground: #fafafa;
-          --card: #09090b;
-          --muted: #a1a1aa;
-          --border: #27272a;
-          --primary: #fafafa;
-          --primary-foreground: #09090b;
-        }
+        :root { --background: #000000; --foreground: #fafafa; --card: #09090b; --muted: #a1a1aa; --border: #27272a; --primary: #fafafa; --primary-foreground: #09090b; }
       }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        padding: 20px;
-        width: 340px;
-        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--background);
-        color: var(--foreground);
-      }
-
-      h2 {
-        margin: 0 0 16px;
-        font-size: 1.15rem;
-        letter-spacing: -0.01em;
-      }
-
-      .option-group {
-        margin-bottom: 12px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: var(--card);
-      }
-
-      label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 0.86rem;
-        font-weight: 600;
-      }
-
-      input[type="text"],
-      input[type="password"] {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        background: var(--card);
-        color: var(--foreground);
-      }
-
-      input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-      }
-
-      .help-text {
-        margin-top: 8px;
-        font-size: 12px;
-        line-height: 1.45;
-        color: var(--muted);
-      }
-
-      button {
-        width: 100%;
-        margin-top: 8px;
-        border: 1px solid transparent;
-        border-radius: 10px;
-        padding: 10px 12px;
-        cursor: pointer;
-        background: var(--primary);
-        color: var(--primary-foreground);
-        font-weight: 600;
-      }
-
-      button:hover {
-        opacity: 0.92;
-      }
-
-      #status {
-        margin-top: 10px;
-        color: #16a34a;
-        font-size: 0.82rem;
-        display: none;
-      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; padding: 18px; display: flex; align-items: center; justify-content: center; font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--background); color: var(--foreground); }
+      .settings-shell { width: min(100%, 340px); margin: 0 auto; }
+      h2 { margin: 0 0 16px; font-size: 1.15rem; letter-spacing: -0.01em; text-align: center; }
+      .option-group { margin-bottom: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+      label { display: block; margin-bottom: 6px; font-size: 0.86rem; font-weight: 600; }
+      input[type="text"], input[type="password"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--foreground); }
+      input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+      .help-text { margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+      button { width: 100%; margin-top: 8px; border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; cursor: pointer; background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
+      button:hover { opacity: 0.92; }
+      .button-row { display: flex; gap: 8px; margin-top: 8px; }
+      .button-row button { flex: 1; width: auto; min-height: 48px; margin-top: 0; background: transparent; color: var(--foreground); border-color: var(--border); text-align: center; display: flex; align-items: center; justify-content: center; }
+      .button-row button:hover { opacity: 1; border-color: #3b82f6; }
+      #status { margin-top: 10px; font-size: 0.82rem; display: none; }
+      #status.success { color: #16a34a; }
+      #status.error { color: #dc2626; }
     </style>
   </head>
-
   <body>
-    <h2>Settings</h2>
-
-    <div class="option-group">
-      <label for="apiUrl">Dashboard/API URL</label>
-      <input type="text" id="apiUrl" placeholder="http://localhost:3000" />
-      <div class="help-text">
-        Use your deployed web app URL (example: https://phish-guard.vercel.app). Default is
-        localhost for development.
+    <main class="settings-shell">
+      <h2>Settings</h2>
+      <div class="option-group">
+        <label for="apiUrl">Dashboard/API URL</label>
+        <input type="text" id="apiUrl" placeholder="https://phish-guard-rho.vercel.app" />
+        <div class="button-row">
+          <button id="useLiveApp" type="button">Use Live App</button>
+          <button id="useLocalDev" type="button">Use Localhost Dev</button>
+        </div>
+        <div class="help-text">Use the live app for normal sign-in. Switch to <code>localhost</code> only when <code>bun run dev:web</code> is running and you want instant local changes.</div>
       </div>
-    </div>
-
-    <div class="option-group">
-      <label for="apiToken">API Token</label>
-      <input type="password" id="apiToken" placeholder="Paste your API token" />
-      <div class="help-text">
-        Generate token from <a href="http://localhost:3001/ext-auth" target="_blank">/ext-auth</a>.
+      <div class="option-group">
+        <label for="apiToken">API Token (optional)</label>
+        <input type="password" id="apiToken" placeholder="Leave empty for normal sign-in" />
+        <div class="help-text">Normally you leave this empty and use <strong>Sign In / Sign Up</strong> in the extension popup. Paste a token here only if automatic sign-in fails. You can copy that token from the app&apos;s <code>/ext-auth</code> page after login.</div>
       </div>
-    </div>
-
-    <div class="option-group">
-      <label>
-        <input type="checkbox" id="autoScan" />
-        Automatically scan emails when opened
-      </label>
-    </div>
-
-    <button id="save">Save Settings</button>
-    <div id="status">Settings saved.</div>
-
+      <div class="option-group">
+        <label>
+          <input type="checkbox" id="autoScan" />
+          Automatically scan emails when opened
+        </label>
+      </div>
+      <button id="save">Save Settings</button>
+      <div id="status">Settings saved.</div>
+    </main>
     <script src="options.js"></script>
   </body>
 </html>

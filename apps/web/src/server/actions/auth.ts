@@ -3,11 +3,14 @@
 import prisma from "@phish-guard-app/db";
 import { auth } from "@phish-guard-app/auth";
 import { isPasswordStrong, PASSWORD_POLICY_ERROR } from "@/lib/auth/password-policy";
+import { FREE_TRIAL_DAYS, getPlanById } from "@/lib/billing/subscription-plans";
 import { sanitizeOrganizationName, toOrganizationNameKey } from "@/lib/shared/organization-name";
 
 type SignUpResult =
   | { success: true; message: string }
   | { success: false; error: string; code?: string };
+
+const FREE_TRIAL_MS = FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
 
 function toFriendlySignUpError(error: unknown): SignUpResult {
   const err = error as {
@@ -141,6 +144,13 @@ export async function signUpWithOrganization(data: {
       sanitizedOrganizationName &&
       organizationNameKey
     ) {
+        const teamTrialPlan = getPlanById("team_free");
+        const teamTrialFeatures = teamTrialPlan.features as {
+            maxMembers?: number;
+            scansPerMonth?: number;
+            scansPerHourPerUser?: number;
+            maxApiTokens?: number;
+        };
         const orgName = sanitizedOrganizationName;
         const orgSlug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString().slice(-4);
 
@@ -153,12 +163,12 @@ export async function signUpWithOrganization(data: {
                 subscription: {
                     create: {
                         plan: "team_free",
-                        status: "active",
-                        maxMembers: 3,
-                        scansPerMonth: 500,
-                        scansPerHourPerUser: 25,
-                        maxApiTokens: 1,
-                        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                        status: "trialing",
+                        maxMembers: teamTrialFeatures.maxMembers ?? 3,
+                        scansPerMonth: teamTrialFeatures.scansPerMonth ?? 500,
+                        scansPerHourPerUser: teamTrialFeatures.scansPerHourPerUser ?? 25,
+                        maxApiTokens: teamTrialFeatures.maxApiTokens ?? 1,
+                        currentPeriodEnd: new Date(Date.now() + FREE_TRIAL_MS),
                     }
                 },
                 members: {
@@ -171,15 +181,21 @@ export async function signUpWithOrganization(data: {
         });
     } else {
         // Personal Account - Create Personal Subscription
+        const personalTrialPlan = getPlanById("free");
+        const personalTrialFeatures = personalTrialPlan.features as {
+            scansPerMonth?: number;
+            scansPerHour?: number;
+            maxApiTokens?: number;
+        };
         await prisma.personalSubscription.create({
             data: {
                 userId: user.user.id,
                 plan: "free",
-                status: "active",
-                scansPerMonth: 100,
-                scansPerHour: 25,
-                maxApiTokens: 1,
-                currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                status: "trialing",
+                scansPerMonth: personalTrialFeatures.scansPerMonth ?? 100,
+                scansPerHour: personalTrialFeatures.scansPerHour ?? 25,
+                maxApiTokens: personalTrialFeatures.maxApiTokens ?? 1,
+                currentPeriodEnd: new Date(Date.now() + FREE_TRIAL_MS),
             }
         });
     }

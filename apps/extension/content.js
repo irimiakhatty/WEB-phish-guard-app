@@ -2,6 +2,7 @@
 let lastScannedTextHash = "";
 let scanTimeout = null;
 let lastScannedText = "";
+let lastDismissedTextHash = "";
 
 const RISK_THRESHOLDS = {
     low: 0.2,
@@ -20,7 +21,9 @@ function getRiskLevelFromScore(score) {
 
 const STYLE_ID = "phishguard-scan-style";
 const FLAG_ID = "phishguard-scan-flag";
+const PROMPT_ID = "phishguard-scan-prompt";
 const MAX_DEEP_SCAN_CHARS = 5000;
+const MIN_EMAIL_SCAN_CHARS = 50;
 
 function formatPercent(score) {
     const safeScore = Number.isFinite(score) ? Math.min(Math.max(score, 0), 1) : 0;
@@ -171,6 +174,110 @@ function ensureStyles() {
             padding: 6px 8px;
             border-radius: 10px;
         }
+        .pg-prompt {
+            font-family: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin: 12px 0;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid #bfdbfe;
+            background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+            color: #0f172a;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+            animation: pg-in 220ms ease-out;
+        }
+        .pg-prompt--limit {
+            border-color: #fecaca;
+            background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%);
+            color: #7f1d1d;
+        }
+        .pg-prompt__icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 36px;
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .pg-prompt--limit .pg-prompt__icon {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .pg-prompt__icon svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+        }
+        .pg-prompt__content {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .pg-prompt__eyebrow {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(15, 23, 42, 0.56);
+        }
+        .pg-prompt__title {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .pg-prompt__desc {
+            font-size: 12px;
+            line-height: 1.45;
+            color: rgba(15, 23, 42, 0.76);
+        }
+        .pg-prompt--limit .pg-prompt__eyebrow,
+        .pg-prompt--limit .pg-prompt__desc {
+            color: rgba(127, 29, 29, 0.78);
+        }
+        .pg-prompt__meta {
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .pg-prompt__actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .pg-prompt__button {
+            border: none;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .pg-prompt__button[disabled] {
+            opacity: 0.7;
+            cursor: default;
+        }
+        .pg-prompt__button--primary {
+            background: #0f172a;
+            color: #ffffff;
+        }
+        .pg-prompt__button--secondary {
+            background: rgba(255, 255, 255, 0.8);
+            color: #0f172a;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+        }
+        .pg-prompt__status {
+            font-size: 11px;
+            color: rgba(15, 23, 42, 0.68);
+        }
+        .pg-prompt--limit .pg-prompt__status {
+            color: rgba(127, 29, 29, 0.78);
+        }
         .pg-flag--safe {
             --pg-bg: #f0fdf4;
             --pg-border: #bbf7d0;
@@ -264,6 +371,59 @@ function hashCode(str) {
     return hash;
 }
 
+function readSyncState(defaults) {
+    return new Promise((resolve) => {
+        chrome.storage.sync.get(defaults, resolve);
+    });
+}
+
+function sendRuntimeMessage(message) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+                return;
+            }
+            resolve(response);
+        });
+    });
+}
+
+function isAdminRole(role) {
+    return role === "admin" || role === "super_admin";
+}
+
+function isLimitedPlan(planId, role) {
+    return !isAdminRole(role) && (!planId || planId === "free" || planId === "team_free");
+}
+
+function isTrialStatus(status) {
+    return status === "trialing";
+}
+
+function requiresScanConfirmation(planId, role, status) {
+    return isLimitedPlan(planId, role) && !isTrialStatus(status);
+}
+
+function formatTrialPlanName(planName) {
+    const safeName = String(planName || "Free").trim();
+    return /trial$/i.test(safeName) ? safeName : `${safeName} trial`;
+}
+
+function removeScanFlag() {
+    const flag = document.getElementById(FLAG_ID);
+    if (flag) {
+        flag.remove();
+    }
+}
+
+function removeScanPrompt() {
+    const prompt = document.getElementById(PROMPT_ID);
+    if (prompt) {
+        prompt.remove();
+    }
+}
+
 // --- 2. TEXT EXTRACTION ---
 function getEmailContent() {
     let bodyText = "";
@@ -314,31 +474,265 @@ function getEmailTarget() {
 }
 
 // --- 3. SCANNING LOGIC ---
-function triggerScan() {
+function submitScan({ text, url, currentHash, source, onResult, planName, subscriptionStatus }) {
+    lastScannedTextHash = currentHash;
+    lastScannedText = text;
+
+    if (source === "auto") {
+        console.log("PhishGuard: Auto-scanning new content...");
+    }
+
+    chrome.runtime.sendMessage(
+        {
+            action: "scan_page",
+            source,
+            text,
+            url
+        },
+        (response) => {
+            if (chrome.runtime.lastError) {
+                if (typeof onResult === "function") {
+                    onResult({ error: "RUNTIME_ERROR" });
+                }
+                return;
+            }
+
+            if (!response || response.error) {
+                if ((!response || response.error === "LIMIT_REACHED") && typeof onResult !== "function") {
+                    injectFreePlanPrompt({
+                        currentHash,
+                        text,
+                        url,
+                        scansRemaining: Number(response?.scansRemaining || 0),
+                        planName,
+                        subscriptionStatus: response?.subscriptionStatus || subscriptionStatus || null,
+                        isLimitReached: true
+                    });
+                }
+
+                if (typeof onResult === "function") {
+                    onResult(response || { error: "UNKNOWN_ERROR" });
+                }
+                return;
+            }
+
+            removeScanPrompt();
+            injectScanFlag(response);
+
+            if (typeof onResult === "function") {
+                onResult(response);
+            }
+        }
+    );
+}
+
+function injectFreePlanPrompt({
+    currentHash,
+    text,
+    url,
+    scansRemaining,
+    planName,
+    subscriptionStatus,
+    isLimitReached
+}) {
+    const target = getEmailTarget();
+    if (!target) {
+        return;
+    }
+
+    ensureStyles();
+    removeScanFlag();
+
+    const existingPrompt = document.getElementById(PROMPT_ID);
+    if (
+        existingPrompt &&
+        existingPrompt.dataset.hash === String(currentHash) &&
+        existingPrompt.dataset.mode === (isLimitReached ? "limit" : "confirm")
+    ) {
+        return;
+    }
+
+    removeScanPrompt();
+
+    const prompt = document.createElement("div");
+    prompt.id = PROMPT_ID;
+    prompt.dataset.hash = String(currentHash);
+    prompt.dataset.mode = isLimitReached ? "limit" : "confirm";
+    prompt.className = `pg-prompt ${isLimitReached ? "pg-prompt--limit" : ""}`;
+
+    const isTrialExpired = subscriptionStatus === "trial_expired";
+    const title = isTrialExpired
+        ? "Trial ended"
+        : isLimitReached
+        ? "No scans left for this cycle"
+        : "Analyze this email before spending 1 scan?";
+    const description = isTrialExpired
+        ? `${formatTrialPlanName(planName)} has ended. Upgrade to keep opened emails analyzed automatically.`
+        : isLimitReached
+        ? `${planName || "Current plan"} has reached its scan limit. Upgrade to restore live inbox checks.`
+        : `${planName || "Current plan"} will use 1 scan to analyze this opened email.`;
+    const meta = isTrialExpired
+        ? "Realtime inbox flags stay paused until you upgrade to a paid plan."
+        : isLimitReached
+        ? "Automatic protection will resume after your plan resets or you upgrade."
+        : `${Math.max(0, Number(scansRemaining || 0))} scans remaining right now.`;
+
+    prompt.innerHTML = `
+        <div class="pg-prompt__icon">${buildIconSvg(isLimitReached ? "warn" : "check")}</div>
+        <div class="pg-prompt__content">
+            <div class="pg-prompt__eyebrow">${isTrialExpired ? "Trial ended" : isLimitReached ? "Plan limit" : "Scan confirmation"}</div>
+            <div class="pg-prompt__title">${title}</div>
+            <div class="pg-prompt__desc">${description}</div>
+            <div class="pg-prompt__meta">${meta}</div>
+            <div class="pg-prompt__actions">
+                ${
+                    isLimitReached
+                        ? `<button class="pg-prompt__button pg-prompt__button--secondary" data-action="dismiss">Dismiss</button>`
+                        : `
+                            <button class="pg-prompt__button pg-prompt__button--primary" data-action="confirm">Use 1 scan</button>
+                            <button class="pg-prompt__button pg-prompt__button--secondary" data-action="skip">Skip for now</button>
+                        `
+                }
+            </div>
+            <div class="pg-prompt__status"></div>
+        </div>
+    `;
+
+    target.prepend(prompt);
+
+    const status = prompt.querySelector(".pg-prompt__status");
+    const dismissButton = prompt.querySelector('[data-action="dismiss"]');
+    const skipButton = prompt.querySelector('[data-action="skip"]');
+    const confirmButton = prompt.querySelector('[data-action="confirm"]');
+
+    if (dismissButton) {
+        dismissButton.addEventListener("click", () => {
+            lastDismissedTextHash = currentHash;
+            removeScanPrompt();
+        });
+    }
+
+    if (skipButton) {
+        skipButton.addEventListener("click", () => {
+            lastDismissedTextHash = currentHash;
+            removeScanPrompt();
+        });
+    }
+
+    if (confirmButton && status) {
+        confirmButton.addEventListener("click", () => {
+            confirmButton.disabled = true;
+            if (skipButton) {
+                skipButton.disabled = true;
+            }
+            status.textContent = "Analyzing this email now...";
+
+            submitScan({
+                text,
+                url,
+                currentHash,
+                source: "auto_confirmed",
+                onResult: (result) => {
+                    if (!result || !result.error) {
+                        lastDismissedTextHash = "";
+                        return;
+                    }
+
+                    if (result.error === "LIMIT_REACHED") {
+                        status.textContent = "No scans left. Upgrade to continue realtime analysis.";
+                        lastDismissedTextHash = currentHash;
+                        if (skipButton) {
+                            skipButton.disabled = false;
+                        }
+                        return;
+                    }
+
+                    if (result.error === "UNAUTHORIZED") {
+                        status.textContent = "Sign in again in the extension popup to continue.";
+                        lastScannedTextHash = "";
+                        confirmButton.disabled = false;
+                        if (skipButton) {
+                            skipButton.disabled = false;
+                        }
+                        return;
+                    }
+
+                    status.textContent = "Scan failed. Try again in a moment.";
+                    lastScannedTextHash = "";
+                    confirmButton.disabled = false;
+                    if (skipButton) {
+                        skipButton.disabled = false;
+                    }
+                }
+            });
+        });
+    }
+}
+
+async function triggerScan() {
     const text = getEmailContent();
     const url = location.href;
 
-    // 1. Validation
-    if (text.length < 50) return; // Too short
+    if (text.length < MIN_EMAIL_SCAN_CHARS) {
+        removeScanPrompt();
+        return;
+    }
 
-    // 2. Deduplication
     const currentHash = hashCode(text);
-    if (currentHash === lastScannedTextHash) return; // Already scanned
+    if (currentHash === lastScannedTextHash) {
+        return;
+    }
 
-    lastScannedTextHash = currentHash;
-    lastScannedText = text;
-    console.log("PhishGuard: Auto-scanning new content...");
+    try {
+        await sendRuntimeMessage({ action: "REFRESH_CONTEXT" });
+    } catch (_error) {
+        // Ignore refresh failures and fall back to the latest cached state.
+    }
 
-    // 3. Send to Background
-    chrome.runtime.sendMessage({
-        action: "scan_page",
+    const syncState = await readSyncState({
+        autoScan: true,
+        userPlan: null,
+        subscriptionStatus: null,
+        userRole: "user",
+        scansRemaining: 0,
+        planName: "Free"
+    });
+
+    if (syncState.autoScan === false) {
+        removeScanPrompt();
+        return;
+    }
+
+    if (requiresScanConfirmation(
+        syncState.userPlan,
+        syncState.userRole,
+        syncState.subscriptionStatus
+    )) {
+        if (currentHash === lastDismissedTextHash) {
+            return;
+        }
+
+        injectFreePlanPrompt({
+            currentHash,
+            text,
+            url,
+            scansRemaining: Number(syncState.scansRemaining || 0),
+            planName: syncState.planName || "Free",
+            subscriptionStatus: syncState.subscriptionStatus || null,
+            isLimitReached: Number(syncState.scansRemaining || 0) <= 0
+        });
+        return;
+    }
+
+    lastDismissedTextHash = "";
+    removeScanPrompt();
+    submitScan({
+        text,
+        url,
+        currentHash,
         source: "auto",
-        text: text,
-        url: url
-    }, (response) => {
-        if (chrome.runtime.lastError) return;
-        // --- INJECT VISUAL FLAG ---
-        injectScanFlag(response);
+        planName: syncState.planName || "Free",
+        subscriptionStatus: syncState.subscriptionStatus || null
     });
 }
 
@@ -558,7 +952,9 @@ function injectScanFlag(response) {
 // Debounce scan to avoid multiple calls during render
 function scheduleScan() {
     if (scanTimeout) clearTimeout(scanTimeout);
-    scanTimeout = setTimeout(triggerScan, 2000); // Wait 2s for full render
+    scanTimeout = setTimeout(() => {
+        void triggerScan();
+    }, 2000); // Wait 2s for full render
 }
 
 // --- 4. OBSERVERS ---
@@ -570,6 +966,9 @@ new MutationObserver(() => {
     if (url !== lastUrl) {
         lastUrl = url;
         lastScannedTextHash = ""; // Reset hash on navigation
+        lastDismissedTextHash = "";
+        removeScanPrompt();
+        removeScanFlag();
         scheduleScan();
     }
 }).observe(document, { subtree: true, childList: true });
@@ -604,8 +1003,13 @@ window.addEventListener("message", (event) => {
     chrome.runtime.sendMessage({
         action: "AUTH_HANDOFF",
         token: event.data.token,
+        context: event.data.context || null,
         user: event.data.user,
+        account: event.data.account,
         subscription: event.data.subscription,
+        activity: event.data.activity,
+        recentScans: event.data.recentScans,
+        keys: event.data.keys || null,
         deepScanPublicKey: event.data.deepScanPublicKey || null,
         analyzePayloadPublicKey: event.data.analyzePayloadPublicKey || null
     }, (response) => {

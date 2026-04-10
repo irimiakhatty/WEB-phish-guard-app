@@ -1,5 +1,7 @@
 // SaaS Subscription Plans Configuration
 
+export const FREE_TRIAL_DAYS = 30;
+
 // ==========================================
 // PERSONAL PLANS (B2C - Individual Users)
 // ==========================================
@@ -8,7 +10,7 @@ export const PERSONAL_PLANS = {
   free: {
     id: "free",
     name: "Free",
-    description: "Perfect for trying out PhishGuard",
+    description: `${FREE_TRIAL_DAYS}-day personal trial for experiencing realtime phishing protection before upgrading`,
     price: 0,
     interval: null,
     stripePriceId: null,
@@ -18,8 +20,9 @@ export const PERSONAL_PLANS = {
       scansPerHour: 30,
       maxApiTokens: 1,
       features: [
-        "100 scans per month",
-        "30 scans per hour",
+        `${FREE_TRIAL_DAYS}-day guided trial`,
+        "Limited monthly scans during trial",
+        "Limited hourly scans during trial",
         "1 API token",
         "Browser extension access",
         "URL, text, and image analysis",
@@ -107,7 +110,7 @@ export const TEAM_PLANS = {
   team_free: {
     id: "team_free",
     name: "Team Free",
-    description: "For small teams getting started",
+    description: `${FREE_TRIAL_DAYS}-day team trial for validating inbox protection with a small team`,
     price: 0,
     interval: null,
     stripePriceId: null,
@@ -118,9 +121,9 @@ export const TEAM_PLANS = {
       scansPerHourPerUser: 25,
       maxApiTokens: 1,
       features: [
-        "Up to 3 team members",
-        "500 total scans per month",
-        "25 scans/hour per user",
+        `Up to 3 team members during the ${FREE_TRIAL_DAYS}-day trial`,
+        "Limited shared scans during trial",
+        "Limited per-user inbox checks during trial",
         "1 API token",
         "Admin/member roles",
         "Members dashboard",

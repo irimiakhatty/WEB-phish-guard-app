@@ -2,10 +2,7 @@
 
 import * as adminService from "@phish-guard-app/backend/admin";
 import { requireAuth } from "@/lib/auth/auth-helpers";
-
-// ==========================================
-// SUPER ADMIN CHECKS
-// ==========================================
+import { getStripeFinancialOverview } from "@/lib/billing/stripe-reporting";
 
 export async function requireSuperAdmin() {
   const { user } = await requireAuth();
@@ -17,13 +14,14 @@ export async function requireSuperAdmin() {
   return user;
 }
 
-// ==========================================
-// GLOBAL STATISTICS
-// ==========================================
-
 export async function getGlobalStats() {
   await requireSuperAdmin();
   return adminService.getGlobalStats();
+}
+
+export async function getStripeCashReport() {
+  await requireSuperAdmin();
+  return getStripeFinancialOverview();
 }
 
 export async function getAllUsers(page = 1, limit = 50) {

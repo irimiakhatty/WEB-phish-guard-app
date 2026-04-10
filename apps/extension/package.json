@@ -1,6 +1,6 @@
 {
   "name": "@phishguard/extension",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "PhishGuard Chrome Extension for real-time phishing detection",
   "private": true,
   "scripts": {

@@ -79,8 +79,16 @@ function isSubscriptionCurrentlyUsable(params: {
     return false;
   }
 
-  // Free plans are usable while marked active.
+  // Free plans can either be a legacy active tier or a dated trial.
   if (!isPaidPlan(planId)) {
+    if (status === "trialing") {
+      if (!currentPeriodEnd) {
+        return true;
+      }
+
+      return getSubscriptionUsableUntil(currentPeriodEnd).getTime() >= now.getTime();
+    }
+
     return status === "active";
   }
 
@@ -100,6 +108,16 @@ type InactivePaidSubscriptionCandidate = {
   status?: string | null;
   currentPeriodEnd?: Date | null;
   organizationSlug?: string;
+};
+
+type ExpiredFreeTrialCandidate = {
+  subscriptionType: "personal" | "team";
+  planId: PlanId;
+  currentPeriodEnd?: Date | null;
+  organizationId?: string;
+  organizationName?: string;
+  organizationSlug?: string;
+  isOrgAdmin?: boolean;
 };
 
 type UserOrganizationMembership = {
@@ -129,6 +147,20 @@ type OrganizationContext = {
 function pickMostRecentInactivePaidSubscription(
   candidates: InactivePaidSubscriptionCandidate[]
 ): InactivePaidSubscriptionCandidate | undefined {
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  return candidates.reduce((latest, candidate) => {
+    const latestTs = latest.currentPeriodEnd?.getTime() ?? 0;
+    const candidateTs = candidate.currentPeriodEnd?.getTime() ?? 0;
+    return candidateTs > latestTs ? candidate : latest;
+  });
+}
+
+function pickMostRecentExpiredFreeTrial(
+  candidates: ExpiredFreeTrialCandidate[]
+): ExpiredFreeTrialCandidate | undefined {
   if (candidates.length === 0) {
     return undefined;
   }
@@ -219,6 +251,7 @@ export async function getUserSubscriptionInfo(
 ): Promise<UserSubscriptionInfo> {
   const now = new Date();
   const inactivePaidCandidates: InactivePaidSubscriptionCandidate[] = [];
+  const expiredFreeTrialCandidates: ExpiredFreeTrialCandidate[] = [];
 
   // Fetch user with personal subscription and org memberships
   const user = await prisma.user.findUnique({
@@ -291,6 +324,16 @@ export async function getUserSubscriptionInfo(
         status: personalSub.status,
         currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
       });
+    } else if (
+      !isPaidPlan(personalPlanId) &&
+      !hasPersonalSub &&
+      personalSub.status === "trialing"
+    ) {
+      expiredFreeTrialCandidates.push({
+        subscriptionType: "personal",
+        planId: personalPlanId,
+        currentPeriodEnd: personalSub.currentPeriodEnd ?? null,
+      });
     }
   }
 
@@ -324,14 +367,28 @@ export async function getUserSubscriptionInfo(
     if (!orgSub) return;
 
     const orgPlanId = (orgSub.plan as PlanId) || "team_free";
-    if (!isPaidPlan(orgPlanId)) return;
-
     const isUsable = isSubscriptionCurrentlyUsable({
       planId: orgPlanId,
       status: orgSub.status,
       currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
       now,
     });
+
+    if (!isPaidPlan(orgPlanId)) {
+      if (!isUsable && orgSub.status === "trialing") {
+        expiredFreeTrialCandidates.push({
+          subscriptionType: "team",
+          planId: orgPlanId,
+          currentPeriodEnd: orgSub.currentPeriodEnd ?? null,
+          organizationId: m.organizationId,
+          organizationName: m.organization.name,
+          organizationSlug: m.organization.slug,
+          isOrgAdmin: m.role === "admin",
+        });
+      }
+      return;
+    }
+
     if (isUsable) return;
 
     inactivePaidCandidates.push({
@@ -345,17 +402,28 @@ export async function getUserSubscriptionInfo(
 
   const expiredPaidSubscription =
     pickMostRecentInactivePaidSubscription(inactivePaidCandidates);
+  const expiredFreeTrial = pickMostRecentExpiredFreeTrial(
+    expiredFreeTrialCandidates
+  );
 
   // Determine best subscription
   const bestActiveOrgMembership = activeOrgMemberships[0];
   const bestActiveOrgPlanId = bestActiveOrgMembership
     ? ((bestActiveOrgMembership.organization.subscription?.plan as PlanId) || "team_free")
     : null;
+  const personalPlanPrice = getPlanById(personalPlanId).price;
+  const shouldPreferOrgSubscription =
+    bestActiveOrgPlanId !== null &&
+    (() => {
+      const bestActiveOrgPlanPrice = getPlanById(bestActiveOrgPlanId).price;
+      return (
+        bestActiveOrgPlanPrice > personalPlanPrice ||
+        (bestActiveOrgPlanPrice === personalPlanPrice &&
+          !(personalPlanId === "free" && bestActiveOrgPlanId === "team_free"))
+      );
+    })();
   const shouldUseOrgSubscription =
-    Boolean(bestActiveOrgMembership) &&
-    (!hasPersonalSub ||
-      (bestActiveOrgPlanId !== null &&
-        getPlanById(bestActiveOrgPlanId).price >= getPlanById(personalPlanId).price));
+    Boolean(bestActiveOrgMembership) && (!hasPersonalSub || shouldPreferOrgSubscription);
 
   if (shouldUseOrgSubscription && bestActiveOrgMembership) {
     // Prefer the strongest active team plan. Personal plans still win over team_free.
@@ -408,6 +476,43 @@ export async function getUserSubscriptionInfo(
         prioritySupport: plan.limits.prioritySupport,
         apiAccess: plan.limits.apiAccess,
       },
+    };
+  } else if (expiredFreeTrial) {
+    return {
+      hasActiveSubscription: false,
+      subscriptionType: expiredFreeTrial.subscriptionType,
+      planId: expiredFreeTrial.planId,
+      status: "trial_expired",
+      currentPeriodEnd: expiredFreeTrial.currentPeriodEnd ?? null,
+      cancelAtPeriodEnd: false,
+      expiredPaidSubscription: hasAnyActivePaidSubscription
+        ? undefined
+        : expiredPaidSubscription,
+      ...organizationContext,
+      limits: {
+        scansPerMonth: 0,
+        scansPerHour: 0,
+        maxApiTokens: 0,
+        advancedAnalytics: false,
+        prioritySupport: false,
+        apiAccess: false,
+      },
+      organizationId:
+        expiredFreeTrial.subscriptionType === "team"
+          ? expiredFreeTrial.organizationId
+          : undefined,
+      organizationName:
+        expiredFreeTrial.subscriptionType === "team"
+          ? expiredFreeTrial.organizationName
+          : undefined,
+      organizationSlug:
+        expiredFreeTrial.subscriptionType === "team"
+          ? expiredFreeTrial.organizationSlug
+          : undefined,
+      isOrgAdmin:
+        expiredFreeTrial.subscriptionType === "team"
+          ? Boolean(expiredFreeTrial.isOrgAdmin)
+          : undefined,
     };
   } else {
     // Free tier (no subscription)
@@ -505,6 +610,18 @@ export async function checkScanLimits(userId: string): Promise<{
     hourly: { used: number; limit: number };
   };
 }> {
+  const subInfo = await getUserSubscriptionInfo(userId);
+  if (subInfo.status === "trial_expired") {
+    return {
+      allowed: false,
+      reason: "Your free trial ended. Upgrade to keep realtime inbox analysis active.",
+      limits: {
+        monthly: { used: 0, limit: 0 },
+        hourly: { used: 0, limit: 0 },
+      },
+    };
+  }
+
   const [monthlyCheck, hourlyCheck] = await Promise.all([
     checkMonthlyLimit(userId),
     checkHourlyLimit(userId),

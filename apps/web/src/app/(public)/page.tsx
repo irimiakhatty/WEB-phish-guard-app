@@ -19,65 +19,58 @@ const CHROME_STORE_URL =
 const VERDICT_EXAMPLES = [
   {
     level: "High Risk",
-    title: "Credential phishing attempt",
-    example: `"Your Microsoft account is suspended. Verify now at secure-check-login.com"`,
-    action: "Block link and report sender.",
+    title: "Fake Microsoft reset",
+    example: "verify now at secure-check-login.com",
     levelClass:
       "border-red-200 bg-red-50 text-red-700 dark:border-red-500/40 dark:bg-red-900/25 dark:text-red-300",
     iconClass: "text-red-600 dark:text-red-300",
   },
   {
     level: "Warning",
-    title: "Suspicious urgency pattern",
-    example: `"Confirm payment in 10 minutes or account access will be locked."`,
-    action: "Validate sender before any action.",
+    title: "Urgent payment request",
+    example: "confirm payment in 10 minutes",
     levelClass:
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/25 dark:text-amber-300",
     iconClass: "text-amber-600 dark:text-amber-300",
   },
   {
     level: "Safe",
-    title: "Trusted communication",
-    example: `"Monthly security report is ready in your verified workspace."`,
-    action: "No active phishing signals.",
+    title: "Verified workspace update",
+    example: "monthly report is ready",
     levelClass:
       "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/25 dark:text-emerald-300",
     iconClass: "text-emerald-600 dark:text-emerald-300",
   },
 ] as const;
 
-const WORKFLOW_ROWS = [
+const START_PATHS = [
   {
-    signal: "Live Email Scan",
-    behavior: "Checks sender/domain and urgency patterns while users read mail.",
-    result: "Warnings appear before users click.",
+    label: "For Individuals",
+    description: "Check suspicious emails and links directly in the browser with instant verdicts.",
   },
   {
-    signal: "URL Reputation",
-    behavior: "Scores links with model + heuristics in real time.",
-    result: "Malicious destinations are flagged instantly.",
+    label: "For Teams",
+    description: "Add shared visibility, rollout support, and admin follow-up for your organization.",
+  },
+];
+
+const CORE_BENEFITS = [
+  {
+    title: "Real-time warnings",
+    description: "Surface risk while users read email, not after the click.",
   },
   {
-    signal: "Team Visibility",
-    behavior: "Central dashboard tracks scan outcomes by member and trend.",
-    result: "Admins prioritize review and policy actions.",
+    title: "Clear verdicts",
+    description: "Use simple safe, warning, and high-risk signals people act on fast.",
+  },
+  {
+    title: "Shared visibility",
+    description: "Move from personal protection to team oversight without changing products.",
   },
 ] as const;
 
-const BENEFITS = [
-  {
-    title: "Real-time first",
-    description: "Protection appears at exposure time, not only in post-incident reports.",
-  },
-  {
-    title: "Browser-native",
-    description: "No copy-paste workflow. Detection runs where users already work.",
-  },
-  {
-    title: "Ready for teams",
-    description: "Start personal, then scale to organization controls and analytics.",
-  },
-] as const;
+const PAGE_SHELL =
+  "mx-auto w-full max-w-[1680px] px-6 sm:px-8 lg:px-12 xl:px-16 2xl:px-20";
 
 export default async function Home() {
   const session = await getSession();
@@ -93,12 +86,13 @@ export default async function Home() {
         <ModeToggle />
       </div>
 
-      <main className="pb-12">
-        <section className="relative border-b border-border">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(9,9,11,0.06),transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.10),transparent_42%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.08),transparent_38%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.20),transparent_44%)]" />
+      <main className="pb-14">
+        <section className="relative overflow-hidden border-b border-border">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(49,46,129,0.12),transparent_32%),radial-gradient(circle_at_top_right,_rgba(79,70,229,0.16),transparent_42%),linear-gradient(180deg,rgba(238,242,255,0.72),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.14),transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),transparent_40%),linear-gradient(180deg,rgba(17,24,39,0.55),transparent_56%)]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/40 to-transparent dark:via-indigo-300/30" />
 
-          <div className="relative mx-auto grid max-w-6xl gap-8 px-6 pb-12 pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-            <div className="space-y-6">
+          <div className={`${PAGE_SHELL} relative grid gap-10 pb-14 pt-14 lg:grid-cols-[minmax(0,1.02fr)_minmax(560px,0.98fr)] lg:items-center lg:gap-12 xl:gap-16 xl:py-18`}>
+            <div className="max-w-3xl space-y-7">
               <div className="flex items-center gap-3">
                 <Image
                   src="/icon.png"
@@ -110,22 +104,28 @@ export default async function Home() {
                 <p className="text-4xl font-semibold tracking-tight">PhishGuard</p>
               </div>
 
-              <p className="inline-flex rounded-full border border-border bg-muted px-4 py-1.5 text-xs font-semibold text-muted-foreground">
-                Browser extension security for Gmail, Outlook, and suspicious links
+              <p className="inline-flex rounded-full border border-indigo-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-indigo-950 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/20 dark:bg-indigo-950/45 dark:text-indigo-100">
+                Browser phishing protection for individuals and teams
               </p>
 
-              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-                Catch phishing
-                <span className="block">before the click</span>
+              <h1 className="max-w-4xl text-5xl font-semibold leading-[0.98] tracking-tight sm:text-6xl xl:text-[4.25rem]">
+                Protect every inbox
+                <span className="block bg-gradient-to-r from-indigo-950 via-indigo-700 to-sky-600 bg-clip-text text-transparent dark:from-indigo-100 dark:via-indigo-300 dark:to-sky-300">
+                  before the click
+                </span>
               </h1>
 
-              <p className="max-w-xl text-base text-muted-foreground">
-                Real-time detection inside the browser with clear red, yellow, and green verdicts
-                that users can act on immediately.
+              <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
+                Real-time browser warnings for Gmail and Outlook, built for suspicious links,
+                personal protection, and team-wide visibility.
               </p>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <Button size="lg" asChild>
+                <Button
+                  size="lg"
+                  className="bg-indigo-950 text-white shadow-lg shadow-indigo-950/15 hover:bg-indigo-900 dark:bg-indigo-400 dark:text-indigo-950 dark:hover:bg-indigo-300"
+                  asChild
+                >
                   <a
                     href={CHROME_STORE_URL}
                     target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
@@ -135,33 +135,59 @@ export default async function Home() {
                   </a>
                 </Button>
 
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="/subscriptions">See plans</Link>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-indigo-200/80 bg-white/70 text-indigo-950 hover:bg-indigo-50 hover:text-indigo-950 dark:border-indigo-400/20 dark:bg-indigo-950/30 dark:text-indigo-100 dark:hover:bg-indigo-900/50"
+                  asChild
+                >
+                  <Link href="/subscriptions/business">See team plans</Link>
                 </Button>
 
-                <Button size="lg" variant="ghost" className="group" asChild>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="group text-indigo-950 hover:bg-indigo-100/70 hover:text-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-100"
+                  asChild
+                >
                   <Link href="/login">
                     Start free scan
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </Link>
                 </Button>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {START_PATHS.map((path) => (
+                  <div
+                    key={path.label}
+                    className="rounded-[22px] border border-indigo-200/70 bg-white/72 p-5 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/18 dark:bg-indigo-950/24"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-950/60 dark:text-indigo-100/55">
+                      {path.label}
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">{path.description}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[520px]">
-              <div className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2.5">
+            <div className="relative mx-auto w-full max-w-[620px] justify-self-end xl:max-w-[680px]">
+              <div className="absolute -left-10 top-8 h-40 w-40 rounded-full bg-indigo-500/12 blur-3xl dark:bg-indigo-400/16" />
+              <div className="absolute -bottom-8 right-6 h-36 w-36 rounded-full bg-sky-500/10 blur-3xl dark:bg-sky-400/12" />
+              <div className="overflow-hidden rounded-[28px] border border-indigo-200/70 bg-card/90 shadow-2xl shadow-indigo-950/8 backdrop-blur dark:border-indigo-400/20 dark:bg-zinc-950/88">
+                <div className="flex items-center gap-2 border-b border-indigo-200/70 bg-indigo-50/80 px-4 py-2.5 dark:border-indigo-400/20 dark:bg-indigo-950/45">
                   <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  <p className="ml-2 text-xs font-medium text-muted-foreground">Live warning preview</p>
+                  <p className="ml-2 text-xs font-medium text-indigo-950/70 dark:text-indigo-100/70">Live warning preview</p>
                 </div>
 
-                <div className="space-y-3 p-4">
+                <div className="space-y-3 bg-gradient-to-b from-transparent to-indigo-50/35 p-4 dark:to-indigo-950/20">
                   {VERDICT_EXAMPLES.map((example) => (
                     <div
                       key={example.level}
-                      className={`rounded-xl border px-3 py-3 ${example.levelClass}`}
+                      className={`rounded-2xl border px-3 py-3 shadow-sm ${example.levelClass}`}
                     >
                       <div className="flex items-start gap-2">
                         {example.level === "High Risk" ? (
@@ -173,7 +199,8 @@ export default async function Home() {
                         )}
                         <div>
                           <p className="text-sm font-semibold">{example.level}</p>
-                          <p className="mt-1 text-xs opacity-95">{example.example}</p>
+                          <p className="mt-1 text-sm font-medium opacity-95">{example.title}</p>
+                          <p className="mt-1 text-xs opacity-80">{example.example}</p>
                         </div>
                       </div>
                     </div>
@@ -184,65 +211,56 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 py-8">
-          <div className="mb-4">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How the extension works</h2>
+        <section className={`${PAGE_SHELL} py-12`}>
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Why people start with PhishGuard</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Visual flow built for real-time detection, not post-event analysis.
+              Essential protection for personal use, with a clean path to team adoption.
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <div className="grid grid-cols-[1fr_1.35fr_1.15fr] border-b border-border bg-muted px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              <p>Signal</p>
-              <p>What it checks</p>
-              <p>Output to user/admin</p>
-            </div>
-            {WORKFLOW_ROWS.map((row) => (
-              <div
-                key={row.signal}
-                className="grid grid-cols-1 gap-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1fr_1.35fr_1.15fr]"
+          <div className="grid gap-5 xl:grid-cols-3">
+            {CORE_BENEFITS.map((item) => (
+              <Card
+                key={item.title}
+                className="border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/45 shadow-sm shadow-indigo-950/5 dark:border-indigo-400/18 dark:from-zinc-950 dark:to-indigo-950/22"
               >
-                <p className="font-semibold">{row.signal}</p>
-                <p className="text-sm text-muted-foreground">{row.behavior}</p>
-                <p className="text-sm">{row.result}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-6 py-5">
-          <div className="grid gap-4 md:grid-cols-3">
-            {BENEFITS.map((benefit) => (
-              <Card key={benefit.title} className="border-border bg-card">
-                <CardContent className="pt-6">
-                  <p className="text-lg font-semibold">{benefit.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{benefit.description}</p>
+                <CardContent className="pt-7">
+                  <p className="text-xl font-semibold text-foreground">{item.title}</p>
+                  <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">{item.description}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 pt-8">
-          <Card className="border-border bg-card">
-            <CardContent className="py-8 text-left sm:text-center">
-              <h3 className="text-2xl font-semibold tracking-tight">Start with live protection today</h3>
-              <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:mx-auto">
-                Install fast. Detect instantly. Upgrade when your team scales.
+        <section className={`${PAGE_SHELL} pt-4`}>
+          <Card className="border-indigo-200/80 bg-gradient-to-r from-white via-indigo-50/65 to-sky-50/65 shadow-xl shadow-indigo-950/6 dark:border-indigo-400/20 dark:from-zinc-950 dark:via-indigo-950/35 dark:to-sky-950/25">
+            <CardContent className="py-10 text-left sm:text-center">
+              <h3 className="text-2xl font-semibold tracking-tight">Start personal. Scale to team protection.</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:mx-auto">
+                Install the extension for your own browsing, or move directly into a business plan
+                when you need shared visibility and rollout support.
               </p>
               <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-center">
-                <Button asChild>
+                <Button
+                  className="bg-indigo-950 text-white shadow-lg shadow-indigo-950/15 hover:bg-indigo-900 dark:bg-indigo-400 dark:text-indigo-950 dark:hover:bg-indigo-300"
+                  asChild
+                >
                   <a
                     href={CHROME_STORE_URL}
                     target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
                     rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
                   >
-                    Install extension
+                    Add to Chrome
                   </a>
                 </Button>
-                <Button variant="outline" asChild>
-                  <Link href="/subscriptions">See all plans</Link>
+                <Button
+                  variant="outline"
+                  className="border-indigo-200/80 bg-white/70 text-indigo-950 hover:bg-indigo-50 hover:text-indigo-950 dark:border-indigo-400/20 dark:bg-indigo-950/30 dark:text-indigo-100 dark:hover:bg-indigo-900/50"
+                  asChild
+                >
+                  <Link href="/subscriptions/business">See team plans</Link>
                 </Button>
               </div>
             </CardContent>

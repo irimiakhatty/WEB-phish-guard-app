@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth/auth-helpers";
-import { getGlobalStats } from "@/server/actions/admin";
+import { getGlobalStats, getStripeCashReport } from "@/server/actions/admin";
 import { getAllScans } from "@/server/actions/scans";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -12,6 +12,7 @@ import {
   DollarSign,
   TrendingUp,
   TriangleAlert,
+  Wallet,
 } from "lucide-react";
 import { AdminManagementTabs } from "@/features/admin/components";
 import { normalizeAdminTab } from "@/features/admin/components/types";
@@ -22,6 +23,15 @@ type AdminPageProps = {
   };
 };
 
+function formatPercentDelta(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return "No month-over-month baseline yet";
+  }
+
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${(value * 100).toFixed(0)}% vs last month`;
+}
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const { user } = await requireAuth();
 
@@ -29,13 +39,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     redirect("/dashboard");
   }
 
-  const [stats, scans] = await Promise.all([getGlobalStats(), getAllScans()]);
+  const [stats, scans, stripeCash] = await Promise.all([
+    getGlobalStats(),
+    getAllScans(),
+    getStripeCashReport(),
+  ]);
   const initialTab = normalizeAdminTab(
     typeof searchParams?.tab === "string" ? searchParams.tab : undefined
   );
   const formatCurrency = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency: stripeCash.currency || "USD",
     maximumFractionDigits: 0,
   });
 
@@ -104,6 +118,80 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <CardHeader className="pb-3">
+            <CardTitle>Stripe Cash</CardTitle>
+            <CardDescription>
+              {stripeCash.available
+                ? "These numbers come directly from Stripe invoices, so they reflect real collected cash instead of plan estimates."
+                : stripeCash.note}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stripeCash.available ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Collected This Month</p>
+                    <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency.format(stripeCash.thisMonth.collected)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stripeCash.thisMonth.paidInvoices} paid invoices from {stripeCash.thisMonth.payingCustomers} customer
+                    {stripeCash.thisMonth.payingCustomers === 1 ? "" : "s"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Collected Last Month</p>
+                    <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency.format(stripeCash.lastMonth.collected)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Avg invoice {formatCurrency.format(stripeCash.lastMonth.averageInvoiceValue || 0)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">MoM Cash Change</p>
+                    <TrendingUp className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {formatPercentDelta(stripeCash.monthOverMonthChange)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Average paid invoice this month {formatCurrency.format(stripeCash.thisMonth.averageInvoiceValue || 0)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Open Invoice Pipeline</p>
+                    <TriangleAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  </div>
+                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency.format(stripeCash.openPipeline.amountOutstanding)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {stripeCash.openPipeline.openInvoices} open invoice
+                    {stripeCash.openPipeline.openInvoices === 1 ? "" : "s"} still waiting to be collected
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300/80 p-4 text-sm text-muted-foreground dark:border-gray-700/80">
+                {stripeCash.error || "Stripe metrics are not available yet."}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
           <CardHeader className="pb-3">
