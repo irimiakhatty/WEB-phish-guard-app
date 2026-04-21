@@ -202,7 +202,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl px-4 py-10 space-y-8">
+      <div className="mx-auto w-full max-w-[1680px] space-y-8 px-6 py-10 sm:px-8 lg:px-12">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link href={`/org/${slug}`}>
@@ -223,7 +223,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total members</CardDescription>
               <CardTitle className="text-3xl">{organization.members.length}</CardTitle>
@@ -232,7 +232,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
               Active seats in your organization
             </CardContent>
           </Card>
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-2">
               <CardDescription>Pending invites</CardDescription>
               <CardTitle className="text-3xl">{organization.invites.length}</CardTitle>
@@ -241,7 +241,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
               Waiting for activation
             </CardContent>
           </Card>
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-2">
               <CardDescription>Risky users</CardDescription>
               <CardTitle className="text-3xl text-red-600">{riskyUsersCount}</CardTitle>
@@ -250,7 +250,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
               High or critical events detected
             </CardContent>
           </Card>
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-2">
               <CardDescription>Scans this month</CardDescription>
               <CardTitle className="text-3xl text-zinc-900 dark:text-zinc-100">{scansThisMonth}</CardTitle>
@@ -261,7 +261,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
           </Card>
         </div>
 
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="w-4 h-4" />
@@ -320,7 +320,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
           {sortedMembers.map((member) => (
             <Card
               key={member.id}
-              className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80 hover:shadow-xl transition-shadow"
+              className="transition-shadow hover:shadow-xl"
             >
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">

@@ -380,7 +380,7 @@ export default function OrganizationMembers({
   return (
     <div className="space-y-6">
       {isAdmin && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardContent className="pt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -399,7 +399,7 @@ export default function OrganizationMembers({
       )}
 
       {isAdmin && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle>Departments</CardTitle>
             <CardDescription>
@@ -442,7 +442,7 @@ export default function OrganizationMembers({
               {organization.organizationDepartments.map((department) => (
                 <div
                   key={department.id}
-                  className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 bg-white/60 dark:bg-gray-900/60 p-3"
+                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
                 >
                   <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{department.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -450,7 +450,7 @@ export default function OrganizationMembers({
                   </p>
                 </div>
               ))}
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white/40 dark:bg-gray-900/40 p-3">
+              <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3">
                 <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Unassigned</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Members: {unassignedMembersCount}</p>
               </div>
@@ -461,7 +461,7 @@ export default function OrganizationMembers({
 
       {/* Invite Form */}
       {isAdmin && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <UserPlus className="w-5 h-5 mr-2" />
@@ -535,7 +535,7 @@ export default function OrganizationMembers({
       )}
 
       {isAdmin && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <UserPlus className="w-5 h-5 mr-2" />
@@ -594,7 +594,7 @@ export default function OrganizationMembers({
       )}
 
       {/* Current Members */}
-      <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+      <Card>
         <CardHeader>
           <CardTitle>Team Members</CardTitle>
           <CardDescription>{organization.members.length} active members</CardDescription>
@@ -607,7 +607,7 @@ export default function OrganizationMembers({
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60"
+                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-4"
                 >
                   <div className="flex items-center space-x-4">
                     <Avatar>
@@ -722,7 +722,7 @@ export default function OrganizationMembers({
 
       {/* Pending Invites */}
       {isAdmin && organization.invites.length > 0 && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle>Pending Invitations</CardTitle>
             <CardDescription>{organization.invites.length} active invites</CardDescription>
@@ -736,7 +736,7 @@ export default function OrganizationMembers({
                 return (
                   <div
                     key={invite.id}
-                    className="flex flex-col gap-4 p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60"
+                    className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center space-x-4">

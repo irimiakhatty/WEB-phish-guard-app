@@ -55,13 +55,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl space-y-8 px-6 py-10">
+      <div className="mx-auto w-full max-w-[1680px] space-y-8 px-6 py-10 sm:px-8 lg:px-12">
         <div className="flex items-center gap-4">
-          <div className="rounded-lg bg-gradient-to-br from-yellow-400/20 to-orange-500/20 p-3">
-            <Shield className="h-7 w-7 text-yellow-600 dark:text-yellow-400" />
+          <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
+            <Shield className="h-7 w-7 text-yellow-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-gray-900 dark:text-white">Super Admin Dashboard</h1>
+            <h1 className="text-3xl font-semibold text-zinc-100">Super Admin Dashboard</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Global overview of product usage, subscriptions, and startup economics
             </p>
@@ -69,46 +69,46 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card className="transition-shadow hover:shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-gray-600 dark:text-gray-400">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
+              <CardTitle className="text-sm text-muted-foreground">Total Users</CardTitle>
+              <Users className="h-4 w-4 text-zinc-300" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.totalUsers}</div>
+              <div className="text-2xl font-semibold text-zinc-100">{stats.totalUsers}</div>
               <p className="mt-1 text-xs text-muted-foreground">+{stats.recentUsers} in last 30 days</p>
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card className="transition-shadow hover:shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-gray-600 dark:text-gray-400">Organizations</CardTitle>
-              <Building2 className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
+              <CardTitle className="text-sm text-muted-foreground">Organizations</CardTitle>
+              <Building2 className="h-4 w-4 text-zinc-300" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.totalOrganizations}</div>
+              <div className="text-2xl font-semibold text-zinc-100">{stats.totalOrganizations}</div>
               <p className="mt-1 text-xs text-muted-foreground">+{stats.recentOrganizations} in last 30 days</p>
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card className="transition-shadow hover:shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-gray-600 dark:text-gray-400">Total Scans</CardTitle>
-              <BarChart3 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <CardTitle className="text-sm text-muted-foreground">Total Scans</CardTitle>
+              <BarChart3 className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.totalScans.toLocaleString()}</div>
+              <div className="text-2xl font-semibold text-zinc-100">{stats.totalScans.toLocaleString()}</div>
               <p className="mt-1 text-xs text-muted-foreground">{stats.scansByDay} scans last 7 days</p>
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card className="transition-shadow hover:shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-gray-600 dark:text-gray-400">Estimated MRR</CardTitle>
-              <DollarSign className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <CardTitle className="text-sm text-muted-foreground">Estimated MRR</CardTitle>
+              <DollarSign className="h-4 w-4 text-amber-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+              <div className="text-2xl font-semibold text-zinc-100">
                 {formatCurrency.format(stats.billing.estimatedMonthlyRevenue)}
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -119,7 +119,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </Card>
         </div>
 
-        <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle>Stripe Cash</CardTitle>
             <CardDescription>
@@ -131,12 +131,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <CardContent>
             {stripeCash.available ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Collected This Month</p>
-                    <Wallet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <p className="text-sm text-muted-foreground">Collected This Month</p>
+                    <Wallet className="h-4 w-4 text-emerald-400" />
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                  <p className="mt-3 text-2xl font-semibold text-zinc-100">
                     {formatCurrency.format(stripeCash.thisMonth.collected)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -145,12 +145,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Collected Last Month</p>
-                    <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <p className="text-sm text-muted-foreground">Collected Last Month</p>
+                    <CreditCard className="h-4 w-4 text-amber-400" />
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                  <p className="mt-3 text-2xl font-semibold text-zinc-100">
                     {formatCurrency.format(stripeCash.lastMonth.collected)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -158,12 +158,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">MoM Cash Change</p>
-                    <TrendingUp className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                    <p className="text-sm text-muted-foreground">MoM Cash Change</p>
+                    <TrendingUp className="h-4 w-4 text-sky-400" />
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                  <p className="mt-3 text-2xl font-semibold text-zinc-100">
                     {formatPercentDelta(stripeCash.monthOverMonthChange)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -171,12 +171,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Open Invoice Pipeline</p>
-                    <TriangleAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <p className="text-sm text-muted-foreground">Open Invoice Pipeline</p>
+                    <TriangleAlert className="h-4 w-4 text-red-400" />
                   </div>
-                  <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+                  <p className="mt-3 text-2xl font-semibold text-zinc-100">
                     {formatCurrency.format(stripeCash.openPipeline.amountOutstanding)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -186,14 +186,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-gray-300/80 p-4 text-sm text-muted-foreground dark:border-gray-700/80">
+              <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-4 text-sm text-muted-foreground">
                 {stripeCash.error || "Stripe metrics are not available yet."}
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle>Startup Economics</CardTitle>
             <CardDescription>
@@ -201,23 +201,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 dark:text-gray-400">ARR Run Rate</p>
-                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <p className="text-sm text-muted-foreground">ARR Run Rate</p>
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
               </div>
-              <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="mt-3 text-2xl font-semibold text-zinc-100">
                 {formatCurrency.format(stats.billing.projectedAnnualRevenue)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">12x estimated monthly recurring revenue</p>
             </div>
 
-            <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Paid Plans</p>
-                <CreditCard className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <p className="text-sm text-muted-foreground">Paid Plans</p>
+                <CreditCard className="h-4 w-4 text-amber-400" />
               </div>
-              <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="mt-3 text-2xl font-semibold text-zinc-100">
                 {stats.activeSubscriptions}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -229,12 +229,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </p>
             </div>
 
-            <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 dark:text-gray-400">Revenue At Risk</p>
-                <TriangleAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
+                <p className="text-sm text-muted-foreground">Revenue At Risk</p>
+                <TriangleAlert className="h-4 w-4 text-red-400" />
               </div>
-              <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="mt-3 text-2xl font-semibold text-zinc-100">
                 {formatCurrency.format(stats.billing.revenueAtRiskMonthly)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -243,12 +243,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </p>
             </div>
 
-            <div className="rounded-xl border border-gray-200/80 p-4 dark:border-gray-800/80">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600 dark:text-gray-400">ARPA</p>
-                <DollarSign className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
+                <p className="text-sm text-muted-foreground">ARPA</p>
+                <DollarSign className="h-4 w-4 text-zinc-300" />
               </div>
-              <p className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">
+              <p className="mt-3 text-2xl font-semibold text-zinc-100">
                 {formatCurrency.format(stats.billing.avgRevenuePerPaidSubscription)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">Average revenue per paid subscription</p>
@@ -256,7 +256,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </CardContent>
         </Card>
 
-        <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>

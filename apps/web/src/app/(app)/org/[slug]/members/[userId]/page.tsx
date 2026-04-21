@@ -25,19 +25,19 @@ const riskTierLabel: Record<RiskTier, string> = {
 };
 
 const riskTierClass: Record<RiskTier, string> = {
-  safe: "border-emerald-200 text-emerald-700 bg-emerald-50/70",
-  low: "border-zinc-200 text-zinc-700 bg-zinc-50/70 dark:border-zinc-700 dark:text-zinc-300 dark:bg-zinc-900/40",
-  medium: "border-yellow-200 text-yellow-700 bg-yellow-50/70",
-  high: "border-orange-200 text-orange-700 bg-orange-50/70",
-  critical: "border-red-200 text-red-700 bg-red-50/70",
+  safe: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  low: "border-white/10 bg-white/[0.03] text-zinc-200",
+  medium: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  high: "border-orange-500/30 bg-orange-500/10 text-orange-200",
+  critical: "border-red-500/30 bg-red-500/10 text-red-200",
 };
 
 const scanRiskClass: Record<RiskTier, string> = {
-  safe: "border-emerald-200 text-emerald-700 bg-emerald-50/70",
-  low: "border-zinc-200 text-zinc-700 bg-zinc-50/70 dark:border-zinc-700 dark:text-zinc-300 dark:bg-zinc-900/40",
-  medium: "border-yellow-200 text-yellow-700 bg-yellow-50/70",
-  high: "border-orange-200 text-orange-700 bg-orange-50/70",
-  critical: "border-red-200 text-red-700 bg-red-50/70",
+  safe: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+  low: "border-white/10 bg-white/[0.03] text-zinc-200",
+  medium: "border-amber-500/30 bg-amber-500/10 text-amber-200",
+  high: "border-orange-500/30 bg-orange-500/10 text-orange-200",
+  critical: "border-red-500/30 bg-red-500/10 text-red-200",
 };
 
 const dayKeyUtc = (date: Date) =>
@@ -225,7 +225,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-4 py-10 space-y-8">
+      <div className="mx-auto w-full max-w-[1680px] space-y-8 px-6 py-10 sm:px-8 lg:px-12">
         <div>
           <Link href={`/org/${slug}/members`}>
             <Button variant="ghost" className="mb-4">
@@ -233,13 +233,13 @@ export default async function MemberProfilePage({ params }: PageProps) {
               Back to members
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Member profile</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="text-3xl font-bold text-zinc-100">Member profile</h1>
+          <p className="text-sm text-muted-foreground">
             Risk signals and activity insights for this employee.
           </p>
         </div>
 
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
@@ -249,7 +249,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="text-2xl text-gray-900 dark:text-white">
+                <CardTitle className="text-2xl text-zinc-100">
                   {member.user.name || "Unnamed user"}
                 </CardTitle>
                 <CardDescription>{member.user.email}</CardDescription>
@@ -265,7 +265,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                 </div>
               </div>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-muted-foreground">
               Joined{" "}
               {new Date(member.joinedAt).toLocaleDateString("en-GB", {
                 day: "2-digit",
@@ -276,42 +276,42 @@ export default async function MemberProfilePage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Activity className="w-3 h-3" />
                   Total scans
                 </div>
-                <div className="text-2xl font-semibold text-gray-900 dark:text-white">{totalScans}</div>
+                <div className="text-2xl font-semibold text-zinc-100">{totalScans}</div>
               </div>
-              <div className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <AlertTriangle className="w-3 h-3" />
                   Risky events
                 </div>
-                <div className="text-2xl font-semibold text-red-600">{riskyCount}</div>
+                <div className="text-2xl font-semibold text-red-400">{riskyCount}</div>
               </div>
-              <div className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <TrendingUp className="w-3 h-3" />
                   Avg risk
                 </div>
-                <div className="text-2xl font-semibold text-gray-900 dark:text-white">
+                <div className="text-2xl font-semibold text-zinc-100">
                   {(avgScore * 100).toFixed(0)}%
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-4">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Shield className="w-3 h-3" />
                   Last seen
                 </div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white">{lastSeen}</div>
+                <div className="text-sm font-medium text-zinc-100">{lastSeen}</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>Activity heatmap</CardTitle>
               <CardDescription>Last 28 days of scans</CardDescription>
@@ -325,19 +325,19 @@ export default async function MemberProfilePage({ params }: PageProps) {
                     <div
                       key={day.key}
                       title={`${day.key} - ${day.count} scans`}
-                      className="h-9 w-9 rounded-lg border border-zinc-200 dark:border-zinc-700"
+                      className="h-9 w-9 rounded-lg border border-white/10"
                       style={{ backgroundColor: background }}
                     />
                   );
                 })}
               </div>
-              <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+              <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Low</span>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: 4 }).map((_, index) => (
                     <span
                       key={index}
-                      className="h-2.5 w-2.5 rounded-sm border border-zinc-200 dark:border-zinc-700"
+                      className="h-2.5 w-2.5 rounded-sm border border-white/10"
                       style={{ backgroundColor: `rgba(113,113,122,${0.2 + index * 0.2})` }}
                     />
                   ))}
@@ -347,7 +347,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>Monthly trend</CardTitle>
               <CardDescription>Scans in the last 8 weeks</CardDescription>
@@ -362,11 +362,11 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div key={label} className="flex flex-col items-center gap-2 flex-1">
                       <div
-                        className="w-full rounded-md bg-zinc-500/80"
+                        className="w-full rounded-md bg-gradient-to-t from-violet-400/40 via-indigo-400/25 to-sky-400/20"
                         style={{ height }}
                         title={`${count} scans`}
                       />
-                      <span className="text-[10px] text-gray-500">{label}</span>
+                      <span className="text-[10px] text-muted-foreground">{label}</span>
                     </div>
                   );
                 })}
@@ -376,7 +376,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>Attack type heatmap</CardTitle>
               <CardDescription>Most common attack vectors (last 90 days)</CardDescription>
@@ -385,15 +385,34 @@ export default async function MemberProfilePage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-4">
                 {attackHeatmap.map((item) => {
                   const intensity = item.count / attackHeatMax;
-                  const background = `rgba(239, 68, 68, ${0.12 + intensity * 0.6})`;
+                  const intensityPct = Math.round(intensity * 100);
+                  const barWidth = intensityPct === 0 ? 0 : Math.max(4, intensityPct);
                   return (
                     <div
                       key={item.type}
-                      className="rounded-lg border border-gray-200/70 dark:border-gray-800/70 p-4"
-                      style={{ backgroundColor: background }}
+                      className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-lg"
                     >
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.type}</p>
-                      <p className="text-xs text-gray-700 dark:text-gray-300">{item.count} incidents</p>
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.10),transparent_60%)]"
+                      />
+
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{item.type}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{item.count} incidents</p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-foreground/80">
+                          {intensityPct}%
+                        </span>
+                      </div>
+
+                      <div className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -401,7 +420,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>Threat pattern summary</CardTitle>
               <CardDescription>Dominant vector across the last 90 days of risky activity.</CardDescription>
@@ -410,13 +429,13 @@ export default async function MemberProfilePage({ params }: PageProps) {
               {dominantAttack && dominantAttack.count > 0 ? (
                 <>
                   <Badge variant="outline">Dominant attack: {dominantAttack.type}</Badge>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-muted-foreground">
                     {dominantAttack.count} of {reviewedThreatEvents} reviewed threat event
                     {reviewedThreatEvents === 1 ? "" : "s"} matched this pattern.
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   No repeated attack pattern detected in the current 90-day review window.
                 </p>
               )}
@@ -425,7 +444,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
         </div>
 
         <div className="grid grid-cols-1">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>Risk distribution</CardTitle>
               <CardDescription>Share of scans by risk level</CardDescription>
@@ -437,15 +456,15 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div
                       key={item.level}
-                      className="rounded-xl border border-gray-200/70 dark:border-gray-800/70 p-4"
+                      className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
                     >
                       <div
                         className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${riskTierClass[item.level]}`}
                       >
                         {riskTierLabel[item.level]}
                       </div>
-                      <div className="mt-3 text-2xl font-semibold text-gray-900 dark:text-white">{item.count}</div>
-                      <div className="text-xs text-gray-500">{percent}% of scans</div>
+                      <div className="mt-3 text-2xl font-semibold text-zinc-100">{item.count}</div>
+                      <div className="text-xs text-muted-foreground">{percent}% of scans</div>
                     </div>
                   );
                 })}
@@ -456,12 +475,12 @@ export default async function MemberProfilePage({ params }: PageProps) {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent scans</h2>
+            <h2 className="text-xl font-semibold text-zinc-100">Recent scans</h2>
             <Badge variant="outline">{recentScans.length} events</Badge>
           </div>
           {recentScans.length === 0 ? (
-            <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
-              <CardContent className="py-10 text-center text-sm text-gray-600 dark:text-gray-400">
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 No scans recorded for this member yet.
               </CardContent>
             </Card>
@@ -472,7 +491,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                 return (
                   <Card
                     key={scan.id}
-                    className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80"
+                    className="transition-shadow hover:shadow-2xl"
                   >
                     <CardContent className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="space-y-1">
@@ -483,23 +502,23 @@ export default async function MemberProfilePage({ params }: PageProps) {
                             {scan.riskLevel.toUpperCase()}
                           </span>
                           {scan.isPhishing ? (
-                            <span className="text-xs text-red-600 flex items-center gap-1">
+                            <span className="text-xs text-red-400 flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" />
                               Phishing detected
                             </span>
                           ) : (
-                            <span className="text-xs text-emerald-600 flex items-center gap-1">
+                            <span className="text-xs text-emerald-400 flex items-center gap-1">
                               <CheckCircle className="w-3 h-3" />
                               Safe
                             </span>
                           )}
                         </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <div className="text-sm font-medium text-zinc-100">
                           {scan.url ? scan.url : "Text content analysis"}
                         </div>
-                        <div className="text-xs text-gray-500">{new Date(scan.createdAt).toLocaleString("en-GB")}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(scan.createdAt).toLocaleString("en-GB")}</div>
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <div className="text-sm text-muted-foreground">
                         Score {(scan.overallScore * 100).toFixed(0)}%
                       </div>
                     </CardContent>

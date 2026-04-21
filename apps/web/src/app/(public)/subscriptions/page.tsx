@@ -1,9 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import PricingPage from "@/components/pricing-page";
-import { ModeToggle } from "@/components/mode-toggle";
-import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/auth-helpers";
 
 const PAGE_SHELL =
@@ -22,31 +17,15 @@ const ENTRY_POINTS = [
 
 export default async function SubscriptionsLandingPage() {
   const session = await getSession();
+  const isAuthenticated = Boolean(session?.user);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {!session?.user ? (
-        <div className="fixed right-4 top-4 z-50">
-          <ModeToggle />
-        </div>
-      ) : null}
-
       <main className="pb-14">
         <section className="relative overflow-hidden border-b border-border">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(49,46,129,0.12),transparent_32%),radial-gradient(circle_at_top_right,_rgba(79,70,229,0.16),transparent_42%),linear-gradient(180deg,rgba(238,242,255,0.68),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.14),transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),transparent_42%),linear-gradient(180deg,rgba(17,24,39,0.58),transparent_58%)]" />
 
           <div className={`${PAGE_SHELL} relative space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
-            <Button
-              variant="outline"
-              className="border-indigo-200/80 bg-white/72 text-indigo-950 hover:bg-indigo-50 dark:border-indigo-400/20 dark:bg-indigo-950/28 dark:text-indigo-100 dark:hover:bg-indigo-900/45"
-              asChild
-            >
-              <Link href={session?.user ? "/settings" : "/"}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Link>
-            </Button>
-
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.96fr)] lg:items-start">
               <div className="max-w-3xl space-y-6">
                 <p className="inline-flex rounded-full border border-indigo-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-indigo-950 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/20 dark:bg-indigo-950/40 dark:text-indigo-100">
@@ -86,11 +65,7 @@ export default async function SubscriptionsLandingPage() {
         </section>
 
         <section className={`${PAGE_SHELL} py-12`}>
-          <PricingPage
-            mode="landing"
-            subscriptionType="none"
-            isAuthenticated={Boolean(session?.user)}
-          />
+          <PricingPage mode="landing" subscriptionType="none" isAuthenticated={isAuthenticated} />
         </section>
       </main>
     </div>

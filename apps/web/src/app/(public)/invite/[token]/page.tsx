@@ -27,7 +27,7 @@ export default async function InvitePage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto max-w-xl py-16 px-4">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader>
               <CardTitle>{title}</CardTitle>
               <CardDescription>{description}</CardDescription>
@@ -72,7 +72,7 @@ export default async function InvitePage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-xl py-16 px-4">
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <p className="text-sm text-muted-foreground">You have been invited to join</p>
             <CardTitle className="text-3xl">{invite.organization.name}</CardTitle>

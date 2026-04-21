@@ -3,8 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, ArrowRight, CheckCircle2, CircleAlert } from "lucide-react";
 
-import { ModeToggle } from "@/components/mode-toggle";
-import AuthRedirectGuard from "@/components/auth-redirect-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentYear, getSession } from "@/lib/auth/auth-helpers";
@@ -81,11 +79,6 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AuthRedirectGuard redirectTo="/dashboard" />
-      <div className="fixed right-4 top-4 z-50">
-        <ModeToggle />
-      </div>
-
       <main className="pb-14">
         <section className="relative overflow-hidden border-b border-border">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(49,46,129,0.12),transparent_32%),radial-gradient(circle_at_top_right,_rgba(79,70,229,0.16),transparent_42%),linear-gradient(180deg,rgba(238,242,255,0.72),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.14),transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.18),transparent_40%),linear-gradient(180deg,rgba(17,24,39,0.55),transparent_56%)]" />
@@ -131,7 +124,7 @@ export default async function Home() {
                     target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
                     rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
                   >
-                    Add to Chrome
+                    Install extension
                   </a>
                 </Button>
 
@@ -141,7 +134,7 @@ export default async function Home() {
                   className="border-indigo-200/80 bg-white/70 text-indigo-950 hover:bg-indigo-50 hover:text-indigo-950 dark:border-indigo-400/20 dark:bg-indigo-950/30 dark:text-indigo-100 dark:hover:bg-indigo-900/50"
                   asChild
                 >
-                  <Link href="/subscriptions/business">See team plans</Link>
+                  <Link href="/subscriptions">Compare plans</Link>
                 </Button>
 
                 <Button
@@ -151,7 +144,7 @@ export default async function Home() {
                   asChild
                 >
                   <Link href="/login">
-                    Start free scan
+                    Start now
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                   </Link>
                 </Button>
@@ -252,7 +245,7 @@ export default async function Home() {
                     target={CHROME_STORE_URL !== "#" ? "_blank" : undefined}
                     rel={CHROME_STORE_URL !== "#" ? "noreferrer" : undefined}
                   >
-                    Add to Chrome
+                    Install extension
                   </a>
                 </Button>
                 <Button
@@ -260,7 +253,7 @@ export default async function Home() {
                   className="border-indigo-200/80 bg-white/70 text-indigo-950 hover:bg-indigo-50 hover:text-indigo-950 dark:border-indigo-400/20 dark:bg-indigo-950/30 dark:text-indigo-100 dark:hover:bg-indigo-900/50"
                   asChild
                 >
-                  <Link href="/subscriptions/business">See team plans</Link>
+                  <Link href="/subscriptions">Compare plans</Link>
                 </Button>
               </div>
             </CardContent>

@@ -4,7 +4,6 @@ import { ArrowLeft, Building2, ShieldCheck, Users } from "lucide-react";
 import type { Route } from "next";
 
 import PricingPage from "@/components/pricing-page";
-import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { getUserOrganizations } from "@/server/actions/organizations";
 import { getSession } from "@/lib/auth/auth-helpers";
@@ -56,7 +55,6 @@ type BusinessPageChromeProps = {
     href: Route;
     label: string;
   };
-  showModeToggle?: boolean;
   children: ReactNode;
 };
 
@@ -70,17 +68,10 @@ function BusinessPageChrome({
   asideDescription,
   primaryAction,
   secondaryAction,
-  showModeToggle = false,
   children,
 }: BusinessPageChromeProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {showModeToggle ? (
-        <div className="fixed right-4 top-4 z-50">
-          <ModeToggle />
-        </div>
-      ) : null}
-
       <main className="pb-14">
         <section className="relative overflow-hidden border-b border-border">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(49,46,129,0.12),transparent_30%),radial-gradient(circle_at_top_right,_rgba(79,70,229,0.16),transparent_42%),linear-gradient(180deg,rgba(238,242,255,0.68),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.14),transparent_32%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),transparent_42%),linear-gradient(180deg,rgba(17,24,39,0.58),transparent_58%)]" />
@@ -195,7 +186,6 @@ export default async function BusinessSubscriptionsPage() {
           label: "Create organization",
         }}
         secondaryAction={{ href: "/subscriptions", label: "Compare all plans" }}
-        showModeToggle
       >
         <PricingPage
           mode="landing"

@@ -10,6 +10,7 @@ import Link from "next/link";
 import OrganizationMembers from "./organization-members";
 import OrganizationSettings from "./organization-settings";
 import UpgradePlanForm from "@/components/upgrade-plan";
+import { TEAM_PLANS, type TeamPlanId } from "@/lib/billing/subscription-plans";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -30,10 +31,12 @@ export default async function OrganizationPage({ params }: PageProps) {
     (m) => m.userId === user.id
   );
   const isAdmin = isSuperAdmin || currentUserMembership?.role === "admin";
+  const currentPlanId = (organization.subscription?.plan ?? "team_free") as TeamPlanId;
+  const currentPlanName = TEAM_PLANS[currentPlanId]?.name ?? "Team plan";
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-10 px-4 max-w-7xl">
+      <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 lg:px-12">
       <Link href="/organizations">
         <Button variant="ghost" className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -82,7 +85,7 @@ export default async function OrganizationPage({ params }: PageProps) {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-3">
               <CardDescription>Current Plan</CardDescription>
               <CardTitle className="text-2xl">
@@ -92,7 +95,7 @@ export default async function OrganizationPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-3">
               <CardDescription>Team Members</CardDescription>
               <CardTitle className="text-2xl">
@@ -100,7 +103,7 @@ export default async function OrganizationPage({ params }: PageProps) {
               </CardTitle>
             </CardHeader>
           </Card>
-          <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card>
             <CardHeader className="pb-3">
               <CardDescription>Total Scans</CardDescription>
               <CardTitle className="text-2xl">{organization._count.scans}</CardTitle>
@@ -111,7 +114,7 @@ export default async function OrganizationPage({ params }: PageProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="members" className="space-y-6">
-        <TabsList className="bg-white/80 dark:bg-gray-900/80 border border-gray-200/80 dark:border-gray-800/80">
+        <TabsList className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-lg">
           <TabsTrigger value="members">
             <Users className="w-4 h-4 mr-2" />
             Members
@@ -145,7 +148,7 @@ export default async function OrganizationPage({ params }: PageProps) {
             </TabsContent>
 
             <TabsContent value="billing">
-              <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+              <Card>
                 <CardHeader>
                   <CardTitle>Billing & Subscription</CardTitle>
                   <CardDescription>
@@ -154,13 +157,10 @@ export default async function OrganizationPage({ params }: PageProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-gray-200/70 dark:border-gray-800/70 rounded-lg bg-white/60 dark:bg-gray-900/60">
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
                       <div>
                         <p className="font-semibold">
-                          {(organization.subscription?.plan ?? "team_free")
-                            .replace("team_", "")
-                            .toUpperCase()}{" "}
-                          Plan
+                          {currentPlanName}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {organization.subscription?.maxMembers || 3} members, {organization.subscription?.scansPerMonth || 500} scans/month
@@ -168,7 +168,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                       </div>
                       <UpgradePlanForm
                         organizationSlug={organization.slug}
-                        currentPlan={organization.subscription?.plan ?? "team_free"}
+                        currentPlan={currentPlanId}
                       />
                     </div>
                     <p className="text-sm text-muted-foreground">

@@ -73,14 +73,19 @@ export default function Dashboard({
         year: "numeric",
       })
     : null;
-  const statsGridClass = isSuperAdmin
-    ? "grid grid-cols-1 md:grid-cols-3 gap-6"
-    : "grid grid-cols-1 md:grid-cols-4 gap-6";
+  const threatPercent =
+    stats.totalScans > 0
+      ? Math.min(100, Math.round((stats.threatsDetected / stats.totalScans) * 100))
+      : 0;
+  const safePercent =
+    stats.totalScans > 0
+      ? Math.min(100, Math.round((stats.safeScans / stats.totalScans) * 100))
+      : 0;
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl px-4 py-12">
-        <div className="mb-12">
+      <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 lg:px-12">
+        <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
             Welcome back, {session.user.name}!
             {isSuperAdmin && (
@@ -89,6 +94,17 @@ export default function Dashboard({
               </span>
             )}
           </h1>
+          {!isSuperAdmin && subscriptionInfo ? (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Plan: {subscriptionLabel}</Badge>
+              <Badge variant="outline" className="capitalize">
+                {subscriptionStatus.replace("_", " ")}
+              </Badge>
+              {renewalDate ? (
+                <span className="text-xs text-muted-foreground">Renews on {renewalDate}</span>
+              ) : null}
+            </div>
+          ) : null}
           <p className="text-base text-gray-600 dark:text-gray-400">
             {isSuperAdmin
               ? "Monitor platform activity and manage security."
@@ -96,12 +112,12 @@ export default function Dashboard({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-12">
+          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-7">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="rounded-lg bg-zinc-900 p-3 dark:bg-zinc-100">
-                  <Shield className="h-5 w-5 text-zinc-50 dark:text-zinc-900" />
+                <div className="rounded-lg bg-primary/15 p-3">
+                  <Shield className="h-5 w-5 text-primary" />
                 </div>
                 Analyze Content
               </CardTitle>
@@ -114,18 +130,18 @@ export default function Dashboard({
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-5">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="bg-green-600 p-3 rounded-lg">
-                  <Activity className="w-5 h-5 text-white" />
+                <div className="rounded-lg bg-emerald-500/15 p-3">
+                  <Activity className="h-5 w-5 text-emerald-300" />
                 </div>
                 Recent Activity
               </CardTitle>
               <CardDescription>View your scan history</CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/scans">
+              <Link href="/analyze#history">
                 <Button variant="outline" className="w-full">
                   View History
                 </Button>
@@ -134,132 +150,130 @@ export default function Dashboard({
           </Card>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-            {isSuperAdmin ? "Platform Statistics" : "Your Statistics"}
-          </h2>
-        </div>
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {isSuperAdmin ? "Platform statistics" : "Your statistics"}
+        </p>
 
-        <div className={statsGridClass}>
-          <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-12">
+          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-5">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {isSuperAdmin ? "Total Platform Scans" : "Your Scans"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-gray-900 dark:text-white mb-1">{stats.totalScans}</div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">All time</p>
+              <div className="mb-1 text-4xl font-semibold tracking-tight text-foreground">
+                {stats.totalScans}
+              </div>
+              <p className="text-sm text-muted-foreground">All time</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-4">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                  <AlertTriangle className="w-4 h-4 text-red-200/80" />
                   Threats {isSuperAdmin ? "Detected" : "Blocked"}
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-red-600 mb-1">{stats.threatsDetected}</div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Phishing attempts detected</p>
+              <div className="mb-1 text-4xl font-semibold tracking-tight text-foreground">
+                {stats.threatsDetected}
+              </div>
+              <p className="text-sm text-muted-foreground">Phishing attempts detected</p>
+              <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-red-400/70"
+                  style={{ width: `${threatPercent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{threatPercent}% of scans flagged</p>
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-3">
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-emerald-200/80" />
                   Safe {isSuperAdmin ? "Scans" : "Sites"}
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-green-600 mb-1">{stats.safeScans}</div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Verified as legitimate</p>
+              <div className="mb-1 text-4xl font-semibold tracking-tight text-foreground">
+                {stats.safeScans}
+              </div>
+              <p className="text-sm text-muted-foreground">Verified as legitimate</p>
+              <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-emerald-400/70"
+                  style={{ width: `${safePercent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{safePercent}% of scans safe</p>
             </CardContent>
           </Card>
 
-          {!isSuperAdmin && (
-            <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Subscription
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{subscriptionLabel}</div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                  {subscriptionStatus.replace("_", " ")}
-                </p>
-                {renewalDate && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Renews on {renewalDate}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {isSuperAdmin && (
           <>
             <div className="mt-12 mb-8">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-                User Management
-              </h2>
+              <h2 className="text-xl font-semibold mb-4 text-zinc-100">User Management</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
+              <Card className="hover:shadow-2xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
+                      <Users className="w-4 h-4 text-zinc-300" />
                       Total Users
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                  <div className="text-4xl font-bold text-zinc-100 mb-1">
                     {adminStats?.totalUsers || 0}
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Registered accounts</p>
+                  <p className="text-sm text-muted-foreground">Registered accounts</p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
+              <Card className="hover:shadow-2xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
+                      <Activity className="w-4 h-4 text-zinc-300" />
                       Active Today
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">0</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Users active in 24h</p>
+                  <div className="text-4xl font-bold text-zinc-100 mb-1">0</div>
+                  <p className="text-sm text-muted-foreground">Users active in 24h</p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
+              <Card className="hover:shadow-2xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-zinc-700 dark:text-zinc-300" />
+                      <Globe className="w-4 h-4 text-zinc-300" />
                       Detection Rate
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                  <div className="text-4xl font-bold text-zinc-100 mb-1">
                     {adminStats && adminStats.totalScans > 0
                       ? Math.round((adminStats.threatsDetected / adminStats.totalScans) * 100)
                       : 0}%
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Threats caught</p>
+                  <p className="text-sm text-muted-foreground">Threats caught</p>
                 </CardContent>
               </Card>
             </div>
@@ -272,10 +286,10 @@ export default function Dashboard({
           <div className="mt-12">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                <h2 className="text-2xl font-semibold text-zinc-100">
                   Organization Intelligence
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Actionable insights for {orgAdminStats.organizationName || "your team"}
                 </p>
               </div>
@@ -285,76 +299,103 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-red-200 dark:border-red-800">
+              <Card className="hover:shadow-2xl transition-shadow border-red-500/30">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     Threats Blocked This Month
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-red-600 mb-1">{orgAdminStats.threatsThisMonth}</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">High-risk events stopped</p>
+                  <div className="text-4xl font-bold text-red-400 mb-1">{orgAdminStats.threatsThisMonth}</div>
+                  <p className="text-sm text-muted-foreground">High-risk events stopped</p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200 dark:border-gray-800">
+              <Card className="hover:shadow-2xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     Emails Analyzed This Month
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">{orgAdminStats.scansThisMonth}</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Activity across the organization</p>
+                  <div className="text-4xl font-bold text-zinc-100 mb-1">{orgAdminStats.scansThisMonth}</div>
+                  <p className="text-sm text-muted-foreground">Activity across the organization</p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-green-200 dark:border-green-800">
+              <Card className="hover:shadow-2xl transition-shadow border-emerald-500/30">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
                     Most Targeted Employee
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {orgAdminStats.riskyUsers.length > 0 ? (
                     <>
-                      <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                      <div className="text-lg font-semibold text-zinc-100">
                         {orgAdminStats.riskyUsers[0].name}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {orgAdminStats.riskyUsers[0].email}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         {orgAdminStats.riskyUsers[0].riskyCount} high-risk events
                       </p>
                     </>
                   ) : (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">No high-risk activity yet</p>
+                    <p className="text-sm text-muted-foreground">No high-risk activity yet</p>
                   )}
                 </CardContent>
               </Card>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+              <Card>
                 <CardHeader>
                   <CardTitle>Attack Type Heatmap</CardTitle>
                   <CardDescription>Most common attack vectors</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     {orgAdminStats.attackHeatmap.map((item) => {
-                      const maxCount = Math.max(1, ...orgAdminStats.attackHeatmap.map((i) => i.count));
+                      const maxCount = Math.max(
+                        1,
+                        ...orgAdminStats.attackHeatmap.map((i) => i.count)
+                      );
                       const intensity = item.count / maxCount;
-                      const bg = `rgba(239, 68, 68, ${0.15 + 0.55 * intensity})`;
+                      const intensityPct = Math.round(intensity * 100);
+                      const barWidth = intensityPct === 0 ? 0 : Math.max(4, intensityPct);
+
                       return (
                         <div
                           key={item.type}
-                          className="rounded-lg border border-gray-200 dark:border-gray-700 p-4"
-                          style={{ backgroundColor: bg }}
+                          className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-lg"
                         >
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.type}</p>
-                          <p className="text-xs text-gray-700 dark:text-gray-300">{item.count} incidents</p>
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.10),transparent_60%)]"
+                          />
+
+                          <div className="relative flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {item.type}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {item.count} incidents
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-foreground/80">
+                              {intensityPct}%
+                            </span>
+                          </div>
+
+                          <div className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -362,14 +403,14 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+              <Card>
                 <CardHeader>
                   <CardTitle>Risky Users</CardTitle>
                   <CardDescription>Members with the highest recent exposure</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {orgAdminStats.riskyUsers.length === 0 ? (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       No risky users identified yet.
                     </p>
                   ) : (
@@ -377,15 +418,15 @@ export default function Dashboard({
                       {orgAdminStats.riskyUsers.map((user) => (
                         <div
                           key={user.id}
-                          className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3"
+                          className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3"
                         >
                           <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                            <p className="font-semibold text-zinc-100">{user.name}</p>
+                            <p className="text-xs text-muted-foreground">{user.email}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-semibold text-red-600">{user.riskyCount}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">high-risk events</p>
+                            <p className="text-sm font-semibold text-red-400">{user.riskyCount}</p>
+                            <p className="text-xs text-muted-foreground">high-risk events</p>
                           </div>
                         </div>
                       ))}

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { CheckCircle, Shield, Zap, Chrome, Mail } from "lucide-react";
-import { ModeToggle } from "@/components/mode-toggle";
 import AuthRedirectGuard from "@/components/auth-redirect-guard";
 
 export default function LoginPage() {
@@ -34,9 +33,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background">
       <AuthRedirectGuard redirectTo={nextParam?.startsWith("/") ? nextParam : "/dashboard"} />
-      <div className="fixed right-4 top-4 z-50">
-        <ModeToggle />
-      </div>
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
         <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-zinc-950 px-10 py-12 text-zinc-50 dark:bg-zinc-900">
           <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-white/5 blur-3xl" />

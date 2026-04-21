@@ -37,24 +37,24 @@ export default function AdminManagementTabs({ initialScans, initialTab }: AdminM
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-800 md:grid-cols-5">
-        <TabsTrigger value="users" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+      <TabsList className="grid w-full grid-cols-2 rounded-xl border border-white/10 bg-white/[0.03] p-1 backdrop-blur md:grid-cols-5">
+        <TabsTrigger value="users" className="data-[state=active]:bg-white/[0.06] data-[state=active]:text-white">
           <Users className="mr-2 h-4 w-4" />
           Users
         </TabsTrigger>
-        <TabsTrigger value="organizations" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+        <TabsTrigger value="organizations" className="data-[state=active]:bg-white/[0.06] data-[state=active]:text-white">
           <Building2 className="mr-2 h-4 w-4" />
           Organizations
         </TabsTrigger>
-        <TabsTrigger value="subscriptions" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+        <TabsTrigger value="subscriptions" className="data-[state=active]:bg-white/[0.06] data-[state=active]:text-white">
           <CreditCard className="mr-2 h-4 w-4" />
           Subscriptions
         </TabsTrigger>
-        <TabsTrigger value="scans" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+        <TabsTrigger value="scans" className="data-[state=active]:bg-white/[0.06] data-[state=active]:text-white">
           <BarChart3 className="mr-2 h-4 w-4" />
           Scans
         </TabsTrigger>
-        <TabsTrigger value="activity" className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700">
+        <TabsTrigger value="activity" className="data-[state=active]:bg-white/[0.06] data-[state=active]:text-white">
           <Activity className="mr-2 h-4 w-4" />
           Activity
         </TabsTrigger>

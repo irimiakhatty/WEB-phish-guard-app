@@ -59,7 +59,7 @@ export default function NewOrganizationPage() {
     <div className="min-h-screen bg-background">
       <div className="relative isolate overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,rgba(9,9,11,0.08),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(9,9,11,0.05),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(250,250,250,0.09),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(250,250,250,0.06),transparent_28%)]" />
-        <div className="container mx-auto max-w-6xl px-4 py-10 sm:py-14">
+        <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 sm:py-14 lg:px-12">
           <Button asChild variant="ghost" className="mb-8 w-fit px-3">
             <Link href="/organizations">
               <ArrowLeft className="size-4" />

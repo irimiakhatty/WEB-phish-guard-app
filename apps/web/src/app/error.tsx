@@ -19,10 +19,10 @@ export default function Error({
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
-      <Card className="w-full max-w-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-red-200/80 dark:border-red-800/80">
+      <Card className="w-full max-w-2xl border-red-500/30">
         <CardContent className="pt-12 pb-12 text-center">
           <div className="mb-6">
-            <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
             <h2 className="text-2xl font-semibold mb-2">Something went wrong!</h2>
             <p className="text-muted-foreground mb-4">
               An unexpected error occurred. We've logged the issue and will look into it.

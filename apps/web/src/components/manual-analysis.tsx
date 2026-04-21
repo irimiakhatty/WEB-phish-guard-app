@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Send, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, XCircle, Upload, Image as ImageIcon, Loader } from "lucide-react";
 import { toast } from "sonner";
 import type { Route } from "next";
@@ -12,6 +12,7 @@ import { analyzePhishing } from "@/server/actions/analyze";
 import Link from "next/link";
 import { uploadScanImage } from "@/server/actions/upload";
 import { extractTextFromImage } from "@/lib/integrations/ocr";
+import { filterUserFacingThreats } from "@/lib/security/scan-tags";
 
 type AnalysisResult = {
   textScore: number;
@@ -22,6 +23,32 @@ type AnalysisResult = {
   confidence: number;
   detectedThreats: string[];
   analysis: string;
+  scanId?: string;
+  scoringVersion?: string;
+  scoreBreakdown?: {
+    urlMlScore: number;
+    urlHeuristicScore: number;
+    textMlScore: number;
+    textHeuristicScore: number;
+    safeBrowsingScore: number;
+    weightedScore: number;
+  };
+  modelVersions?: {
+    urlModel: string | null;
+    textModel: string | null;
+    safeBrowsingHit: boolean;
+  };
+  policyDecision?: {
+    action: "allow" | "warn" | "block";
+    reason: string;
+    hardBlock: boolean;
+  };
+  retentionPolicy?: {
+    storedText: boolean;
+    storedUrl: boolean;
+    usedUrlHostOnly: boolean;
+    forensicsMode: boolean;
+  };
 };
 
 // Session storage keys
@@ -33,8 +60,13 @@ const SESSION_KEYS = {
   IMAGE_PREVIEW: "phishguard_image_preview",
 };
 
-export default function ManualAnalysis() {
+type ManualAnalysisProps = {
+  embedded?: boolean;
+};
+
+export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps) {
   const [activeTab, setActiveTab] = useState<"url" | "text" | "image">("url");
+  const [lastAnalyzedTab, setLastAnalyzedTab] = useState<"url" | "text" | "image">("url");
   const [url, setUrl] = useState("");
   const [textContent, setTextContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -203,6 +235,7 @@ export default function ManualAnalysis() {
       return;
     }
 
+    setLastAnalyzedTab(activeTab);
     setAnalyzing(true);
     setResult(null);
     setLimitInfo(null);
@@ -270,19 +303,98 @@ export default function ManualAnalysis() {
 
   const upgradeHref: Route = limitInfo?.organizationSlug
     ? (`/org/${limitInfo.organizationSlug}` as Route)
-    : "/subscription";
+    : "/subscriptions";
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-6xl px-4 py-12">
+  const displayThreats = useMemo(
+    () => (result ? filterUserFacingThreats(result.detectedThreats || []) : []),
+    [result],
+  );
+
+  const keyFactors = useMemo(() => {
+    if (!result) return [];
+
+    const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
+    const humanize = (value: string) =>
+      value
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+
+    const policyReasonMap: Record<string, string> = {
+      high_confidence_reputation_hit: "High confidence + reputation hit",
+      high_risk_requires_user_confirmation: "High risk requires confirmation",
+      medium_risk_advisory: "Medium risk advisory",
+      risk_below_enforcement_threshold: "Risk below enforcement threshold",
+    };
+
+    const factors: string[] = [];
+
+    if (result.policyDecision) {
+      const actionLabel =
+        result.policyDecision.action === "allow"
+          ? "Allowed"
+          : result.policyDecision.action === "warn"
+            ? "Warning"
+            : result.policyDecision.hardBlock
+              ? "Blocked (hard)"
+              : "Blocked";
+      const reason =
+        policyReasonMap[result.policyDecision.reason] || humanize(result.policyDecision.reason);
+      factors.push(`Decision: ${actionLabel} — ${reason}`);
+    }
+
+    if (typeof result.modelVersions?.safeBrowsingHit === "boolean") {
+      factors.push(
+        `Google Safe Browsing: ${result.modelVersions.safeBrowsingHit ? "Flagged as unsafe" : "No match found"}`,
+      );
+    }
+
+    if (result.scoreBreakdown) {
+      if (lastAnalyzedTab === "url") {
+        factors.push(
+          `URL checks: ${formatPercent(result.scoreBreakdown.urlHeuristicScore)} heuristics + ${formatPercent(result.scoreBreakdown.urlMlScore)} AI`,
+        );
+      } else {
+        factors.push(
+          `Content checks: ${formatPercent(result.scoreBreakdown.textHeuristicScore)} heuristics + ${formatPercent(result.scoreBreakdown.textMlScore)} AI`,
+        );
+      }
+      factors.push(`Combined signal score: ${formatPercent(result.scoreBreakdown.weightedScore)}`);
+    }
+
+    if (result.retentionPolicy) {
+      const retentionParts: string[] = [];
+      retentionParts.push(result.retentionPolicy.storedText ? "text stored" : "text not stored");
+      if (result.retentionPolicy.storedUrl) {
+        retentionParts.push(
+          result.retentionPolicy.usedUrlHostOnly ? "URL stored (host only)" : "URL stored (full)",
+        );
+      } else {
+        retentionParts.push("URL not stored");
+      }
+      if (result.retentionPolicy.forensicsMode) {
+        retentionParts.push("forensics mode on");
+      }
+      factors.push(`Privacy: ${retentionParts.join(" • ")}`);
+    }
+
+    return factors;
+  }, [lastAnalyzedTab, result]);
+
+  const content = (
+    <>
         {/* Welcome Section */}
-        <div className="mb-12">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
-            Phishing Analysis
-          </h1>
-          <p className="text-base text-gray-600 dark:text-gray-400">
-            Analyze URLs, text content, and images for potential phishing threats
-          </p>
+        <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
+              Phishing Analysis
+            </h1>
+            <p className="text-base text-gray-600 dark:text-gray-400">
+              Analyze URLs, text content, and images for potential phishing threats
+            </p>
+          </div>
+          <Button asChild variant="outline" className="w-fit">
+            <a href="#history">View scan history</a>
+          </Button>
         </div>
 
         {limitInfo && (
@@ -341,7 +453,7 @@ export default function ManualAnalysis() {
         </div>
 
         {/* Input Section */}
-        <Card className="mb-8 hover:shadow-2xl transition-shadow bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card className="mb-8 hover:shadow-2xl transition-shadow">
           <CardHeader>
             <CardTitle className="text-xl">
               {activeTab === "url" && "Enter URL"}
@@ -507,7 +619,7 @@ export default function ManualAnalysis() {
 
       {/* Results Section */}
         {result && (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader>
             <CardTitle>Analysis Results</CardTitle>
           </CardHeader>
@@ -526,7 +638,7 @@ export default function ManualAnalysis() {
             </div>
 
             {/* Scores */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 rounded-lg bg-muted">
                 <p className="text-sm text-muted-foreground mb-1">Overall Score</p>
                 <p className="text-2xl font-bold">{(result.overallScore * 100).toFixed(1)}%</p>
@@ -539,17 +651,36 @@ export default function ManualAnalysis() {
                 <p className="text-sm text-muted-foreground mb-1">URL Score</p>
                 <p className="text-2xl font-bold">{(result.urlScore * 100).toFixed(1)}%</p>
               </div>
+              <div className="p-4 rounded-lg bg-muted">
+                <p className="text-sm text-muted-foreground mb-1">Text Score</p>
+                <p className="text-2xl font-bold">{(result.textScore * 100).toFixed(1)}%</p>
+              </div>
             </div>
 
-            {/* Detected Threats */}
-            {result.detectedThreats.length > 0 && (
+            {/* Key factors */}
+            {keyFactors.length > 0 && (
               <div>
-                <h4 className="font-semibold mb-2">Detected Threats</h4>
+                <h4 className="font-semibold mb-2">Key factors</h4>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {keyFactors.map((factor, idx) => (
+                    <li key={idx} className="flex gap-2">
+                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden="true" />
+                      <span>{factor}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Indicators found */}
+            {displayThreats.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-2">Indicators found</h4>
                 <ul className="space-y-1">
-                  {result.detectedThreats.map((threat, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-sm">
-                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                      {threat}
+                  {displayThreats.map((threat, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm">
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
+                      <span>{threat}</span>
                     </li>
                   ))}
                 </ul>
@@ -564,7 +695,16 @@ export default function ManualAnalysis() {
           </CardContent>
         </Card>
       )}
-      </div>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-[1680px] px-6 py-12 sm:px-8 lg:px-12">{content}</div>
     </div>
   );
 }

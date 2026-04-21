@@ -77,7 +77,7 @@ export async function deleteScan(scanId: string) {
   });
 
   revalidatePath("/dashboard");
-  revalidatePath("/scans");
+  revalidatePath("/analyze");
   return { success: true };
 }
 
@@ -128,7 +128,7 @@ export async function submitScanFeedback(scanId: string, label: FeedbackLabel, n
     },
   });
 
-  revalidatePath("/scans");
+  revalidatePath("/analyze");
   revalidatePath("/dashboard");
 
   return {

@@ -20,7 +20,7 @@ type Props = {
 
 const teamPlanOptions = Object.values(TEAM_PLANS).map((plan) => ({
   id: plan.id,
-  label: `${plan.name} â€” ${plan.features.scansPerMonth} scans/mo, ${plan.features.scansPerHourPerUser} scans/hr/user`,
+  label: `${plan.name} — ${plan.features.scansPerMonth} scans/month • ${plan.features.scansPerHourPerUser} scans/hour/user`,
 }));
 
 export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props) {
@@ -36,14 +36,18 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
     return "Change plan";
   }, [currentPlan, selectedPlan]);
 
-  const handleUpgrade = () => {
+  const startCheckout = (planId: TeamPlanId) => {
+    if (planId === (currentPlan as TeamPlanId)) {
+      return;
+    }
+
     startTransition(async () => {
       try {
         const res = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            planId: selectedPlan,
+            planId,
             organizationSlug,
           }),
         });
@@ -73,13 +77,17 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
       <Select
         value={selectedPlan}
-        onValueChange={(value) => setSelectedPlan(value as TeamPlanId)}
+        onValueChange={(value) => {
+          const nextPlan = value as TeamPlanId;
+          setSelectedPlan(nextPlan);
+          startCheckout(nextPlan);
+        }}
         disabled={pending}
       >
-        <SelectTrigger className="w-full sm:w-[420px] bg-white text-gray-900 border-gray-300 dark:bg-zinc-950 dark:text-zinc-100 dark:border-zinc-700">
-          <SelectValue placeholder="Choose a team plan" />
+        <SelectTrigger className="w-full sm:w-[420px] border-white/10 bg-white/[0.03] text-zinc-100 backdrop-blur">
+          <SelectValue placeholder="Choose a team plan (opens Stripe)" />
         </SelectTrigger>
-        <SelectContent className="bg-white text-gray-900 border-gray-200 dark:bg-zinc-950 dark:text-zinc-100 dark:border-zinc-800">
+        <SelectContent className="border-white/10 bg-zinc-950 text-zinc-100">
           {teamPlanOptions.map((plan) => (
             <SelectItem key={plan.id} value={plan.id}>
               {plan.label}
@@ -89,10 +97,10 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
       </Select>
 
       <div className="flex items-center gap-2">
-        <Button onClick={handleUpgrade} disabled={pending || selectedPlan === currentPlan}>
-          {pending ? "Saving..." : label}
+        <Button disabled className="hidden sm:inline-flex" aria-hidden>
+          {pending ? "Redirecting..." : label}
         </Button>
-        <Link href="/subscription">
+        <Link href="/subscriptions">
           <Button type="button" variant="outline">
             Open billing page
           </Button>

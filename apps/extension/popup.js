@@ -44,9 +44,6 @@ const saveTokenBtn = document.getElementById("saveTokenBtn");
 const accountPanel = document.getElementById("accountPanel");
 const accountSummary = document.getElementById("accountSummary");
 const usageSummary = document.getElementById("usageSummary");
-const recentScansPanel = document.getElementById("recentScansPanel");
-const recentScansHint = document.getElementById("recentScansHint");
-const recentScansList = document.getElementById("recentScansList");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -140,7 +137,6 @@ async function readExtensionState() {
     authToken: null,
     apiToken: null,
     extensionAccount: null,
-    recentScans: [],
   });
 
   return {
@@ -171,43 +167,6 @@ function normalizeRiskLevel(level) {
   return "safe";
 }
 
-function formatRelativeTime(isoString) {
-  if (!isoString) {
-    return "just now";
-  }
-
-  const timestamp = new Date(isoString).getTime();
-  if (!Number.isFinite(timestamp)) {
-    return "recently";
-  }
-
-  const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
-}
-
-function getHostname(url) {
-  if (!url) {
-    return "Text scan";
-  }
-
-  try {
-    return new URL(url).hostname || url;
-  } catch (_error) {
-    return url;
-  }
-}
-
-function getBadgeClass(level) {
-  return `badge-${normalizeRiskLevel(level)}`;
-}
-
 function showLoginUI() {
   loginSection.classList.remove("hidden");
   scanSection.classList.add("hidden");
@@ -215,7 +174,6 @@ function showLoginUI() {
   if (logoutBtn) logoutBtn.classList.add("hidden");
   if (dashboardBtn) dashboardBtn.classList.add("hidden");
   if (accountPanel) accountPanel.classList.add("hidden");
-  if (recentScansPanel) recentScansPanel.classList.add("hidden");
 }
 
 function renderAccountContext(data) {
@@ -253,41 +211,6 @@ function renderAccountContext(data) {
   }
 
   accountPanel.classList.remove("hidden");
-}
-
-function renderRecentScans(scans) {
-  if (!recentScansPanel || !recentScansList || !recentScansHint) {
-    return;
-  }
-
-  if (!Array.isArray(scans) || scans.length === 0) {
-    recentScansPanel.classList.add("hidden");
-    recentScansList.innerHTML = "";
-    recentScansHint.textContent = "";
-    return;
-  }
-
-  recentScansHint.textContent = `${scans.length} synced`;
-  recentScansList.innerHTML = scans
-    .slice(0, 3)
-    .map((scan) => {
-      const riskLevel = normalizeRiskLevel(scan.riskLevel);
-      const riskPercent = typeof scan.overallScore === "number" ? Math.round(scan.overallScore * 100) : 0;
-      return `
-        <div class="recent-scan">
-          <div class="recent-scan__top">
-            <span class="recent-scan__host">${escapeHtml(getHostname(scan.url))}</span>
-            <span class="recent-scan__badge ${getBadgeClass(riskLevel)}">${escapeHtml(riskLevel)}</span>
-          </div>
-          <div class="recent-scan__meta">Risk ${riskPercent}% - ${escapeHtml(
-            formatRelativeTime(scan.createdAt)
-          )}</div>
-        </div>
-      `;
-    })
-    .join("");
-
-  recentScansPanel.classList.remove("hidden");
 }
 
 function renderProtectionState(data) {
@@ -378,7 +301,6 @@ function showScanUI(data) {
 
   renderProtectionState(data);
   renderAccountContext(data);
-  renderRecentScans(data.recentScans || data.extensionAccount?.recentScans || []);
 }
 
 async function checkAuth() {

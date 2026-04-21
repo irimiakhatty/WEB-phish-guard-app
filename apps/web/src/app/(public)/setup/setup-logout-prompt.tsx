@@ -25,12 +25,12 @@ export default function SetupLogoutPrompt() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-      <Card className="w-full max-w-md border-gray-200/70 dark:border-gray-800/70 shadow-xl bg-white/90 dark:bg-gray-900/80 backdrop-blur">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-3">
-            <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded-lg">
-              <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-2">
+              <AlertTriangle className="w-6 h-6 text-yellow-400" />
             </div>
             <div>
               <CardTitle>Already Logged In</CardTitle>
@@ -41,7 +41,7 @@ export default function SetupLogoutPrompt() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             You are currently logged in. To create a new admin account, please logout first.
           </p>
 

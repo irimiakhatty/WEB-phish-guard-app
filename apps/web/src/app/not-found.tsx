@@ -8,10 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-16">
-      <Card className="w-full max-w-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+      <Card className="w-full max-w-2xl">
         <CardContent className="pt-12 pb-12 text-center">
           <div className="mb-6">
-            <h1 className="mb-4 text-8xl font-bold text-zinc-900 dark:text-zinc-100">404</h1>
+            <h1 className="mb-4 text-8xl font-bold text-zinc-100">404</h1>
             <h2 className="text-2xl font-semibold mb-2">Page Not Found</h2>
             <p className="text-muted-foreground">
               The page you're looking for doesn't exist or has been moved.

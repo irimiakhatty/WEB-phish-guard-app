@@ -4,10 +4,7 @@ import { auth } from "@phish-guard-app/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AvatarUpload from "@/components/avatar-upload";
 import { getUserOrganizations } from "@/server/actions/organizations";
-import {
-  getBillingRouteForScope,
-  getUserBillingSummaries,
-} from "@/lib/billing/billing-helpers";
+import { getUserBillingSummaries } from "@/lib/billing/billing-helpers";
 import { getPlanById } from "@/lib/billing/subscription-plans";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -37,9 +34,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const activeBilling = billing.business ?? billing.personal;
   const currentPlan = getPlanById(activeBilling.planId);
   const canChangePlan = isSuperAdmin || billingScope === "personal" || Boolean(billing.business);
-  const changePlanHref = (isSuperAdmin
-    ? "/subscriptions/business"
-    : getBillingRouteForScope(billingScope)) as Route;
+  const changePlanHref = "/subscriptions" as Route;
   const billingError =
     typeof searchParams?.billingError === "string"
       ? searchParams.billingError
@@ -58,14 +53,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-950 dark:to-black">
-      <div className="container mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 lg:px-12">
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage your account settings and preferences</p>
         </div>
 
         <div className="space-y-6">
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card>
             <CardHeader>
               <CardTitle>Subscription & Billing</CardTitle>
               <CardDescription>
@@ -121,7 +116,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
               <CardDescription>Update your profile picture and personal details</CardDescription>
@@ -146,7 +141,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-gray-800/80 dark:bg-gray-900/80">
+          <Card>
             <CardHeader>
               <CardTitle>Security</CardTitle>
               <CardDescription>Manage your account security settings</CardDescription>

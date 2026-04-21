@@ -59,7 +59,7 @@ export default async function SubscriptionSuccessPage({ searchParams }: PageProp
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-2xl px-4 py-16">
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/40">
               {status === "error" ? (

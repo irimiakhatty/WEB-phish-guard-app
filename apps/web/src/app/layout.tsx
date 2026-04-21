@@ -34,10 +34,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} relative min-h-svh overflow-x-hidden bg-background text-foreground antialiased`}
       >
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[-2] bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.12),transparent_60%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.08),transparent_58%),linear-gradient(180deg,rgba(0,0,0,0.86),rgba(0,0,0,1))]"
+        />
         <Providers>
           <div className="flex min-h-svh flex-col md:flex-row">
             <Header />

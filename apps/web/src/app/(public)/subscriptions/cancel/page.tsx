@@ -22,7 +22,7 @@ export default function SubscriptionCancelPage({ searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-2xl px-4 py-16">
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40">
               <AlertTriangle className="h-7 w-7 text-yellow-600" />

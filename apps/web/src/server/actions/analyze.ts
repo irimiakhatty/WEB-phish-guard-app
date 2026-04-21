@@ -262,7 +262,7 @@ function analyzeUrlHeuristic(url: string): { score: number; threats: string[] } 
         if (!isOfficialDomain) {
           threats.push(`CRITICAL: Impersonates ${brandName.toUpperCase()} but is NOT an official domain`);
           suspiciousCount += 7; // Very high penalty for brand impersonation (increased from 5)
-          console.log(`âš ï¸ DETECTED IMPERSONATION: ${brandName} in ${normalizedHostname}`);
+          console.log(`⚠️ DETECTED IMPERSONATION: ${brandName} in ${normalizedHostname}`);
         }
       }
     }
@@ -680,7 +680,7 @@ export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeConte
       // Extract text
       const ocrText = await extractTextFromImage(file);
       extractedText = ocrText;
-      console.log(`âœ… OCR extracted ${ocrText.length} characters`);
+      console.log(`✅ OCR extracted ${ocrText.length} characters`);
       
       if (ocrText.length < 10) {
         allThreats.push("Image contains very little text - may be suspicious");

@@ -23,7 +23,7 @@ export default async function OrganizationsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-10 px-4 max-w-7xl">
+      <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 lg:px-12">
       <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Platform Overview</h1>
@@ -41,7 +41,7 @@ export default async function OrganizationsPage() {
 
       {/* Statistics Overview for Super Admin */}
       <div className="grid gap-6 md:grid-cols-3 mb-8">
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Organizations</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -50,7 +50,7 @@ export default async function OrganizationsPage() {
             <div className="text-2xl font-bold">{organizations.length}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -59,7 +59,7 @@ export default async function OrganizationsPage() {
             <div className="text-2xl font-bold">{totalMembers}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Scans</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -71,7 +71,7 @@ export default async function OrganizationsPage() {
       </div>
 
       {organizations.length === 0 ? (
-        <Card className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+        <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No organizations yet</h3>
@@ -87,7 +87,7 @@ export default async function OrganizationsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {organizations.map((org) => (
             <Link key={org.id} href={`/org/${org.slug}`}>
-              <Card className="hover:shadow-2xl transition-shadow cursor-pointer h-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-800/80">
+              <Card className="cursor-pointer h-full transition-shadow hover:shadow-2xl">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>

@@ -5,6 +5,7 @@ import { Trash2, AlertTriangle, CheckCircle, Clock, Loader2 } from "lucide-react
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { filterUserFacingThreats } from "@/lib/security/scan-tags";
 import { adminDeleteScan } from "@/server/actions/scans";
 
 type ScanWithUser = {
@@ -115,7 +116,9 @@ export default function AdminScansPanel({ initialScans }: { initialScans: ScanWi
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Threats</p>
-                    <p className="text-lg font-semibold">{scan.detectedThreats.length}</p>
+                    <p className="text-lg font-semibold">
+                      {filterUserFacingThreats(scan.detectedThreats || []).length}
+                    </p>
                   </div>
                 </div>
               </div>
