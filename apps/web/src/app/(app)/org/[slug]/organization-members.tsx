@@ -6,10 +6,10 @@ import {
   removeMember,
   updateMemberRole,
   cancelInvite,
-  bulkInviteMembers,
   resendInvite,
   copyInviteLink,
   createOrganizationDepartment,
+  deleteOrganizationDepartment,
   assignMemberDepartment,
 } from "@/server/actions/organizations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,11 +111,10 @@ export default function OrganizationMembers({
   const [departmentLoading, setDepartmentLoading] = useState(false);
   const [departmentError, setDepartmentError] = useState("");
   const [departmentSuccess, setDepartmentSuccess] = useState("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
+  const [departmentToDelete, setDepartmentToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [departmentDeleting, setDepartmentDeleting] = useState(false);
   const [memberDepartmentLoadingId, setMemberDepartmentLoadingId] = useState<string | null>(null);
-  const [bulkInvites, setBulkInvites] = useState<Array<{ email: string; name?: string; department?: string; role?: "admin" | "member" }>>([]);
-  const [bulkSummary, setBulkSummary] = useState<{ invited: number; added: number; skipped: number; total: number } | null>(null);
-  const [bulkError, setBulkError] = useState("");
-  const [bulkLoading, setBulkLoading] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<Member | null>(null);
   const [inviteActionId, setInviteActionId] = useState<string | null>(null);
@@ -136,101 +135,36 @@ export default function OrganizationMembers({
     departmentMemberCounts.set(key, (departmentMemberCounts.get(key) || 0) + 1);
   });
 
-  const unassignedMembersCount = departmentMemberCounts.get("unassigned") || 0;
+  const unassignedDepartment =
+    organization.organizationDepartments.find(
+      (department) => department.nameNormalized === "unassigned"
+    ) || null;
+  const legacyUnassignedMembersCount = departmentMemberCounts.get("unassigned") || 0;
+  const unassignedDepartmentMembersCount = unassignedDepartment
+    ? departmentMemberCounts.get(unassignedDepartment.id) || 0
+    : 0;
+  const unassignedMembersCount = legacyUnassignedMembersCount + unassignedDepartmentMembersCount;
 
-  const parseCsvLine = (line: string) => {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"' && line[i + 1] === '"') {
-        current += '"';
-        i++;
-        continue;
-      }
-      if (char === '"') {
-        inQuotes = !inQuotes;
-        continue;
-      }
-      if (char === "," && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-        continue;
-      }
-      current += char;
-    }
-    result.push(current.trim());
-    return result;
-  };
+  const visibleDepartments = organization.organizationDepartments.filter(
+    (department) => department.nameNormalized !== "unassigned"
+  );
 
-  const parseCsv = (text: string) => {
-    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    if (lines.length === 0) return [];
+  const selectedDepartmentName =
+    selectedDepartmentId === "unassigned"
+      ? "Unassigned"
+      : selectedDepartmentId
+      ? visibleDepartments.find((department) => department.id === selectedDepartmentId)?.name ||
+        "Department"
+      : null;
 
-    const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
-    const hasHeader = header.some((h) => ["email", "name", "department", "role"].includes(h));
-
-    const rows = hasHeader ? lines.slice(1) : lines;
-    const result: Array<{ email: string; name?: string; department?: string; role?: "admin" | "member" }> = [];
-
-    rows.forEach((line) => {
-      const cols = parseCsvLine(line);
-      const getValue = (key: string, index: number) => {
-        if (hasHeader) {
-          const idx = header.indexOf(key);
-          return idx >= 0 ? cols[idx] : "";
-        }
-        return cols[index] || "";
-      };
-
-      const email = getValue("email", 0);
-      const name = getValue("name", 1);
-      const department = getValue("department", 2);
-      const roleRaw = getValue("role", 3);
-      const role = roleRaw === "admin" ? "admin" : roleRaw === "member" ? "member" : undefined;
-
-      if (!email) return;
-      result.push({ email, name, department, role });
-    });
-
-    return result;
-  };
-
-  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    setBulkError("");
-    setBulkSummary(null);
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const text = await file.text();
-    const parsed = parseCsv(text);
-    if (parsed.length === 0) {
-      setBulkError("No valid rows found in CSV.");
-      setBulkInvites([]);
-      return;
-    }
-    setBulkInvites(parsed);
-  };
-
-  const handleBulkInvite = async () => {
-    if (!bulkInvites.length) return;
-    setBulkLoading(true);
-    setBulkError("");
-    setBulkSummary(null);
-
-    const result = await bulkInviteMembers(organization.id, bulkInvites);
-    setBulkLoading(false);
-
-    if (!result.success) {
-      setBulkError(result.error || "Failed to send bulk invites");
-      return;
-    }
-
-    setBulkSummary(result.summary || null);
-    setBulkInvites([]);
-    router.refresh();
-  };
+  const filteredMembers = selectedDepartmentId
+    ? selectedDepartmentId === "unassigned"
+      ? organization.members.filter((member) => {
+          if (!member.department?.id) return true;
+          return unassignedDepartment ? member.department.id === unassignedDepartment.id : false;
+        })
+      : organization.members.filter((member) => member.department?.id === selectedDepartmentId)
+    : organization.members;
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,6 +230,30 @@ export default function OrganizationMembers({
     setDepartmentSuccess(
       "reused" in result && result.reused ? "Department already existed." : "Department created."
     );
+    router.refresh();
+  };
+
+  const handleDeleteDepartment = async () => {
+    if (!departmentToDelete) return;
+
+    setDepartmentDeleting(true);
+    const target = departmentToDelete;
+    const result = await deleteOrganizationDepartment({
+      organizationId: organization.id,
+      departmentId: target.id,
+    });
+    setDepartmentDeleting(false);
+
+    if (!result.success) {
+      toast.error(result.error || "Failed to delete department");
+      return;
+    }
+
+    toast.success(`Deleted "${target.name}". Members moved to Unassigned.`);
+    setDepartmentToDelete(null);
+    if (selectedDepartmentId === target.id) {
+      setSelectedDepartmentId(null);
+    }
     router.refresh();
   };
 
@@ -439,21 +397,55 @@ export default function OrganizationMembers({
             </form>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {organization.organizationDepartments.map((department) => (
-                <div
-                  key={department.id}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
-                >
-                  <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{department.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Members: {departmentMemberCounts.get(department.id) || 0}
-                  </p>
-                </div>
-              ))}
-              <div className="rounded-xl border border-dashed border-white/15 bg-white/[0.02] p-3">
+              {visibleDepartments.map((department) => {
+                const isSelected = selectedDepartmentId === department.id;
+                return (
+                  <button
+                    key={department.id}
+                    type="button"
+                    onClick={() => setSelectedDepartmentId(department.id)}
+                    className={`rounded-xl bg-muted/30 p-3 text-left transition-colors hover:bg-muted/40 ${
+                      isSelected ? "ring-2 ring-primary/40" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                          {department.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Members: {departmentMemberCounts.get(department.id) || 0}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDepartmentToDelete({ id: department.id, name: department.name });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setSelectedDepartmentId("unassigned")}
+                className={`rounded-xl bg-muted/20 p-3 text-left transition-colors hover:bg-muted/30 ${
+                  selectedDepartmentId === "unassigned" ? "ring-2 ring-primary/40" : ""
+                }`}
+              >
                 <p className="font-medium text-sm text-gray-900 dark:text-gray-100">Unassigned</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Members: {unassignedMembersCount}</p>
-              </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Members: {unassignedMembersCount}
+                </p>
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -534,80 +526,39 @@ export default function OrganizationMembers({
       </Card>
       )}
 
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <UserPlus className="w-5 h-5 mr-2" />
-              Bulk Invite via CSV
-            </CardTitle>
-            <CardDescription>
-              Upload a CSV with columns: email, name, department, role (only email is required).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {bulkError && (
-              <Alert variant="destructive">
-                <AlertDescription>{bulkError}</AlertDescription>
-              </Alert>
-            )}
-            {bulkSummary && (
-              <Alert>
-                <AlertDescription>
-                  Sent {bulkSummary.invited} invites, added {bulkSummary.added} existing users,
-                  skipped {bulkSummary.skipped}. Total processed: {bulkSummary.total}.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="csv-upload">CSV File</Label>
-              <Input
-                id="csv-upload"
-                type="file"
-                accept=".csv"
-                onChange={handleCsvUpload}
-                disabled={bulkLoading}
-              />
-              {bulkInvites.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {bulkInvites.length} rows ready to invite.
-                </p>
-              )}
-            </div>
-
-            <Button onClick={handleBulkInvite} disabled={bulkLoading || bulkInvites.length === 0}>
-              {bulkLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="w-4 h-4 mr-2" />
-                  Send Bulk Invites
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Current Members */}
       <Card>
-        <CardHeader>
-          <CardTitle>Team Members</CardTitle>
-          <CardDescription>{organization.members.length} active members</CardDescription>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <CardTitle>Team Members</CardTitle>
+            <CardDescription>
+              {filteredMembers.length} member{filteredMembers.length === 1 ? "" : "s"}
+              {selectedDepartmentName ? ` in ${selectedDepartmentName}` : " active"}
+            </CardDescription>
+          </div>
+          {selectedDepartmentId ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedDepartmentId(null)}
+            >
+              Show all
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {organization.members.map((member) => {
+            {filteredMembers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No members match this department yet.</p>
+            ) : null}
+            {filteredMembers.map((member) => {
               const isCurrentUser = member.userId === currentUserId;
 
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                  className="flex items-center justify-between rounded-xl bg-muted/30 p-4"
                 >
                   <div className="flex items-center space-x-4">
                     <Avatar>
@@ -646,7 +597,14 @@ export default function OrganizationMembers({
                     {isAdmin ? (
                       <div className="w-[180px]">
                         <Select
-                          value={member.department?.id || "unassigned"}
+                          value={
+                            !member.department?.id
+                              ? "unassigned"
+                              : unassignedDepartment &&
+                                member.department.id === unassignedDepartment.id
+                              ? "unassigned"
+                              : member.department.id
+                          }
                           onValueChange={(value) => handleAssignDepartment(member.id, value)}
                           disabled={memberDepartmentLoadingId === member.id}
                         >
@@ -655,7 +613,7 @@ export default function OrganizationMembers({
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {organization.organizationDepartments.map((department) => (
+                            {visibleDepartments.map((department) => (
                               <SelectItem key={department.id} value={department.id}>
                                 {department.name}
                               </SelectItem>
@@ -736,7 +694,7 @@ export default function OrganizationMembers({
                 return (
                   <div
                     key={invite.id}
-                    className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                    className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center space-x-4">
@@ -810,6 +768,38 @@ export default function OrganizationMembers({
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Department Dialog */}
+      <AlertDialog
+        open={!!departmentToDelete}
+        onOpenChange={() => setDepartmentToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete department?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete {departmentToDelete?.name}? Members assigned to this department will be moved to Unassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={departmentDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDepartment}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={departmentDeleting}
+            >
+              {departmentDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete department"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Remove Confirmation Dialog */}
       <AlertDialog

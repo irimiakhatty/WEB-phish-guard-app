@@ -87,7 +87,7 @@ export default async function OrganizationsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {organizations.map((org) => (
             <Link key={org.id} href={`/org/${org.slug}`}>
-              <Card className="cursor-pointer h-full transition-shadow hover:shadow-2xl">
+              <Card className="h-full cursor-pointer transition-colors hover:bg-muted/30">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>

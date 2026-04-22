@@ -33,7 +33,7 @@ export default function PricingCard({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-[28px] border p-7 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl",
+        "relative flex h-full flex-col overflow-hidden rounded-[28px] border p-7 shadow-sm",
         highlighted
           ? "border-indigo-300/80 bg-gradient-to-b from-white via-indigo-50/75 to-sky-50/65 shadow-indigo-950/10 dark:border-indigo-400/25 dark:from-zinc-950 dark:via-indigo-950/28 dark:to-sky-950/20"
           : "border-border/80 bg-card/95 shadow-zinc-950/5 dark:bg-zinc-950/82"

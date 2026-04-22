@@ -453,7 +453,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
         </div>
 
         {/* Input Section */}
-        <Card className="mb-8 hover:shadow-2xl transition-shadow">
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-xl">
               {activeTab === "url" && "Enter URL"}

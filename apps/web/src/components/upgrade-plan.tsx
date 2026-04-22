@@ -84,10 +84,10 @@ export default function UpgradePlanForm({ organizationSlug, currentPlan }: Props
         }}
         disabled={pending}
       >
-        <SelectTrigger className="w-full sm:w-[420px] border-white/10 bg-white/[0.03] text-zinc-100 backdrop-blur">
+        <SelectTrigger className="w-full sm:w-[420px]">
           <SelectValue placeholder="Choose a team plan (opens Stripe)" />
         </SelectTrigger>
-        <SelectContent className="border-white/10 bg-zinc-950 text-zinc-100">
+        <SelectContent>
           {teamPlanOptions.map((plan) => (
             <SelectItem key={plan.id} value={plan.id}>
               {plan.label}

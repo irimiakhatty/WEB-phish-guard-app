@@ -85,46 +85,39 @@ export default function NewOrganizationPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
-                  <Users className="mb-3 size-5 text-foreground" />
-                  <p className="text-sm font-semibold text-foreground">Invite your team</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Add up to 3 members during the trial and get everyone into one workspace.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
-                  <ShieldCheck className="mb-3 size-5 text-foreground" />
-                  <p className="text-sm font-semibold text-foreground">Shared protection</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Centralize live inbox checks, shared scans, and your team dashboard.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur">
-                  <Sparkles className="mb-3 size-5 text-foreground" />
-                  <p className="text-sm font-semibold text-foreground">Upgrade anytime</p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Start lean now and expand as the team grows or needs more automation.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border/70 bg-card/85 p-6 shadow-lg shadow-black/5 backdrop-blur">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Workspace URL Preview
-                </p>
-                <p className="mt-3 text-lg font-semibold tracking-tight text-foreground sm:text-2xl">
-                  phishguard.com/org/{formData.slug || "your-team"}
-                </p>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-                  Keep the slug short, memorable, and close to your organization name. It becomes the
-                  address your teammates will recognize first.
-                </p>
-              </div>
+              <ul className="space-y-4 text-sm text-muted-foreground">
+                <li className="flex gap-3">
+                  <Users className="mt-0.5 size-4 text-foreground" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">Invite your team</p>
+                    <p className="leading-6">
+                      Add up to 3 members during the trial and keep everyone in one workspace.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <ShieldCheck className="mt-0.5 size-4 text-foreground" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">Shared protection</p>
+                    <p className="leading-6">
+                      Centralize live inbox checks, shared scans, and your team dashboard.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <Sparkles className="mt-0.5 size-4 text-foreground" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">Upgrade anytime</p>
+                    <p className="leading-6">
+                      Start lean now and expand as the team grows or needs more automation.
+                    </p>
+                  </div>
+                </li>
+              </ul>
             </section>
 
-            <Card className="border-border/70 bg-card/90 shadow-2xl shadow-black/8 backdrop-blur">
-              <CardHeader className="space-y-6 border-b border-border/70 pb-6">
+            <Card>
+              <CardHeader className="space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                     <Building2 className="size-5" />
@@ -191,12 +184,12 @@ export default function NewOrganizationPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/70 bg-muted/35 p-5">
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="size-4.5 text-foreground" />
                       <h4 className="text-sm font-semibold text-foreground">What's included on day one</h4>
                     </div>
-                    <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                    <ul className="space-y-3 text-sm text-muted-foreground">
                       <li className="flex items-start gap-3">
                         <CheckCircle2 className="mt-0.5 size-4 text-foreground" />
                         <span>30-day team trial for up to 3 members</span>

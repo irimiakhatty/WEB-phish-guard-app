@@ -87,12 +87,13 @@ export default async function OrganizationPage({ params }: PageProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardDescription>Current Plan</CardDescription>
-              <CardTitle className="text-2xl">
-                {(organization.subscription?.plan ?? "team_free")
-                  .replace("team_", "")
-                  .toUpperCase()}
-              </CardTitle>
+              <CardDescription>Current plan</CardDescription>
+              <CardTitle className="text-2xl">{currentPlanName}</CardTitle>
+              {organization.subscription?.status ? (
+                <p className="mt-1 text-xs capitalize text-muted-foreground">
+                  {organization.subscription.status.replace("_", " ")}
+                </p>
+              ) : null}
             </CardHeader>
           </Card>
           <Card>
@@ -114,7 +115,7 @@ export default async function OrganizationPage({ params }: PageProps) {
 
       {/* Tabs */}
       <Tabs defaultValue="members" className="space-y-6">
-        <TabsList className="rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-lg">
+        <TabsList className="rounded-xl bg-muted/40">
           <TabsTrigger value="members">
             <Users className="w-4 h-4 mr-2" />
             Members
@@ -157,7 +158,7 @@ export default async function OrganizationPage({ params }: PageProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 p-4">
                       <div>
                         <p className="font-semibold">
                           {currentPlanName}

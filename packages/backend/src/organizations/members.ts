@@ -350,3 +350,113 @@ export async function assignMemberDepartment(
     ],
   };
 }
+
+export async function deleteOrganizationDepartment(
+  actor: OrganizationActor,
+  input: {
+    organizationId: string;
+    departmentId: string;
+  }
+) {
+  const actorIsSuperAdmin = isSuperAdmin(actor);
+
+  const adminMembership = actorIsSuperAdmin
+    ? null
+    : await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: input.organizationId,
+          userId: actor.id,
+          role: "admin",
+        },
+      });
+
+  if (!actorIsSuperAdmin && !adminMembership) {
+    return {
+      success: false,
+      error: "You don't have permission to manage departments",
+    };
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: input.organizationId },
+    select: { id: true, slug: true },
+  });
+
+  if (!organization) {
+    return {
+      success: false,
+      error: "Organization not found",
+    };
+  }
+
+  const department = await prisma.organizationDepartment.findFirst({
+    where: {
+      id: input.departmentId,
+      organizationId: input.organizationId,
+    },
+    select: {
+      id: true,
+      name: true,
+      nameNormalized: true,
+    },
+  });
+
+  if (!department) {
+    return {
+      success: false,
+      error: "Department not found",
+    };
+  }
+
+  if (department.nameNormalized === "unassigned") {
+    return {
+      success: false,
+      error: "Cannot delete the Unassigned department",
+    };
+  }
+
+  const unassignedDepartmentId = await ensureUnassignedDepartment(input.organizationId);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.organizationMember.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          departmentId: department.id,
+        },
+        data: {
+          departmentId: unassignedDepartmentId,
+        },
+      });
+
+      await tx.scan.updateMany({
+        where: {
+          organizationId: input.organizationId,
+          departmentId: department.id,
+        },
+        data: {
+          departmentId: unassignedDepartmentId,
+        },
+      });
+
+      await tx.organizationDepartment.delete({
+        where: {
+          id: department.id,
+        },
+      });
+    });
+
+    return {
+      success: true,
+      departmentId: department.id,
+      name: department.name,
+      revalidatePaths: [`/org/${organization.slug}`, `/org/${organization.slug}/members`],
+    };
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    return {
+      success: false,
+      error: "Failed to delete department",
+    };
+  }
+}

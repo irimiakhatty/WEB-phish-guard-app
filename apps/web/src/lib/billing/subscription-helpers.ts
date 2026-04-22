@@ -18,6 +18,15 @@ export interface UserSubscriptionInfo {
   status?: string;
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
+  personalPlanId?: PlanId;
+  personalPlanName?: string;
+  personalPlanStatus?: string | null;
+  preferredOrganizationPlanId?: PlanId;
+  preferredOrganizationPlanName?: string;
+  preferredOrganizationPlanStatus?: string | null;
+  adminOrganizationPlanId?: PlanId;
+  adminOrganizationPlanName?: string;
+  adminOrganizationPlanStatus?: string | null;
   expiredPaidSubscription?: {
     subscriptionType: "personal" | "team";
     planId: PlanId;
@@ -54,6 +63,14 @@ function getScansPerHourLimit(planId: PlanId): number {
   };
 
   return features.scansPerHourPerUser ?? features.scansPerHour ?? 25;
+}
+
+function coercePlanId(planId: string | null | undefined, fallback: PlanId): PlanId {
+  if (planId && isValidPlan(planId)) {
+    return planId;
+  }
+
+  return fallback;
 }
 
 const PAID_SUBSCRIPTION_ACTIVE_STATUSES = new Set(["active", "trialing"]);
@@ -294,6 +311,18 @@ export async function getUserSubscriptionInfo(
   const adminOrganization = adminOrganizationMembership
     ? toOrganizationContext(adminOrganizationMembership)
     : null;
+  const preferredOrganizationPlanId = preferredOrganizationMembership
+    ? coercePlanId(
+        preferredOrganizationMembership.organization.subscription?.plan,
+        "team_free"
+      )
+    : undefined;
+  const adminOrganizationPlanId = adminOrganizationMembership
+    ? coercePlanId(
+        adminOrganizationMembership.organization.subscription?.plan,
+        "team_free"
+      )
+    : undefined;
   const organizationContext = {
     preferredOrganizationId: preferredOrganization?.organizationId,
     preferredOrganizationName: preferredOrganization?.organizationName,
@@ -307,7 +336,7 @@ export async function getUserSubscriptionInfo(
 
   // Check personal subscription
   const personalSub = user.personalSubscription;
-  const personalPlanId = (personalSub?.plan as PlanId) || "free";
+  const personalPlanId = coercePlanId(personalSub?.plan, "free");
   let hasPersonalSub = false;
   if (personalSub) {
     hasPersonalSub = isSubscriptionCurrentlyUsable({
@@ -336,6 +365,24 @@ export async function getUserSubscriptionInfo(
       });
     }
   }
+
+  const planContext = {
+    personalPlanId,
+    personalPlanName: getPlanById(personalPlanId).name,
+    personalPlanStatus: personalSub?.status ?? null,
+    preferredOrganizationPlanId,
+    preferredOrganizationPlanName: preferredOrganizationPlanId
+      ? getPlanById(preferredOrganizationPlanId).name
+      : undefined,
+    preferredOrganizationPlanStatus:
+      preferredOrganizationMembership?.organization.subscription?.status ?? null,
+    adminOrganizationPlanId,
+    adminOrganizationPlanName: adminOrganizationPlanId
+      ? getPlanById(adminOrganizationPlanId).name
+      : undefined,
+    adminOrganizationPlanStatus:
+      adminOrganizationMembership?.organization.subscription?.status ?? null,
+  };
 
   // Check organization subscriptions
   const activeOrgMemberships = sortActiveOrganizationMemberships(
@@ -429,7 +476,7 @@ export async function getUserSubscriptionInfo(
     // Prefer the strongest active team plan. Personal plans still win over team_free.
     const orgMembership = bestActiveOrgMembership;
     const orgSub = orgMembership.organization.subscription!;
-    const planId = orgSub.plan as PlanId;
+    const planId = coercePlanId(orgSub.plan, "team_free");
     const plan = getPlanById(planId);
 
     return {
@@ -441,6 +488,7 @@ export async function getUserSubscriptionInfo(
       cancelAtPeriodEnd: orgSub.cancelAtPeriodEnd ?? false,
       expiredPaidSubscription,
       ...organizationContext,
+      ...planContext,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: getScansPerHourLimit(planId),
@@ -456,7 +504,7 @@ export async function getUserSubscriptionInfo(
     };
   } else if (hasPersonalSub && personalSub) {
     // Use personal subscription
-    const planId = personalSub.plan as PlanId;
+    const planId = coercePlanId(personalSub.plan, "free");
     const plan = getPlanById(planId);
 
     return {
@@ -468,6 +516,7 @@ export async function getUserSubscriptionInfo(
       cancelAtPeriodEnd: personalSub.cancelAtPeriodEnd ?? false,
       expiredPaidSubscription,
       ...organizationContext,
+      ...planContext,
       limits: {
         scansPerMonth: plan.features.scansPerMonth,
         scansPerHour: getScansPerHourLimit(planId),
@@ -489,6 +538,7 @@ export async function getUserSubscriptionInfo(
         ? undefined
         : expiredPaidSubscription,
       ...organizationContext,
+      ...planContext,
       limits: {
         scansPerMonth: 0,
         scansPerHour: 0,
@@ -527,6 +577,7 @@ export async function getUserSubscriptionInfo(
         ? undefined
         : expiredPaidSubscription,
       ...organizationContext,
+      ...planContext,
       limits: {
         scansPerMonth: freePlan.features.scansPerMonth,
         scansPerHour: freePlan.features.scansPerHour,

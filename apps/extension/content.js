@@ -3,6 +3,7 @@ let lastScannedTextHash = "";
 let scanTimeout = null;
 let lastScannedText = "";
 let lastDismissedTextHash = "";
+let lastScanResult = null;
 
 const RISK_THRESHOLDS = {
     low: 0.2,
@@ -22,6 +23,7 @@ function getRiskLevelFromScore(score) {
 const STYLE_ID = "phishguard-scan-style";
 const FLAG_ID = "phishguard-scan-flag";
 const PROMPT_ID = "phishguard-scan-prompt";
+const CONTAINER_ID = "phishguard-scan-container";
 const MAX_DEEP_SCAN_CHARS = 5000;
 const MIN_EMAIL_SCAN_CHARS = 50;
 
@@ -49,12 +51,12 @@ function ensureStyles() {
             gap: 12px;
             align-items: flex-start;
             border-radius: 14px;
-            border: 2px solid var(--pg-border);
+            border: 1px solid var(--pg-border);
             background: var(--pg-bg);
             color: var(--pg-text);
             padding: 12px 14px;
             margin: 12px 0;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            box-shadow: none;
             animation: pg-in 220ms ease-out;
         }
         .pg-flag--compact {
@@ -182,15 +184,15 @@ function ensureStyles() {
             margin: 12px 0;
             padding: 14px;
             border-radius: 16px;
-            border: 1px solid #bfdbfe;
-            background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+            border: 1px solid rgba(15, 23, 42, 0.14);
+            background: #ffffff;
             color: #0f172a;
-            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+            box-shadow: none;
             animation: pg-in 220ms ease-out;
         }
         .pg-prompt--limit {
-            border-color: #fecaca;
-            background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%);
+            border-color: rgba(239, 68, 68, 0.28);
+            background: #fff1f2;
             color: #7f1d1d;
         }
         .pg-prompt__icon {
@@ -415,12 +417,54 @@ function removeScanFlag() {
     if (flag) {
         flag.remove();
     }
+    cleanupUiContainerIfEmpty();
 }
 
 function removeScanPrompt() {
     const prompt = document.getElementById(PROMPT_ID);
     if (prompt) {
         prompt.remove();
+    }
+    cleanupUiContainerIfEmpty();
+}
+
+function getOrCreateUiContainer(target) {
+    if (!target) return null;
+
+    const parent = target.parentElement;
+    if (!parent) return null;
+
+    let container = document.getElementById(CONTAINER_ID);
+    if (!container) {
+        container = document.createElement("div");
+        container.id = CONTAINER_ID;
+        container.className = "pg-container";
+    }
+
+    const needsMove = container.parentElement !== parent || container.nextSibling !== target;
+    if (needsMove) {
+        try {
+            container.remove();
+        } catch {
+            // ignore
+        }
+        parent.insertBefore(container, target);
+    }
+
+    return container;
+}
+
+function cleanupUiContainerIfEmpty() {
+    const container = document.getElementById(CONTAINER_ID);
+    if (container && container.childElementCount === 0) {
+        container.remove();
+    }
+}
+
+function removeScanContainer() {
+    const container = document.getElementById(CONTAINER_ID);
+    if (container) {
+        container.remove();
     }
 }
 
@@ -477,6 +521,7 @@ function getEmailTarget() {
 function submitScan({ text, url, currentHash, source, onResult, planName, subscriptionStatus }) {
     lastScannedTextHash = currentHash;
     lastScannedText = text;
+    lastScanResult = null;
 
     if (source === "auto") {
         console.log("PhishGuard: Auto-scanning new content...");
@@ -517,6 +562,7 @@ function submitScan({ text, url, currentHash, source, onResult, planName, subscr
             }
 
             removeScanPrompt();
+            lastScanResult = response;
             injectScanFlag(response);
 
             if (typeof onResult === "function") {
@@ -598,7 +644,12 @@ function injectFreePlanPrompt({
         </div>
     `;
 
-    target.prepend(prompt);
+    const container = getOrCreateUiContainer(target);
+    if (container) {
+        container.replaceChildren(prompt);
+    } else {
+        target.prepend(prompt);
+    }
 
     const status = prompt.querySelector(".pg-prompt__status");
     const dismissButton = prompt.querySelector('[data-action="dismiss"]');
@@ -680,6 +731,9 @@ async function triggerScan() {
 
     const currentHash = hashCode(text);
     if (currentHash === lastScannedTextHash) {
+        if (!document.getElementById(FLAG_ID) && lastScanResult) {
+            injectScanFlag(lastScanResult);
+        }
         return;
     }
 
@@ -822,8 +876,13 @@ function injectScanFlag(response) {
         </div>
     `;
 
-    // Insert at top of email body
-    target.prepend(flag);
+    const container = getOrCreateUiContainer(target);
+    if (container) {
+        container.replaceChildren(flag);
+    } else {
+        // Fallback: insert at top of email body if we cannot find a stable parent.
+        target.prepend(flag);
+    }
 
     // Deep Scan handler (paid plans only)
     const deepScanButton = flag.querySelector(".pg-flag__cta");
@@ -967,8 +1026,10 @@ new MutationObserver(() => {
         lastUrl = url;
         lastScannedTextHash = ""; // Reset hash on navigation
         lastDismissedTextHash = "";
+        lastScanResult = null;
         removeScanPrompt();
         removeScanFlag();
+        removeScanContainer();
         scheduleScan();
     }
 }).observe(document, { subtree: true, childList: true });

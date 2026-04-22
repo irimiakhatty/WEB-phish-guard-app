@@ -318,10 +318,7 @@ export default async function OrganizationMembersPage({ params }: PageProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {sortedMembers.map((member) => (
-            <Card
-              key={member.id}
-              className="transition-shadow hover:shadow-xl"
-            >
+            <Card key={member.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">

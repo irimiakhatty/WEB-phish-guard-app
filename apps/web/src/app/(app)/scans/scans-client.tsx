@@ -90,7 +90,7 @@ export default function ScansClient({
           const threats = getDisplayThreats(scan);
 
           return (
-            <Card key={scan.id} className="transition-shadow hover:shadow-2xl">
+            <Card key={scan.id} className="transition-colors hover:bg-muted/30">
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">

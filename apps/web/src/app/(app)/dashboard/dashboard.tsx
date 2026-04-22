@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Shield, Activity, CheckCircle, AlertTriangle, Users, Globe } from "lucide-react";
 import { authClient } from "@/lib/auth/auth-client";
+import { getPlanById } from "@/lib/billing/subscription-plans";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,15 @@ type SubscriptionInfo = {
   status?: string;
   currentPeriodEnd?: string | null;
   cancelAtPeriodEnd?: boolean;
+  personalPlanId?: string;
+  personalPlanName?: string;
+  personalPlanStatus?: string | null;
+  preferredOrganizationPlanId?: string;
+  preferredOrganizationPlanName?: string;
+  preferredOrganizationPlanStatus?: string | null;
+  adminOrganizationPlanId?: string;
+  adminOrganizationPlanName?: string;
+  adminOrganizationPlanStatus?: string | null;
 };
 
 export default function Dashboard({
@@ -62,17 +72,34 @@ export default function Dashboard({
   const orgMembersHref: Route = orgAdminStats?.organizationSlug
     ? (`/org/${orgAdminStats.organizationSlug}/members` as Route)
     : "/organizations";
-  const subscriptionLabel = subscriptionInfo
-    ? subscriptionInfo.planId.replace("team_", "").replace("personal_", "").toUpperCase()
-    : "FREE";
-  const subscriptionStatus = subscriptionInfo?.status || "active";
-  const renewalDate = subscriptionInfo?.currentPeriodEnd
-    ? new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString("en-GB", {
+  const personalPlanId = subscriptionInfo?.personalPlanId ?? null;
+  const personalPlanName =
+    subscriptionInfo?.personalPlanName ||
+    (personalPlanId ? getPlanById(personalPlanId).name : null);
+  const workspacePlanId =
+    subscriptionInfo?.adminOrganizationPlanId ??
+    subscriptionInfo?.preferredOrganizationPlanId ??
+    null;
+  const workspacePlanName =
+    subscriptionInfo?.adminOrganizationPlanName ||
+    subscriptionInfo?.preferredOrganizationPlanName ||
+    (workspacePlanId ? getPlanById(workspacePlanId).name : null);
+  const hasDistinctWorkspacePlan =
+    Boolean(workspacePlanId && personalPlanId && workspacePlanId !== personalPlanId);
+  const activePlanName = subscriptionInfo ? getPlanById(subscriptionInfo.planId).name : "Free";
+  const subscriptionStatus = hasDistinctWorkspacePlan
+    ? subscriptionInfo?.adminOrganizationPlanStatus ??
+      subscriptionInfo?.preferredOrganizationPlanStatus ??
+      null
+    : subscriptionInfo?.status || "active";
+  const renewalDate =
+    !hasDistinctWorkspacePlan && subscriptionInfo?.currentPeriodEnd
+      ? new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "numeric",
       })
-    : null;
+      : null;
   const threatPercent =
     stats.totalScans > 0
       ? Math.min(100, Math.round((stats.threatsDetected / stats.totalScans) * 100))
@@ -96,10 +123,21 @@ export default function Dashboard({
           </h1>
           {!isSuperAdmin && subscriptionInfo ? (
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">Plan: {subscriptionLabel}</Badge>
-              <Badge variant="outline" className="capitalize">
-                {subscriptionStatus.replace("_", " ")}
-              </Badge>
+              {hasDistinctWorkspacePlan && workspacePlanName ? (
+                <>
+                  <Badge variant="secondary">Workspace: {workspacePlanName}</Badge>
+                  {personalPlanName ? (
+                    <Badge variant="outline">Personal: {personalPlanName}</Badge>
+                  ) : null}
+                </>
+              ) : (
+                <Badge variant="secondary">Plan: {activePlanName}</Badge>
+              )}
+              {subscriptionStatus ? (
+                <Badge variant="outline" className="capitalize">
+                  {subscriptionStatus.replace("_", " ")}
+                </Badge>
+              ) : null}
               {renewalDate ? (
                 <span className="text-xs text-muted-foreground">Renews on {renewalDate}</span>
               ) : null}
@@ -113,7 +151,7 @@ export default function Dashboard({
         </div>
 
         <div className="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-12">
-          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-7">
+          <Card className="lg:col-span-7">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="rounded-lg bg-primary/15 p-3">
@@ -130,7 +168,7 @@ export default function Dashboard({
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-5">
+          <Card className="lg:col-span-5">
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="rounded-lg bg-emerald-500/15 p-3">
@@ -155,7 +193,7 @@ export default function Dashboard({
         </p>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-12">
-          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-5">
+          <Card className="lg:col-span-5">
             <CardHeader>
               <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {isSuperAdmin ? "Total Platform Scans" : "Your Scans"}
@@ -169,7 +207,7 @@ export default function Dashboard({
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-4">
+          <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <div className="flex items-center gap-2">
@@ -193,7 +231,7 @@ export default function Dashboard({
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-[0_30px_80px_-48px_rgba(0,0,0,0.95)] lg:col-span-3">
+          <Card className="lg:col-span-3">
             <CardHeader>
               <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 <div className="flex items-center gap-2">
@@ -226,7 +264,7 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="hover:shadow-2xl transition-shadow">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -243,7 +281,7 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -258,7 +296,7 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -299,7 +337,7 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Card className="hover:shadow-2xl transition-shadow border-red-500/30">
+              <Card className="bg-red-500/5">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Threats Blocked This Month
@@ -311,7 +349,7 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Emails Analyzed This Month
@@ -323,7 +361,7 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-2xl transition-shadow border-emerald-500/30">
+              <Card className="bg-emerald-500/5">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Most Targeted Employee
@@ -369,14 +407,9 @@ export default function Dashboard({
                       return (
                         <div
                           key={item.type}
-                          className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-lg"
+                          className="group relative overflow-hidden rounded-xl bg-muted/30 p-4 transition-colors hover:bg-muted/40"
                         >
-                          <div
-                            aria-hidden
-                            className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.10),transparent_60%)]"
-                          />
-
-                          <div className="relative flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-foreground">
                                 {item.type}
@@ -385,12 +418,12 @@ export default function Dashboard({
                                 {item.count} incidents
                               </p>
                             </div>
-                            <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-foreground/80">
+                            <span className="shrink-0 rounded-full bg-muted/50 px-2 py-1 text-[11px] font-semibold text-foreground/80">
                               {intensityPct}%
                             </span>
                           </div>
 
-                          <div className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                          <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
                               style={{ width: `${barWidth}%` }}
@@ -418,7 +451,7 @@ export default function Dashboard({
                       {orgAdminStats.riskyUsers.map((user) => (
                         <div
                           key={user.id}
-                          className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3"
+                          className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-3"
                         >
                           <div>
                             <p className="font-semibold text-zinc-100">{user.name}</p>

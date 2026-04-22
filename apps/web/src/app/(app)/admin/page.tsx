@@ -69,7 +69,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="transition-shadow hover:shadow-2xl">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-muted-foreground">Total Users</CardTitle>
               <Users className="h-4 w-4 text-zinc-300" />
@@ -80,7 +80,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-2xl">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-muted-foreground">Organizations</CardTitle>
               <Building2 className="h-4 w-4 text-zinc-300" />
@@ -91,7 +91,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-2xl">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-muted-foreground">Total Scans</CardTitle>
               <BarChart3 className="h-4 w-4 text-emerald-400" />
@@ -102,7 +102,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-2xl">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm text-muted-foreground">Estimated MRR</CardTitle>
               <DollarSign className="h-4 w-4 text-amber-400" />
@@ -131,7 +131,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <CardContent>
             {stripeCash.available ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Collected This Month</p>
                     <Wallet className="h-4 w-4 text-emerald-400" />
@@ -145,7 +145,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Collected Last Month</p>
                     <CreditCard className="h-4 w-4 text-amber-400" />
@@ -158,7 +158,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">MoM Cash Change</p>
                     <TrendingUp className="h-4 w-4 text-sky-400" />
@@ -171,7 +171,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl bg-muted/30 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Open Invoice Pipeline</p>
                     <TriangleAlert className="h-4 w-4 text-red-400" />
@@ -201,7 +201,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl bg-muted/30 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">ARR Run Rate</p>
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -212,7 +212,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <p className="mt-1 text-xs text-muted-foreground">12x estimated monthly recurring revenue</p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl bg-muted/30 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Paid Plans</p>
                 <CreditCard className="h-4 w-4 text-amber-400" />
@@ -229,7 +229,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl bg-muted/30 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Revenue At Risk</p>
                 <TriangleAlert className="h-4 w-4 text-red-400" />
@@ -243,7 +243,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-xl bg-muted/30 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">ARPA</p>
                 <DollarSign className="h-4 w-4 text-zinc-300" />

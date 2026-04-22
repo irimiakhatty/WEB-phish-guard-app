@@ -276,21 +276,21 @@ export default async function MemberProfilePage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-lg bg-muted/30 p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Activity className="w-3 h-3" />
                   Total scans
                 </div>
                 <div className="text-2xl font-semibold text-zinc-100">{totalScans}</div>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-lg bg-muted/30 p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <AlertTriangle className="w-3 h-3" />
                   Risky events
                 </div>
                 <div className="text-2xl font-semibold text-red-400">{riskyCount}</div>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-lg bg-muted/30 p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <TrendingUp className="w-3 h-3" />
                   Avg risk
@@ -299,7 +299,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   {(avgScore * 100).toFixed(0)}%
                 </div>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-lg bg-muted/30 p-4">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Shield className="w-3 h-3" />
                   Last seen
@@ -325,7 +325,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                     <div
                       key={day.key}
                       title={`${day.key} - ${day.count} scans`}
-                      className="h-9 w-9 rounded-lg border border-white/10"
+                      className="h-9 w-9 rounded-lg"
                       style={{ backgroundColor: background }}
                     />
                   );
@@ -390,24 +390,19 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div
                       key={item.type}
-                      className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.035] p-4 backdrop-blur-lg"
+                      className="group relative overflow-hidden rounded-xl bg-muted/30 p-4 transition-colors hover:bg-muted/40"
                     >
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.10),transparent_60%)]"
-                      />
-
-                      <div className="relative flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-foreground">{item.type}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{item.count} incidents</p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-foreground/80">
+                        <span className="shrink-0 rounded-full bg-muted/50 px-2 py-1 text-[11px] font-semibold text-foreground/80">
                           {intensityPct}%
                         </span>
                       </div>
 
-                      <div className="relative mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                      <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
                           style={{ width: `${barWidth}%` }}
@@ -456,7 +451,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div
                       key={item.level}
-                      className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                      className="rounded-xl bg-muted/30 p-4"
                     >
                       <div
                         className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-semibold ${riskTierClass[item.level]}`}
@@ -491,7 +486,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                 return (
                   <Card
                     key={scan.id}
-                    className="transition-shadow hover:shadow-2xl"
+                    className="transition-colors hover:bg-muted/30"
                   >
                     <CardContent className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="space-y-1">

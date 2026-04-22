@@ -81,21 +81,6 @@ export async function inviteMember(
   return result;
 }
 
-export async function bulkInviteMembers(
-  organizationId: string,
-  inviteList: Array<{ email: string; role?: "admin" | "member"; name?: string; department?: string }>
-) {
-  const { user } = await requireAuth();
-  const { revalidatePaths: paths, ...result } = await organizationsService.bulkInviteMembers(
-    toOrganizationActor(user),
-    sendInviteEmail,
-    organizationId,
-    inviteList
-  );
-  revalidatePaths(paths);
-  return result;
-}
-
 export async function acceptInviteSignUp(input: { token: string; name: string; password: string }) {
   return organizationsService.acceptInviteSignUp(input);
 }
@@ -134,6 +119,17 @@ export async function createOrganizationDepartment(input: {
   const { user } = await requireAuth();
   const { revalidatePaths: paths, ...result } =
     await organizationsService.createOrganizationDepartment(toOrganizationActor(user), input);
+  revalidatePaths(paths);
+  return result;
+}
+
+export async function deleteOrganizationDepartment(input: {
+  organizationId: string;
+  departmentId: string;
+}) {
+  const { user } = await requireAuth();
+  const { revalidatePaths: paths, ...result } =
+    await organizationsService.deleteOrganizationDepartment(toOrganizationActor(user), input);
   revalidatePaths(paths);
   return result;
 }
