@@ -1,16 +1,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogIn } from "lucide-react";
+import { LogIn, LogOut } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth-client";
 
 import { Button } from "./ui/button";
@@ -23,6 +15,7 @@ type UserMenuProps = {
 export default function UserMenu({ compact = false }: UserMenuProps) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   if (isPending) {
     return <Skeleton className={compact ? "size-9 rounded-md" : "h-9 w-24"} />;
@@ -42,54 +35,49 @@ export default function UserMenu({ compact = false }: UserMenuProps) {
     );
   }
 
-  const userInitial = session.user.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+  const signOutLabel = useMemo(() => {
+    const name = session.user.name?.trim();
+    if (name) return `Sign out ${name}`;
+    return "Sign out";
+  }, [session.user.name]);
+
+  const handleSignOut = () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+
+    // 1. Send logout signal first (extension integration)
+    if (typeof window !== "undefined") {
+      window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*");
+      setTimeout(() => window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*"), 100);
+    }
+
+    // 2. Perform sign out
+    authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          // Small delay to ensure extension gets the message before page unload
+          setTimeout(() => {
+            router.push("/");
+          }, 500);
+        },
+        onError: () => {
+          setIsSigningOut(false);
+        },
+      },
+    });
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size={compact ? "icon" : "default"} />}
-      >
-        {compact ? (
-          <>
-            <span className="font-semibold">{userInitial}</span>
-            <span className="sr-only">Open account menu</span>
-          </>
-        ) : (
-          session.user.name
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => {
-              // 1. Send logout signal first
-              if (typeof window !== "undefined") {
-                  window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*");
-                  // Backup try for slower scripts
-                  setTimeout(() => window.postMessage({ type: "PHISHGUARD_LOGOUT" }, "*"), 100);
-              }
-
-              // 2. Perform sign out
-              authClient.signOut({
-                fetchOptions: {
-                  onSuccess: () => {
-                    // Small delay to ensure extension gets the message before page unload
-                    setTimeout(() => {
-                        router.push("/");
-                    }, 500);
-                  },
-                },
-              });
-            }}
-          >
-            Sign Out
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      type="button"
+      variant="outline"
+      size={compact ? "icon" : "default"}
+      onClick={handleSignOut}
+      disabled={isSigningOut}
+      aria-label={signOutLabel}
+    >
+      <LogOut className="h-4 w-4" />
+      {compact ? <span className="sr-only">{signOutLabel}</span> : signOutLabel}
+    </Button>
   );
 }

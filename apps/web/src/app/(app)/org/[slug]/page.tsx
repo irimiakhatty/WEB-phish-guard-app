@@ -11,6 +11,7 @@ import OrganizationMembers from "./organization-members";
 import OrganizationSettings from "./organization-settings";
 import UpgradePlanForm from "@/components/upgrade-plan";
 import { TEAM_PLANS, type TeamPlanId } from "@/lib/billing/subscription-plans";
+import { isSuperAdminRole } from "@/lib/auth/roles";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -26,7 +27,7 @@ export default async function OrganizationPage({ params }: PageProps) {
     notFound();
   }
 
-  const isSuperAdmin = user.role === "super_admin";
+  const isSuperAdmin = isSuperAdminRole(user.role);
   const currentUserMembership = organization.members.find(
     (m) => m.userId === user.id
   );
@@ -126,10 +127,12 @@ export default async function OrganizationPage({ params }: PageProps) {
                 <Settings2 className="w-4 h-4 mr-2" />
                 Settings
               </TabsTrigger>
-              <TabsTrigger value="billing">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Billing
-              </TabsTrigger>
+              {!isSuperAdmin ? (
+                <TabsTrigger value="billing">
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Billing
+                </TabsTrigger>
+              ) : null}
             </>
           )}
         </TabsList>
@@ -148,37 +151,38 @@ export default async function OrganizationPage({ params }: PageProps) {
               <OrganizationSettings organization={organization} />
             </TabsContent>
 
-            <TabsContent value="billing">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Billing & Subscription</CardTitle>
-                  <CardDescription>
-                    Manage your organization's subscription and billing
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 p-4">
-                      <div>
-                        <p className="font-semibold">
-                          {currentPlanName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {organization.subscription?.maxMembers || 3} members, {organization.subscription?.scansPerMonth || 500} scans/month
-                        </p>
+            {!isSuperAdmin ? (
+              <TabsContent value="billing">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Billing & Subscription</CardTitle>
+                    <CardDescription>
+                      Manage your organization's subscription and billing
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/30 p-4">
+                        <div>
+                          <p className="font-semibold">{currentPlanName}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {organization.subscription?.maxMembers || 3} members,{" "}
+                            {organization.subscription?.scansPerMonth || 500} scans/month
+                          </p>
+                        </div>
+                        <UpgradePlanForm
+                          organizationSlug={organization.slug}
+                          currentPlan={currentPlanId}
+                        />
                       </div>
-                      <UpgradePlanForm
-                        organizationSlug={organization.slug}
-                        currentPlan={currentPlanId}
-                      />
+                      <p className="text-sm text-muted-foreground">
+                        Stripe checkout is enabled in test mode. You can also open the full billing page for all plans.
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Stripe checkout is enabled in test mode. You can also open the full billing page for all plans.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ) : null}
           </>
         )}
       </Tabs>

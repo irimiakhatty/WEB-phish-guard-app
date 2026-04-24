@@ -103,6 +103,19 @@ export async function getUserBillingSummaries(
     throw new Error("User not found");
   }
 
+  if (user.role === "super_admin") {
+    return {
+      preferredScope: "personal",
+      personal: {
+        scope: "personal",
+        planId: "super_admin",
+        status: "active",
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+      },
+    };
+  }
+
   const personalPlanId = coercePlanId(user.personalSubscription?.plan, "free");
   const personal: PersonalBillingSummary = {
     scope: "personal",

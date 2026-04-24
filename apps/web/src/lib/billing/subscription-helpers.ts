@@ -294,6 +294,32 @@ export async function getUserSubscriptionInfo(
     throw new Error("User not found");
   }
 
+  if (user.role === "super_admin") {
+    const planId: PlanId = "super_admin";
+    const plan = getPlanById(planId);
+
+    return {
+      hasActiveSubscription: true,
+      subscriptionType: "personal",
+      planId,
+      status: "active",
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      personalPlanId: planId,
+      personalPlanName: plan.name,
+      personalPlanStatus: "active",
+      isAnyOrgAdmin: false,
+      limits: {
+        scansPerMonth: plan.features.scansPerMonth,
+        scansPerHour: getScansPerHourLimit(planId),
+        maxApiTokens: plan.features.maxApiTokens,
+        advancedAnalytics: plan.limits.advancedAnalytics,
+        prioritySupport: plan.limits.prioritySupport,
+        apiAccess: plan.limits.apiAccess,
+      },
+    };
+  }
+
   const memberships = [...(user.memberships as UserOrganizationMembership[])].sort(
     (a, b) => b.joinedAt.getTime() - a.joinedAt.getTime()
   );

@@ -8,6 +8,7 @@ import { getUserBillingSummaries } from "@/lib/billing/billing-helpers";
 import { getPlanById } from "@/lib/billing/subscription-plans";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { isSuperAdminRole } from "@/lib/auth/roles";
 
 type SettingsPageProps = {
   searchParams?: {
@@ -24,28 +25,32 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect("/login");
   }
 
-  const organizations = await getUserOrganizations();
-  const billing = await getUserBillingSummaries(session.user.id);
   const userRole = (session.user as any).role || "user";
-  const isSuperAdmin = userRole === "super_admin";
-  const isAnyOrgAdmin = organizations.some((org) => org.role === "admin") || userRole === "admin";
+  const isSuperAdmin = isSuperAdminRole(userRole);
+  const organizations = isSuperAdmin ? [] : await getUserOrganizations();
+  const billing = isSuperAdmin ? null : await getUserBillingSummaries(session.user.id);
+  const isAnyOrgAdmin =
+    !isSuperAdmin && (organizations.some((org) => org.role === "admin") || userRole === "admin");
   const roleLabel = isSuperAdmin ? "Super Admin" : isAnyOrgAdmin ? "Organization's Admin" : "User";
-  const billingScope = billing.business ? "business" : "personal";
-  const activeBilling = billing.business ?? billing.personal;
-  const currentPlan = getPlanById(activeBilling.planId);
-  const canChangePlan = isSuperAdmin || billingScope === "personal" || Boolean(billing.business);
   const changePlanHref = "/subscriptions" as Route;
   const billingError =
     typeof searchParams?.billingError === "string"
       ? searchParams.billingError
       : undefined;
-  const scheduledDowngradeAtLabel = activeBilling.currentPeriodEnd
-    ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
-        activeBilling.currentPeriodEnd
-      )
-    : null;
+
+  const billingScope = billing?.business ? "business" : "personal";
+  const activeBilling = billing ? billing.business ?? billing.personal : null;
+  const currentPlan = activeBilling ? getPlanById(activeBilling.planId) : null;
+  const canChangePlan =
+    !isSuperAdmin && (billingScope === "personal" || Boolean(billing?.business));
+  const scheduledDowngradeAtLabel =
+    activeBilling?.currentPeriodEnd
+      ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(
+          activeBilling.currentPeriodEnd
+        )
+      : null;
   const scheduledDowngradeNotice =
-    currentPlan.price > 0 && activeBilling.cancelAtPeriodEnd
+    currentPlan && currentPlan.price > 0 && Boolean(activeBilling?.cancelAtPeriodEnd)
       ? scheduledDowngradeAtLabel
         ? `You switched back to Free, but your ${currentPlan.name} benefits remain active until ${scheduledDowngradeAtLabel}. After that date, the account automatically moves to Free with no further charges.`
         : `You switched back to Free, but your ${currentPlan.name} benefits remain active until the current billing period ends. After that, the account automatically moves to Free with no further charges.`
@@ -60,61 +65,63 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription & Billing</CardTitle>
-              <CardDescription>
-                Upgrade, downgrade, or manage billing anytime. Stripe runs in test mode for development.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {billingError ? (
-                <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
-                  {billingError}
-                </p>
-              ) : null}
-              {scheduledDowngradeNotice ? (
-                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  {scheduledDowngradeNotice}
-                </p>
-              ) : null}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-gray-200 px-4 py-3 dark:border-gray-700">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Current plan
+          {!isSuperAdmin && billing && currentPlan ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription & Billing</CardTitle>
+                <CardDescription>
+                  Upgrade, downgrade, or manage billing anytime. Stripe runs in test mode for development.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {billingError ? (
+                  <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+                    {billingError}
                   </p>
-                  <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
-                    {currentPlan.name}
+                ) : null}
+                {scheduledDowngradeNotice ? (
+                  <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    {scheduledDowngradeNotice}
                   </p>
+                ) : null}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-gray-200 px-4 py-3 dark:border-gray-700">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Current plan
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">
+                      {currentPlan.name}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 px-4 py-3 dark:border-gray-700">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Subscription type
+                    </p>
+                    <p className="mt-1 text-base font-semibold capitalize text-gray-900 dark:text-white">
+                      {billingScope}
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 px-4 py-3 dark:border-gray-700">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Subscription type
-                  </p>
-                  <p className="mt-1 text-base font-semibold capitalize text-gray-900 dark:text-white">
-                    {billingScope}
-                  </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  {canChangePlan ? (
+                    <Button
+                      asChild
+                      className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                    >
+                      <Link href={changePlanHref}>Change plan</Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      className="bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    >
+                      Change plan
+                    </Button>
+                  )}
                 </div>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                {canChangePlan ? (
-                  <Button
-                    asChild
-                    className="bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-                  >
-                    <Link href={changePlanHref}>Change plan</Link>
-                  </Button>
-                ) : (
-                  <Button
-                    disabled
-                    className="bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-                  >
-                    Change plan
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

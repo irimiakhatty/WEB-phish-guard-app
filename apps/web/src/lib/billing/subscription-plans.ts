@@ -243,15 +243,52 @@ export const TEAM_PLANS = {
   },
 } as const;
 
-// Combined plans export
-export const SUBSCRIPTION_PLANS = {
-  ...PERSONAL_PLANS,
-  ...TEAM_PLANS,
+// ==========================================
+// INTERNAL PLANS (Platform-only)
+// ==========================================
+
+export const INTERNAL_PLANS = {
+  super_admin: {
+    id: "super_admin",
+    name: "Super Admin",
+    description: "Internal platform access with unlimited limits. No billing required.",
+    price: 0,
+    interval: null,
+    stripePriceId: null,
+    category: "personal",
+    features: {
+      scansPerMonth: 999999,
+      scansPerHour: 999999,
+      maxApiTokens: 999,
+      features: [
+        "Unlimited scans",
+        "Unlimited hourly scans",
+        "Unlimited API tokens",
+        "Platform-wide administrative access",
+      ],
+    },
+    limits: {
+      advancedAnalytics: true,
+      customBranding: true,
+      prioritySupport: true,
+      apiAccess: true,
+      teamFeatures: true,
+      sso: true,
+    },
+  },
 } as const;
 
 export type PersonalPlanId = keyof typeof PERSONAL_PLANS;
 export type TeamPlanId = keyof typeof TEAM_PLANS;
-export type PlanId = PersonalPlanId | TeamPlanId;
+export type InternalPlanId = keyof typeof INTERNAL_PLANS;
+export type PlanId = PersonalPlanId | TeamPlanId | InternalPlanId;
+
+// Combined plans export
+export const SUBSCRIPTION_PLANS = {
+  ...PERSONAL_PLANS,
+  ...TEAM_PLANS,
+  ...INTERNAL_PLANS,
+} as const;
 
 // Helper functions
 export function getPlanById(planId: string) {
@@ -264,6 +301,10 @@ export function isPersonalPlan(planId: string): planId is PersonalPlanId {
 
 export function isTeamPlan(planId: string): planId is TeamPlanId {
   return planId in TEAM_PLANS;
+}
+
+export function isInternalPlan(planId: string): planId is InternalPlanId {
+  return planId in INTERNAL_PLANS;
 }
 
 export function isValidPlan(planId: string): planId is PlanId {
@@ -283,6 +324,8 @@ export function getPlanCategory(planId: PlanId): "personal" | "team" {
 }
 
 export function canUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
+  if (isInternalPlan(currentPlan) || isInternalPlan(targetPlan)) return false;
+
   const personalPlans: PlanId[] = ["free", "personal_plus", "personal_pro"];
   const teamPlans: PlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
 
@@ -299,6 +342,8 @@ export function canUpgrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
 }
 
 export function canDowngrade(currentPlan: PlanId, targetPlan: PlanId): boolean {
+  if (isInternalPlan(currentPlan) || isInternalPlan(targetPlan)) return false;
+
   const personalPlans: PlanId[] = ["free", "personal_plus", "personal_pro"];
   const teamPlans: PlanId[] = ["team_free", "team_startup", "team_business", "team_enterprise"];
 
