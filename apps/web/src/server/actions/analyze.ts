@@ -7,6 +7,7 @@ import { checkSafeBrowsing, getThreatSeverity } from "@/lib/integrations/safe-br
 import { analyzeTextMLDetailed, analyzeUrlMLDetailed } from "@/lib/integrations/ml-service";
 import { checkScanLimits, getUserSubscriptionInfo } from "@/lib/billing/subscription-helpers";
 import { getRiskLevel, isPhishingScore } from "@/lib/security/risk-levels";
+import { revalidatePath } from "next/cache";
 
 const SCORING_VERSION = "weighted_v1";
 const WEIGHTED_SCORE_CONFIG = {
@@ -902,6 +903,9 @@ export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeConte
       lastScanAt: new Date(),
     },
   });
+
+  revalidatePath("/analyze");
+  revalidatePath("/dashboard");
 
   return {
     textScore,

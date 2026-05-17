@@ -19,8 +19,8 @@ export type StandardReportDefinition = {
 export const STANDARD_REPORTS: StandardReportDefinition[] = [
   {
     id: "platform_overview",
-    name: "Platform Overview",
-    description: "High-level platform metrics (users, orgs, scans, revenue).",
+    name: "Platform Overview (JSON)",
+    description: "JSON snapshot of the same KPIs shown in the Super Admin dashboard (users, orgs, scans, revenue).",
     formats: ["json"],
   },
   {
@@ -55,8 +55,8 @@ export const STANDARD_REPORTS: StandardReportDefinition[] = [
   },
   {
     id: "risk_signals_30d",
-    name: "Risk Signals (30d)",
-    description: "Risky departments, users, and incident evolution (30 days).",
+    name: "Risk Signals (30d, JSON)",
+    description: "JSON export used for internal risk dashboards (top risky users/orgs and trends over the last 30 days).",
     formats: ["json"],
   },
 ];

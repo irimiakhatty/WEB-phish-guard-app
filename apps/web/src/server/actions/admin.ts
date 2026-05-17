@@ -193,15 +193,15 @@ export async function getStandardReportPreview(
       });
 
       const columns: CsvColumn<(typeof rows)[number]>[] = [
-        { header: "organizationId", key: "organizationId" },
-        { header: "name", key: "name" },
-        { header: "slug", key: "slug" },
-        { header: "planId", key: "planId" },
-        { header: "subscriptionStatus", key: "subscriptionStatus" },
-        { header: "members", key: "members" },
-        { header: "scans", key: "scans" },
-        { header: "estimatedMrrUsd", key: "estimatedMrrUsd" },
-        { header: "createdAt", key: "createdAt" },
+        { header: "Organization ID", key: "organizationId" },
+        { header: "Name", key: "name" },
+        { header: "Slug", key: "slug" },
+        { header: "Plan", key: "planId" },
+        { header: "Subscription status", key: "subscriptionStatus" },
+        { header: "Members", key: "members" },
+        { header: "Scans", key: "scans" },
+        { header: "Estimated MRR (USD)", key: "estimatedMrrUsd" },
+        { header: "Created at", key: "createdAt" },
       ];
 
       return {
@@ -250,19 +250,19 @@ export async function getStandardReportPreview(
       ];
 
       const columns: CsvColumn<(typeof rows)[number]>[] = [
-        { header: "type", key: "type" },
-        { header: "planId", key: "planId" },
-        { header: "status", key: "status" },
-        { header: "cancelAtPeriodEnd", key: "cancelAtPeriodEnd" },
-        { header: "currentPeriodStart", key: "currentPeriodStart" },
-        { header: "currentPeriodEnd", key: "currentPeriodEnd" },
-        { header: "entityId", key: "entityId" },
-        { header: "entityName", key: "entityName" },
-        { header: "entityEmail", key: "entityEmail" },
-        { header: "organizationId", key: "organizationId" },
-        { header: "organizationName", key: "organizationName" },
-        { header: "organizationSlug", key: "organizationSlug" },
-        { header: "createdAt", key: "createdAt" },
+        { header: "Type", key: "type" },
+        { header: "Plan", key: "planId" },
+        { header: "Status", key: "status" },
+        { header: "Cancel at period end", key: "cancelAtPeriodEnd" },
+        { header: "Period start", key: "currentPeriodStart" },
+        { header: "Period end", key: "currentPeriodEnd" },
+        { header: "User ID", key: "entityId" },
+        { header: "User name", key: "entityName" },
+        { header: "User email", key: "entityEmail" },
+        { header: "Organization ID", key: "organizationId" },
+        { header: "Organization name", key: "organizationName" },
+        { header: "Organization slug", key: "organizationSlug" },
+        { header: "Created at", key: "createdAt" },
       ];
 
       const limited = rows.slice(0, previewLimit);
@@ -285,10 +285,10 @@ export async function getStandardReportPreview(
       }));
 
       const columns: CsvColumn<(typeof rows)[number]>[] = [
-        { header: "userId", key: "userId" },
-        { header: "name", key: "name" },
-        { header: "email", key: "email" },
-        { header: "createdAt", key: "createdAt" },
+        { header: "User ID", key: "userId" },
+        { header: "Name", key: "name" },
+        { header: "Email", key: "email" },
+        { header: "Created at", key: "createdAt" },
       ];
 
       return {
@@ -318,18 +318,18 @@ export async function getStandardReportPreview(
       }));
 
       const columns: CsvColumn<(typeof rows)[number]>[] = [
-        { header: "scanId", key: "scanId" },
-        { header: "createdAt", key: "createdAt" },
-        { header: "source", key: "source" },
-        { header: "userName", key: "userName" },
-        { header: "userEmail", key: "userEmail" },
-        { header: "organizationName", key: "organizationName" },
-        { header: "organizationSlug", key: "organizationSlug" },
-        { header: "riskLevel", key: "riskLevel" },
-        { header: "isPhishing", key: "isPhishing" },
-        { header: "overallScorePct", key: "overallScorePct" },
-        { header: "confidencePct", key: "confidencePct" },
-        { header: "url", key: "url" },
+        { header: "Scan ID", key: "scanId" },
+        { header: "Created at", key: "createdAt" },
+        { header: "Source", key: "source" },
+        { header: "User name", key: "userName" },
+        { header: "User email", key: "userEmail" },
+        { header: "Organization", key: "organizationName" },
+        { header: "Org slug", key: "organizationSlug" },
+        { header: "Risk level", key: "riskLevel" },
+        { header: "Is phishing", key: "isPhishing" },
+        { header: "Overall score (%)", key: "overallScorePct" },
+        { header: "Confidence (%)", key: "confidencePct" },
+        { header: "URL", key: "url" },
       ];
 
       return {
@@ -367,13 +367,13 @@ export async function getStandardReportPreview(
       const rows = [...scanEvents, ...userEvents].sort((a, b) => b.time.localeCompare(a.time));
 
       const columns: CsvColumn<(typeof rows)[number]>[] = [
-        { header: "eventType", key: "eventType" },
-        { header: "time", key: "time" },
-        { header: "actor", key: "actor" },
-        { header: "action", key: "action" },
-        { header: "target", key: "target" },
-        { header: "organization", key: "organization" },
-        { header: "details", key: "details" },
+        { header: "Event type", key: "eventType" },
+        { header: "Time", key: "time" },
+        { header: "Actor", key: "actor" },
+        { header: "Action", key: "action" },
+        { header: "Target", key: "target" },
+        { header: "Organization", key: "organization" },
+        { header: "Details", key: "details" },
       ];
 
       return {
@@ -447,15 +447,15 @@ export async function exportStandardReport(
             )
           : createCsv(
               [
-                { header: "organizationId", key: "organizationId" },
-                { header: "name", key: "name" },
-                { header: "slug", key: "slug" },
-                { header: "planId", key: "planId" },
-                { header: "subscriptionStatus", key: "subscriptionStatus" },
-                { header: "members", key: "members" },
-                { header: "scans", key: "scans" },
-                { header: "estimatedMrrUsd", key: "estimatedMrrUsd" },
-                { header: "createdAt", key: "createdAt" },
+                { header: "Organization ID", key: "organizationId" },
+                { header: "Name", key: "name" },
+                { header: "Slug", key: "slug" },
+                { header: "Plan", key: "planId" },
+                { header: "Subscription status", key: "subscriptionStatus" },
+                { header: "Members", key: "members" },
+                { header: "Scans", key: "scans" },
+                { header: "Estimated MRR (USD)", key: "estimatedMrrUsd" },
+                { header: "Created at", key: "createdAt" },
               ],
               rows
             );
@@ -508,19 +508,19 @@ export async function exportStandardReport(
             )
           : createCsv(
               [
-                { header: "type", key: "type" },
-                { header: "planId", key: "planId" },
-                { header: "status", key: "status" },
-                { header: "cancelAtPeriodEnd", key: "cancelAtPeriodEnd" },
-                { header: "currentPeriodStart", key: "currentPeriodStart" },
-                { header: "currentPeriodEnd", key: "currentPeriodEnd" },
-                { header: "entityId", key: "entityId" },
-                { header: "entityName", key: "entityName" },
-                { header: "entityEmail", key: "entityEmail" },
-                { header: "organizationId", key: "organizationId" },
-                { header: "organizationName", key: "organizationName" },
-                { header: "organizationSlug", key: "organizationSlug" },
-                { header: "createdAt", key: "createdAt" },
+                { header: "Type", key: "type" },
+                { header: "Plan", key: "planId" },
+                { header: "Status", key: "status" },
+                { header: "Cancel at period end", key: "cancelAtPeriodEnd" },
+                { header: "Period start", key: "currentPeriodStart" },
+                { header: "Period end", key: "currentPeriodEnd" },
+                { header: "User ID", key: "entityId" },
+                { header: "User name", key: "entityName" },
+                { header: "User email", key: "entityEmail" },
+                { header: "Organization ID", key: "organizationId" },
+                { header: "Organization name", key: "organizationName" },
+                { header: "Organization slug", key: "organizationSlug" },
+                { header: "Created at", key: "createdAt" },
               ],
               rows
             );
@@ -550,10 +550,10 @@ export async function exportStandardReport(
               )
             : createCsv(
                 [
-                  { header: "userId", key: "userId" },
-                  { header: "name", key: "name" },
-                  { header: "email", key: "email" },
-                  { header: "createdAt", key: "createdAt" },
+                  { header: "User ID", key: "userId" },
+                  { header: "Name", key: "name" },
+                  { header: "Email", key: "email" },
+                  { header: "Created at", key: "createdAt" },
                 ],
                 rows
               );
@@ -586,18 +586,18 @@ export async function exportStandardReport(
               )
             : createCsv(
                 [
-                  { header: "scanId", key: "scanId" },
-                  { header: "createdAt", key: "createdAt" },
-                  { header: "source", key: "source" },
-                  { header: "userName", key: "userName" },
-                  { header: "userEmail", key: "userEmail" },
-                  { header: "organizationName", key: "organizationName" },
-                  { header: "organizationSlug", key: "organizationSlug" },
-                  { header: "riskLevel", key: "riskLevel" },
-                  { header: "isPhishing", key: "isPhishing" },
-                  { header: "overallScorePct", key: "overallScorePct" },
-                  { header: "confidencePct", key: "confidencePct" },
-                  { header: "url", key: "url" },
+                  { header: "Scan ID", key: "scanId" },
+                  { header: "Created at", key: "createdAt" },
+                  { header: "Source", key: "source" },
+                  { header: "User name", key: "userName" },
+                  { header: "User email", key: "userEmail" },
+                  { header: "Organization", key: "organizationName" },
+                  { header: "Org slug", key: "organizationSlug" },
+                  { header: "Risk level", key: "riskLevel" },
+                  { header: "Is phishing", key: "isPhishing" },
+                  { header: "Overall score (%)", key: "overallScorePct" },
+                  { header: "Confidence (%)", key: "confidencePct" },
+                  { header: "URL", key: "url" },
                 ],
                 rows
               );
@@ -631,13 +631,13 @@ export async function exportStandardReport(
           ? JSON.stringify({ generatedAt: new Date().toISOString(), reportId, rows }, null, 2)
           : createCsv(
               [
-                { header: "eventType", key: "eventType" },
-                { header: "time", key: "time" },
-                { header: "actor", key: "actor" },
-                { header: "action", key: "action" },
-                { header: "target", key: "target" },
-                { header: "organization", key: "organization" },
-                { header: "details", key: "details" },
+                { header: "Event type", key: "eventType" },
+                { header: "Time", key: "time" },
+                { header: "Actor", key: "actor" },
+                { header: "Action", key: "action" },
+                { header: "Target", key: "target" },
+                { header: "Organization", key: "organization" },
+                { header: "Details", key: "details" },
               ],
               rows
             );

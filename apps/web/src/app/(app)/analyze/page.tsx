@@ -11,10 +11,6 @@ export default async function AnalyzePage() {
     redirect("/login");
   }
 
-  if (session.user.role === "super_admin") {
-    redirect("/admin");
-  }
-
   const scans = await getMyScans();
 
   return (

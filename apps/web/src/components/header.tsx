@@ -172,6 +172,7 @@ export function Header() {
   const links: HeaderLink[] = isSuperAdmin
     ? [
         { to: "/organizations" as Route, label: "Organizations", icon: Building2 },
+        { to: "/analyze" as Route, label: "Analyze", icon: Search },
         { to: "/settings" as Route, label: "Settings", icon: Settings },
       ]
     : [

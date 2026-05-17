@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -134,13 +135,22 @@ async function downscaleImageFile(file: File, maxSide: number) {
 }
 
 function findFirstUrl(input: string): string | null {
+  const stripTrailingPunctuation = (value: string) => value.replace(/[),.;!?]+$/g, "");
+
   const match = input.match(/https?:\/\/[^\s<>"']+/i);
-  if (match?.[0]) return match[0];
+  if (match?.[0]) return stripTrailingPunctuation(match[0]);
+
+  const embedded = input.match(
+    /(^|[^a-z0-9@])((?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?)/i,
+  );
+  if (embedded?.[2]) {
+    return `https://${stripTrailingPunctuation(embedded[2])}`;
+  }
 
   const trimmed = input.trim();
   if (!trimmed || /\s/.test(trimmed)) return null;
   if (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?$/i.test(trimmed)) {
-    return `https://${trimmed}`;
+    return `https://${stripTrailingPunctuation(trimmed)}`;
   }
   return null;
 }
@@ -223,6 +233,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
+  const router = useRouter();
   const endRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -359,6 +370,11 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
         if (extractedText.length > 0) {
           textContent = extractedText;
         }
+
+        const detectedUrl = findFirstUrl(trimmed) || findFirstUrl(extractedText);
+        if (detectedUrl) {
+          url = detectedUrl;
+        }
       } else {
         const detectedUrl = findFirstUrl(trimmed);
         if (detectedUrl && detectedUrl === trimmed.trim()) {
@@ -385,6 +401,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
         result: data,
       });
       toast.success("Analysis complete");
+      router.refresh();
     } catch (error: any) {
       let message = error?.message || "Analysis failed";
 
@@ -693,7 +710,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
                   <textarea
                     ref={textareaRef}
                     className={cn(
-                      "no-scrollbar w-full min-h-12 resize-none rounded-2xl border border-input bg-background px-4 py-3 text-sm leading-6 text-foreground",
+                      "no-scrollbar w-full min-h-12 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm leading-6 text-foreground",
                       "break-words [overflow-wrap:anywhere] overflow-x-hidden",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                     )}

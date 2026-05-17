@@ -8,9 +8,5 @@ export default async function ScansPage() {
     redirect("/login");
   }
 
-  if (session.user.role === "super_admin") {
-    redirect("/admin");
-  }
-
   redirect("/analyze");
 }

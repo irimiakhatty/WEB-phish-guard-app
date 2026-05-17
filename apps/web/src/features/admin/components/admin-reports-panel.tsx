@@ -29,9 +29,52 @@ type GeneratedReportItem = {
   format: StandardReportFormat;
   filename: string;
   bytes: number;
-  generatedAt: Date;
-  downloadUrl: string;
+  generatedAt: string;
+  downloadUrl?: string;
 };
+
+const REPORT_HISTORY_STORAGE_KEY = "phishguard_admin_report_history_v1";
+const REPORT_HISTORY_LIMIT = 25;
+
+function loadReportHistory(): GeneratedReportItem[] {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const raw = window.localStorage.getItem(REPORT_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((value) => value && typeof value === "object")
+      .map((value) => value as GeneratedReportItem)
+      .filter(
+        (value) =>
+          typeof value.id === "string" &&
+          typeof value.reportId === "string" &&
+          typeof value.name === "string" &&
+          typeof value.format === "string" &&
+          typeof value.filename === "string" &&
+          typeof value.bytes === "number" &&
+          typeof value.generatedAt === "string",
+      )
+      .slice(0, REPORT_HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function persistReportHistory(items: GeneratedReportItem[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const payload = items.map(({ downloadUrl: _downloadUrl, ...rest }) => rest).slice(0, REPORT_HISTORY_LIMIT);
+    window.localStorage.setItem(REPORT_HISTORY_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore quota/security errors; history is best-effort.
+  }
+}
 
 function triggerDownload(downloadUrl: string, filename: string) {
   const anchor = document.createElement("a");
@@ -54,6 +97,8 @@ export default function AdminReportsPanel() {
   const [generating, setGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState<GeneratedReportItem[]>([]);
   const generatedReportsRef = useRef<GeneratedReportItem[]>([]);
+  const hasLoadedHistoryRef = useRef(false);
+  const [downloadingHistoryId, setDownloadingHistoryId] = useState<string | null>(null);
 
   const reportDefinition = useMemo(() => getStandardReportDefinition(reportId), [reportId]);
   const formatOptions = reportDefinition.formats;
@@ -87,16 +132,58 @@ export default function AdminReportsPanel() {
   }, [reportId]);
 
   useEffect(() => {
+    setGeneratedReports(loadReportHistory());
+    hasLoadedHistoryRef.current = true;
+  }, []);
+
+  useEffect(() => {
     generatedReportsRef.current = generatedReports;
+
+    if (!hasLoadedHistoryRef.current) return;
+    persistReportHistory(generatedReports);
   }, [generatedReports]);
 
   useEffect(() => {
     return () => {
-      generatedReportsRef.current.forEach((item) => URL.revokeObjectURL(item.downloadUrl));
+      generatedReportsRef.current.forEach((item) => {
+        if (item.downloadUrl) URL.revokeObjectURL(item.downloadUrl);
+      });
     };
   }, []);
 
-  const generatedList = useMemo(() => generatedReports.slice().sort((a, b) => b.generatedAt.getTime() - a.generatedAt.getTime()), [generatedReports]);
+  const generatedList = useMemo(
+    () =>
+      generatedReports
+        .slice()
+        .sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()),
+    [generatedReports],
+  );
+
+  const handleHistoryDownload = async (item: GeneratedReportItem) => {
+    if (item.downloadUrl) {
+      triggerDownload(item.downloadUrl, item.filename);
+      return;
+    }
+
+    setDownloadingHistoryId(item.id);
+    try {
+      const exported = await exportStandardReport(item.reportId, item.format);
+      const blob = new Blob([exported.content], { type: exported.mimeType });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      setGeneratedReports((current) =>
+        current.map((report) => (report.id === item.id ? { ...report, downloadUrl } : report)),
+      );
+
+      triggerDownload(downloadUrl, exported.filename);
+      toast.success("Report regenerated");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to download report";
+      toast.error(message);
+    } finally {
+      setDownloadingHistoryId(null);
+    }
+  };
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -115,11 +202,11 @@ export default function AdminReportsPanel() {
         format,
         filename: exported.filename,
         bytes: exported.bytes,
-        generatedAt: now,
+        generatedAt: now.toISOString(),
         downloadUrl,
       };
 
-      setGeneratedReports((current) => [item, ...current].slice(0, 25));
+      setGeneratedReports((current) => [item, ...current].slice(0, REPORT_HISTORY_LIMIT));
       triggerDownload(downloadUrl, exported.filename);
       toast.success("Report generated");
     } catch (error) {
@@ -219,7 +306,9 @@ export default function AdminReportsPanel() {
                 <h3 className="text-sm font-semibold">Preview</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {preview && preview.kind === "table"
-                    ? `${preview.rows.length}${preview.truncated ? "+" : ""} rows`
+                    ? preview.rows.length === 0
+                      ? "No rows yet"
+                      : `${preview.rows.length}${preview.truncated ? "+" : ""} rows`
                     : "Report output snapshot"}
                 </p>
               </div>
@@ -244,32 +333,43 @@ export default function AdminReportsPanel() {
                     {preview.json}
                   </pre>
                 ) : (
-                  <div className="max-h-[420px] overflow-auto rounded-lg border">
-                    <table className="w-full table-fixed border-collapse text-left text-xs">
-                      <thead className="sticky top-0 bg-background/90 backdrop-blur">
-                        <tr className="border-b">
-                          {preview.columns.map((column) => (
-                            <th key={column.key} className="px-3 py-2 font-semibold text-muted-foreground">
-                              {column.header}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/10">
-                        {preview.rows.map((row, rowIndex) => (
-                          <tr key={rowIndex} className="hover:bg-muted/10">
+                  preview.rows.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-xs text-muted-foreground">
+                      {reportId === "subscriptions_paid"
+                        ? "No paid subscription data yet."
+                        : "No data available for this report yet."}
+                    </div>
+                  ) : (
+                    <div className="max-h-[420px] overflow-auto rounded-lg border">
+                      <table className="w-full table-fixed border-collapse text-left text-xs">
+                        <thead className="sticky top-0 bg-background/90 backdrop-blur">
+                          <tr className="border-b">
                             {preview.columns.map((column) => (
-                              <td key={column.key} className="px-3 py-2 align-top text-muted-foreground break-all">
-                                {row[column.key] === null || row[column.key] === undefined
-                                  ? ""
-                                  : String(row[column.key])}
-                              </td>
+                              <th
+                                key={column.key}
+                                className="px-3 py-2 align-top font-semibold leading-snug text-muted-foreground break-words"
+                              >
+                                {column.header}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-white/10">
+                          {preview.rows.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="hover:bg-muted/10">
+                              {preview.columns.map((column) => (
+                                <td key={column.key} className="px-3 py-2 align-top text-muted-foreground break-all">
+                                  {row[column.key] === null || row[column.key] === undefined
+                                    ? ""
+                                    : String(row[column.key])}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )
               ) : null}
             </div>
@@ -295,7 +395,7 @@ export default function AdminReportsPanel() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-zinc-100">{report.name}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <span>{report.generatedAt.toLocaleDateString()}</span>
+                    <span>{new Date(report.generatedAt).toLocaleDateString()}</span>
                     <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
                     <span>{report.format.toUpperCase()}</span>
                     <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
@@ -308,7 +408,8 @@ export default function AdminReportsPanel() {
                 variant="outline"
                 size="sm"
                 className="w-full gap-2 sm:w-auto"
-                onClick={() => triggerDownload(report.downloadUrl, report.filename)}
+                onClick={() => void handleHistoryDownload(report)}
+                disabled={downloadingHistoryId === report.id}
               >
                 <Download className="h-4 w-4" />
                 Download
