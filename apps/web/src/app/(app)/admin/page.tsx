@@ -57,8 +57,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[1680px] space-y-8 px-6 py-10 sm:px-8 lg:px-12">
         <div className="flex items-center gap-4">
-          <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
-            <Shield className="h-7 w-7 text-yellow-400" />
+          <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 p-3">
+            <Shield className="h-7 w-7 text-cyan-300" />
           </div>
           <div>
             <h1 className="text-3xl font-semibold text-zinc-100">Super Admin Dashboard</h1>

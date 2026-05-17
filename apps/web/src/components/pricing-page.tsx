@@ -289,7 +289,7 @@ export default function PricingPage({
     <div className="space-y-12">
       <div className="space-y-6">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
             Plan comparison
           </p>
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
@@ -299,7 +299,7 @@ export default function PricingPage({
             {comparisonDescription}
           </p>
           {mode === "landing" && !isAuthenticated ? (
-            <p className="text-sm text-indigo-950/75 dark:text-indigo-100/75">
+            <p className="text-sm text-cyan-950/75 dark:text-cyan-100/75">
               You can compare every tier first. Account setup only starts when you choose a plan.
             </p>
           ) : null}
@@ -329,11 +329,11 @@ export default function PricingPage({
             return (
               <div
                 key={item.title}
-                className="rounded-[24px] border border-indigo-200/70 bg-white/78 p-5 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/18 dark:bg-indigo-950/24"
+                className="rounded-[24px] border border-cyan-200/70 bg-white/78 p-5 shadow-sm shadow-black/20 backdrop-blur dark:border-cyan-400/18 dark:bg-black/15"
               >
                 <div className="flex items-start gap-3">
-                  <div className="rounded-2xl bg-indigo-950 p-2.5 shadow-sm shadow-indigo-950/10 dark:bg-indigo-300">
-                    <Icon className="h-4 w-4 text-white dark:text-indigo-950" />
+                  <div className="rounded-2xl bg-cyan-400 p-2.5 shadow-sm shadow-cyan-500/15 dark:bg-cyan-400">
+                    <Icon className="h-4 w-4 text-black" />
                   </div>
                   <div className="space-y-1.5">
                     <h4 className="text-sm font-semibold text-foreground">{item.title}</h4>
@@ -349,7 +349,7 @@ export default function PricingPage({
       {showPersonalPlans ? (
         <section className="space-y-5">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
               Personal protection
             </p>
             <h3 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -371,7 +371,7 @@ export default function PricingPage({
       {showTeamPlans ? (
         <section className="space-y-5">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
               Team rollout
             </p>
             <h3 className="text-2xl font-semibold tracking-tight text-foreground">

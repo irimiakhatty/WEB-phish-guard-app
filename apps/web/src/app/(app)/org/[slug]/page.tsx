@@ -32,6 +32,7 @@ export default async function OrganizationPage({ params }: PageProps) {
     (m) => m.userId === user.id
   );
   const isAdmin = isSuperAdmin || currentUserMembership?.role === "admin";
+  const membershipRole = currentUserMembership?.role;
   const currentPlanId = (organization.subscription?.plan ?? "team_free") as TeamPlanId;
   const currentPlanName = TEAM_PLANS[currentPlanId]?.name ?? "Team plan";
 
@@ -55,21 +56,18 @@ export default async function OrganizationPage({ params }: PageProps) {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold">{organization.name}</h1>
-                <Badge variant={isAdmin ? "default" : "secondary"}>
-                  {isSuperAdmin ? (
-                    <>
-                      <Shield className="w-3 h-3 mr-1" />
-                      Super Admin
-                    </>
-                  ) : isAdmin ? (
-                    <>
-                      <Shield className="w-3 h-3 mr-1" />
-                      Admin
-                    </>
-                  ) : (
-                    "Member"
-                  )}
-                </Badge>
+                {membershipRole ? (
+                  <Badge variant={membershipRole === "admin" ? "default" : "secondary"}>
+                    {membershipRole === "admin" ? (
+                      <>
+                        <Shield className="w-3 h-3 mr-1" />
+                        Admin
+                      </>
+                    ) : (
+                      "Member"
+                    )}
+                  </Badge>
+                ) : null}
               </div>
               <p className="text-muted-foreground mt-1">@{organization.slug}</p>
             </div>

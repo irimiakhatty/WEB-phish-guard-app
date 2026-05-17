@@ -259,7 +259,7 @@ export type ApiTokenGroupByOutputType = {
   _max: ApiTokenMaxAggregateOutputType | null
 }
 
-type GetApiTokenGroupByPayload<T extends ApiTokenGroupByArgs> = Prisma.PrismaPromise<
+export type GetApiTokenGroupByPayload<T extends ApiTokenGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<ApiTokenGroupByOutputType, T['by']> &
       {
@@ -1661,6 +1661,11 @@ export type ApiTokenFindManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Skip the first `n` ApiTokens.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of ApiTokens.
+   */
   distinct?: Prisma.ApiTokenScalarFieldEnum | Prisma.ApiTokenScalarFieldEnum[]
 }
 

@@ -182,7 +182,7 @@ export type EmailScanGroupByOutputType = {
   _max: EmailScanMaxAggregateOutputType | null
 }
 
-type GetEmailScanGroupByPayload<T extends EmailScanGroupByArgs> = Prisma.PrismaPromise<
+export type GetEmailScanGroupByPayload<T extends EmailScanGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<EmailScanGroupByOutputType, T['by']> &
       {
@@ -1542,6 +1542,11 @@ export type EmailScanFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` EmailScans.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of EmailScans.
+   */
   distinct?: Prisma.EmailScanScalarFieldEnum | Prisma.EmailScanScalarFieldEnum[]
 }
 

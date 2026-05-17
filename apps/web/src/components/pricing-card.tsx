@@ -35,12 +35,12 @@ export default function PricingCard({
       className={cn(
         "relative flex h-full flex-col overflow-hidden rounded-[28px] border p-7 shadow-sm",
         highlighted
-          ? "border-indigo-300/80 bg-gradient-to-b from-white via-indigo-50/75 to-sky-50/65 shadow-indigo-950/10 dark:border-indigo-400/25 dark:from-zinc-950 dark:via-indigo-950/28 dark:to-sky-950/20"
+          ? "border-cyan-400/22 bg-white shadow-[0_0_0_1px_rgba(0,229,255,0.16),0_0_40px_rgba(0,229,255,0.08)] dark:bg-zinc-950/82 dark:shadow-[0_0_0_1px_rgba(0,229,255,0.18),0_0_44px_rgba(0,229,255,0.1)]"
           : "border-border/80 bg-card/95 shadow-zinc-950/5 dark:bg-zinc-950/82"
       )}
     >
       {badge && (
-        <Badge className="absolute left-7 top-6 border-0 bg-indigo-950 text-white shadow-sm dark:bg-indigo-100 dark:text-indigo-950">
+        <Badge className="absolute left-7 top-6 border-0 bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,229,255,0.18)]">
           <Sparkles className="mr-1 h-3 w-3" />
           {badge}
         </Badge>
@@ -68,8 +68,8 @@ export default function PricingCard({
           className={cn(
             "mt-7 w-full",
             highlighted
-              ? "bg-indigo-950 text-white shadow-lg shadow-indigo-950/15 hover:bg-indigo-900 dark:bg-indigo-300 dark:text-indigo-950 dark:hover:bg-indigo-200"
-              : "border-border/80 bg-background/90 hover:bg-indigo-50/70 hover:text-foreground dark:bg-zinc-950/60 dark:hover:bg-indigo-950/30"
+              ? "shadow-[0_0_0_1px_rgba(0,229,255,0.22),0_0_36px_rgba(0,229,255,0.12)] hover:shadow-[0_0_0_1px_rgba(0,229,255,0.28),0_0_44px_rgba(0,229,255,0.16)]"
+              : "border-cyan-400/25 bg-background/90 hover:bg-cyan-400/10 hover:text-foreground dark:bg-zinc-950/60 dark:hover:bg-cyan-400/10"
           )}
           onClick={onSelect}
           disabled={disabled}
@@ -84,7 +84,7 @@ export default function PricingCard({
                 className={cn(
                   "flex-shrink-0 rounded-full p-1",
                   highlighted
-                    ? "bg-indigo-100 text-indigo-950 dark:bg-indigo-400/20 dark:text-indigo-100"
+                    ? "bg-cyan-100 text-cyan-950 dark:bg-cyan-400/15 dark:text-cyan-100"
                     : "bg-muted text-muted-foreground"
                 )}
               >

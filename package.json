@@ -31,7 +31,7 @@
     "@phish-guard-app/env": "workspace:*",
     "@tensorflow/tfjs-backend-cpu": "^4.22.0",
     "@tensorflow/tfjs-backend-webgl": "^4.22.0",
-    "dotenv": "^16.0.0",
+    "dotenv": "catalog:",
     "zod": "3.22.2"
   },
   "devDependencies": {

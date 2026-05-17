@@ -260,7 +260,7 @@ export type MemberRiskSnapshotGroupByOutputType = {
   _max: MemberRiskSnapshotMaxAggregateOutputType | null
 }
 
-type GetMemberRiskSnapshotGroupByPayload<T extends MemberRiskSnapshotGroupByArgs> = Prisma.PrismaPromise<
+export type GetMemberRiskSnapshotGroupByPayload<T extends MemberRiskSnapshotGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<MemberRiskSnapshotGroupByOutputType, T['by']> &
       {
@@ -1806,6 +1806,11 @@ export type MemberRiskSnapshotFindManyArgs<ExtArgs extends runtime.Types.Extensi
    * Skip the first `n` MemberRiskSnapshots.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of MemberRiskSnapshots.
+   */
   distinct?: Prisma.MemberRiskSnapshotScalarFieldEnum | Prisma.MemberRiskSnapshotScalarFieldEnum[]
 }
 

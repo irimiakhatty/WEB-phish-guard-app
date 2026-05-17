@@ -3,10 +3,11 @@
 import type { Route } from "next";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Users, Building2, CreditCard, BarChart3 } from "lucide-react";
+import { Activity, Users, Building2, CreditCard, BarChart3, FileText } from "lucide-react";
 import {
   AdminActivityPanel,
   AdminOrganizationsPanel,
+  AdminReportsPanel,
   AdminScansPanel,
   AdminSubscriptionsPanel,
   AdminUsersPanel,
@@ -37,7 +38,7 @@ export default function AdminManagementTabs({ initialScans, initialTab }: AdminM
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/40 p-1 md:grid-cols-5">
+      <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted/40 p-1 md:grid-cols-6">
         <TabsTrigger value="users">
           <Users className="mr-2 h-4 w-4" />
           Users
@@ -53,6 +54,10 @@ export default function AdminManagementTabs({ initialScans, initialTab }: AdminM
         <TabsTrigger value="scans">
           <BarChart3 className="mr-2 h-4 w-4" />
           Scans
+        </TabsTrigger>
+        <TabsTrigger value="reports">
+          <FileText className="mr-2 h-4 w-4" />
+          Reports
         </TabsTrigger>
         <TabsTrigger value="activity">
           <Activity className="mr-2 h-4 w-4" />
@@ -74,6 +79,10 @@ export default function AdminManagementTabs({ initialScans, initialTab }: AdminM
 
       <TabsContent value="scans">
         <AdminScansPanel initialScans={initialScans} />
+      </TabsContent>
+
+      <TabsContent value="reports">
+        <AdminReportsPanel />
       </TabsContent>
 
       <TabsContent value="activity">

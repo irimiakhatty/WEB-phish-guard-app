@@ -189,7 +189,7 @@ export type EmailDeliveryLogGroupByOutputType = {
   _max: EmailDeliveryLogMaxAggregateOutputType | null
 }
 
-type GetEmailDeliveryLogGroupByPayload<T extends EmailDeliveryLogGroupByArgs> = Prisma.PrismaPromise<
+export type GetEmailDeliveryLogGroupByPayload<T extends EmailDeliveryLogGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<EmailDeliveryLogGroupByOutputType, T['by']> &
       {
@@ -1445,6 +1445,11 @@ export type EmailDeliveryLogFindManyArgs<ExtArgs extends runtime.Types.Extension
    * Skip the first `n` EmailDeliveryLogs.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of EmailDeliveryLogs.
+   */
   distinct?: Prisma.EmailDeliveryLogScalarFieldEnum | Prisma.EmailDeliveryLogScalarFieldEnum[]
 }
 

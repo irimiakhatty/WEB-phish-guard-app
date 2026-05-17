@@ -406,3 +406,114 @@ export async function searchOrganizations(query: string) {
     include: adminOrganizationInclude,
   });
 }
+
+export async function getRiskReport() {
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+
+  const departmentAgg = await prisma.scan.groupBy({
+    by: ["departmentId"],
+    _count: { id: true },
+    where: {
+      isDeleted: false,
+      createdAt: { gte: since },
+      OR: [{ isPhishing: true }, { riskLevel: { in: ["high", "critical"] } }],
+    },
+    orderBy: { _count: { id: "desc" } },
+    take: 5,
+  });
+
+  const departmentIds = departmentAgg
+    .map((row) => row.departmentId)
+    .filter((id): id is string => Boolean(id));
+
+  const departmentsLookup = departmentIds.length
+    ? await prisma.organizationDepartment.findMany({
+        where: {
+          id: { in: departmentIds },
+        },
+        select: {
+          id: true,
+          name: true,
+          organization: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      })
+    : [];
+
+  const departmentsById = new Map(
+    departmentsLookup.map((department) => [
+      department.id,
+      {
+        name: department.name,
+        organizationName: department.organization.name,
+      },
+    ])
+  );
+
+  const departments = departmentAgg.map((row) => {
+    const details = row.departmentId ? departmentsById.get(row.departmentId) : null;
+    return {
+      departmentId: row.departmentId || "unassigned",
+      departmentName: details?.name || "Unassigned",
+      organizationName: details?.organizationName || null,
+      _count: row._count,
+    };
+  });
+
+  const userAgg = await prisma.userAction.groupBy({
+    by: ["userId"],
+    _count: { id: true },
+    where: { actionType: "clicked_suspicious_link", actionAt: { gte: since } },
+    orderBy: { _count: { id: "desc" } },
+    take: 5,
+  });
+
+  const userIds = userAgg.map((row) => row.userId);
+
+  const usersLookup = userIds.length
+    ? await prisma.user.findMany({
+        where: {
+          id: { in: userIds },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      })
+    : [];
+
+  const usersById = new Map(usersLookup.map((user) => [user.id, user]));
+
+  const users = userAgg.map((row) => {
+    const user = usersById.get(row.userId);
+    return {
+      userId: row.userId,
+      userName: user?.name ?? null,
+      userEmail: user?.email ?? null,
+      _count: row._count,
+    };
+  });
+
+  const incidentsAgg = await prisma.emailScan.groupBy({
+    by: ["detectedAt"],
+    _count: { id: true },
+    where: { detectedAt: { gte: since } },
+    orderBy: { detectedAt: "asc" },
+  });
+
+  const incidents = incidentsAgg.map((row) => ({
+    detectedAt: row.detectedAt.toISOString(),
+    _count: row._count,
+  }));
+
+  return {
+    departments,
+    users,
+    incidents,
+  };
+}

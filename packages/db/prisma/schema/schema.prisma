@@ -3,11 +3,14 @@ generator client {
   output       = "../generated-client"
   moduleFormat = "esm"
   engineType   = "client"
+  // Keeps generated client compatible with pinned @prisma/client runtime in bun.lock.
+  // Prisma v7.3+ defaults to "fast" which expects `query_compiler_fast_bg.*` modules.
+  // Our current runtime exposes `query_compiler_bg.*`, so we force the small build.
+  compilerBuild = "small"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model EmailScan {

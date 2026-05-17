@@ -74,11 +74,14 @@ function BusinessPageChrome({
     <div className="min-h-screen bg-background text-foreground">
       <main className="pb-14">
         <section className="relative overflow-hidden border-b border-border">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(49,46,129,0.12),transparent_30%),radial-gradient(circle_at_top_right,_rgba(79,70,229,0.16),transparent_42%),linear-gradient(180deg,rgba(238,242,255,0.68),transparent_58%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(129,140,248,0.14),transparent_32%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.16),transparent_42%),linear-gradient(180deg,rgba(17,24,39,0.58),transparent_58%)]" />
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-cyan-500/7 blur-3xl dark:bg-cyan-400/9" />
+            <div className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-fuchsia-500/5 blur-3xl dark:bg-fuchsia-400/7" />
+          </div>
           <div className={`${PAGE_SHELL} relative space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
             <Button
               variant="outline"
-              className="border-indigo-200/80 bg-white/72 text-indigo-950 hover:bg-indigo-50 dark:border-indigo-400/20 dark:bg-indigo-950/28 dark:text-indigo-100 dark:hover:bg-indigo-900/45"
+              className="border-cyan-400/25 bg-background/70 text-foreground hover:bg-cyan-400/10 dark:bg-black/15 dark:text-cyan-100 dark:hover:bg-cyan-400/10"
               asChild
             >
               <Link href={backHref}>
@@ -89,7 +92,7 @@ function BusinessPageChrome({
 
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:items-start">
               <div className="max-w-3xl space-y-6">
-                <p className="inline-flex rounded-full border border-indigo-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-indigo-950 shadow-sm shadow-indigo-950/5 backdrop-blur dark:border-indigo-400/20 dark:bg-indigo-950/40 dark:text-indigo-100">
+                <p className="inline-flex rounded-full border border-cyan-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-zinc-950 shadow-sm shadow-zinc-950/5 backdrop-blur dark:border-cyan-400/25 dark:bg-cyan-950/20 dark:text-cyan-100">
                   {badge}
                 </p>
                 <div className="space-y-3">
@@ -105,7 +108,7 @@ function BusinessPageChrome({
                   <div className="flex flex-wrap items-center gap-3">
                     {primaryAction ? (
                       <Button
-                        className="bg-indigo-950 text-white shadow-lg shadow-indigo-950/15 hover:bg-indigo-900 dark:bg-indigo-300 dark:text-indigo-950 dark:hover:bg-indigo-200"
+                        className="shadow-[0_0_0_1px_rgba(0,229,255,0.25),0_0_40px_rgba(0,229,255,0.12)] hover:shadow-[0_0_0_1px_rgba(0,229,255,0.3),0_0_52px_rgba(0,229,255,0.16)]"
                         asChild
                       >
                         <Link href={primaryAction.href}>{primaryAction.label}</Link>
@@ -114,7 +117,7 @@ function BusinessPageChrome({
                     {secondaryAction ? (
                       <Button
                         variant="outline"
-                        className="border-indigo-200/80 bg-white/72 text-indigo-950 hover:bg-indigo-50 dark:border-indigo-400/20 dark:bg-indigo-950/28 dark:text-indigo-100 dark:hover:bg-indigo-900/45"
+                        className="border-cyan-400/25 bg-background/70 text-foreground hover:bg-cyan-400/10 dark:bg-black/15 dark:text-cyan-100 dark:hover:bg-cyan-400/10"
                         asChild
                       >
                         <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
@@ -124,8 +127,8 @@ function BusinessPageChrome({
                 ) : null}
               </div>
 
-              <div className="rounded-[28px] border border-indigo-200/70 bg-white/82 p-6 shadow-xl shadow-indigo-950/8 backdrop-blur dark:border-indigo-400/20 dark:bg-zinc-950/82">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-950/55 dark:text-indigo-100/50">
+              <div className="rounded-[28px] border border-cyan-400/18 bg-white/82 p-6 shadow-xl shadow-black/25 backdrop-blur dark:bg-zinc-950/82">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
                   What you unlock
                 </p>
                 <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
@@ -140,11 +143,11 @@ function BusinessPageChrome({
                     return (
                       <div
                         key={item.title}
-                        className="rounded-[22px] border border-indigo-200/70 bg-indigo-50/45 p-4 dark:border-indigo-400/18 dark:bg-indigo-950/24"
+                        className="rounded-[22px] border border-cyan-200/70 bg-cyan-50/45 p-4 dark:border-cyan-400/18 dark:bg-black/15"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="rounded-2xl bg-indigo-950 p-2.5 shadow-sm shadow-indigo-950/10 dark:bg-indigo-300">
-                            <Icon className="h-4 w-4 text-white dark:text-indigo-950" />
+                          <div className="rounded-2xl bg-cyan-400 p-2.5 shadow-sm shadow-cyan-500/15 dark:bg-cyan-400">
+                            <Icon className="h-4 w-4 text-black" />
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-foreground">{item.title}</p>

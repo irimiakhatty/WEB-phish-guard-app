@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Send, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, XCircle, Upload, Image as ImageIcon, Loader } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Image as ImageIcon,
+  Send,
+  X,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Route } from "next";
+import Link from "next/link";
+
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { analyzePhishing } from "@/server/actions/analyze";
-import Link from "next/link";
 import { uploadScanImage } from "@/server/actions/upload";
-import { extractTextFromImage } from "@/lib/integrations/ocr";
 import { filterUserFacingThreats } from "@/lib/security/scan-tags";
+import { cn } from "@/lib/shared/utils";
 
 type AnalysisResult = {
   textScore: number;
@@ -51,101 +57,221 @@ type AnalysisResult = {
   };
 };
 
-// Session storage keys
-const SESSION_KEYS = {
-  ACTIVE_TAB: "phishguard_active_tab",
-  URL: "phishguard_url",
-  TEXT_CONTENT: "phishguard_text_content",
-  IMAGE_URL: "phishguard_image_url",
-  IMAGE_PREVIEW: "phishguard_image_preview",
+type LimitInfo = {
+  message: string;
+  planId?: string;
+  organizationSlug?: string;
+  limits?: {
+    monthly: { used: number; limit: number };
+    hourly: { used: number; limit: number };
+  };
 };
+
+type ChatMessage =
+  | {
+      id: string;
+      role: "user";
+      createdAt: number;
+      text: string;
+      imagePreview?: string | null;
+    }
+  | {
+      id: string;
+      role: "assistant";
+      createdAt: number;
+      status: "analyzing" | "done" | "error" | "limit";
+      phase?: string;
+      result?: AnalysisResult;
+      errorMessage?: string;
+      limitInfo?: LimitInfo;
+    };
 
 type ManualAnalysisProps = {
   embedded?: boolean;
 };
 
+const SESSION_KEYS = {
+  DRAFT: "phishguard_analyze_chat_draft",
+} as const;
+
+const createId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+async function downscaleImageFile(file: File, maxSide: number) {
+  if (typeof window === "undefined") return file;
+  if (typeof createImageBitmap !== "function") return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = Math.max(bitmap.width, bitmap.height);
+    if (!Number.isFinite(maxDim) || maxDim <= maxSide) return file;
+
+    const scale = maxSide / maxDim;
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || typeof canvas.toBlob !== "function") return file;
+
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    const quality = outputType === "image/jpeg" ? 0.92 : undefined;
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, outputType, quality);
+    });
+
+    if (!blob) return file;
+    return new File([blob], file.name, { type: blob.type });
+  } catch {
+    return file;
+  }
+}
+
+function findFirstUrl(input: string): string | null {
+  const match = input.match(/https?:\/\/[^\s<>"']+/i);
+  if (match?.[0]) return match[0];
+
+  const trimmed = input.trim();
+  if (!trimmed || /\s/.test(trimmed)) return null;
+  if (/^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?$/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return null;
+}
+
+function getRiskColor(level: string) {
+  switch (level) {
+    case "safe":
+      return "text-green-600 dark:text-green-400";
+    case "low":
+      return "text-zinc-700 dark:text-zinc-300";
+    case "medium":
+      return "text-yellow-600 dark:text-yellow-400";
+    case "high":
+      return "text-orange-600 dark:text-orange-400";
+    case "critical":
+      return "text-red-600 dark:text-red-400";
+    default:
+      return "text-gray-600 dark:text-gray-400";
+  }
+}
+
+function getRiskIcon(level: string) {
+  if (level === "safe") return <CheckCircle className="h-7 w-7" />;
+  if (level === "low" || level === "medium") return <AlertTriangle className="h-7 w-7" />;
+  return <XCircle className="h-7 w-7" />;
+}
+
+function getKeyFactors(result: AnalysisResult): string[] {
+  const humanize = (value: string) =>
+    value
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (match) => match.toUpperCase());
+
+  const policyReasonMap: Record<string, string> = {
+    high_confidence_reputation_hit: "High confidence + reputation hit",
+    high_risk_requires_user_confirmation: "High risk requires confirmation",
+    medium_risk_advisory: "Medium risk advisory",
+    risk_below_enforcement_threshold: "Risk below enforcement threshold",
+  };
+
+  const factors: string[] = [];
+
+  if (result.policyDecision) {
+    const actionLabel =
+      result.policyDecision.action === "allow"
+        ? "Allowed"
+        : result.policyDecision.action === "warn"
+          ? "Warning"
+          : result.policyDecision.hardBlock
+            ? "Blocked (hard)"
+            : "Blocked";
+    const reason =
+      policyReasonMap[result.policyDecision.reason] || humanize(result.policyDecision.reason);
+    factors.push(`Decision: ${actionLabel} — ${reason}`);
+  }
+
+  if (typeof result.modelVersions?.safeBrowsingHit === "boolean") {
+    factors.push(
+      `Google Safe Browsing: ${result.modelVersions.safeBrowsingHit ? "Flagged as unsafe" : "No match found"}`,
+    );
+  }
+
+  if (result.scoreBreakdown) {
+    factors.push(
+      `Signals: URL ${(result.scoreBreakdown.urlMlScore * 100).toFixed(0)}% ML + ${(result.scoreBreakdown.urlHeuristicScore * 100).toFixed(0)}% heuristics`,
+    );
+    factors.push(
+      `Signals: Text ${(result.scoreBreakdown.textMlScore * 100).toFixed(0)}% ML + ${(result.scoreBreakdown.textHeuristicScore * 100).toFixed(0)}% heuristics`,
+    );
+  }
+
+  return factors;
+}
+
 export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps) {
-  const [activeTab, setActiveTab] = useState<"url" | "text" | "image">("url");
-  const [lastAnalyzedTab, setLastAnalyzedTab] = useState<"url" | "text" | "image">("url");
-  const [url, setUrl] = useState("");
-  const [textContent, setTextContent] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [extractingText, setExtractingText] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [limitInfo, setLimitInfo] = useState<{
-    message: string;
-    planId?: string;
-    organizationSlug?: string;
-    limits?: { monthly: { used: number; limit: number }; hourly: { used: number; limit: number } };
-  } | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  const [draft, setDraft] = useState("");
+  const [attachment, setAttachment] = useState<{ file: File; preview: string } | null>(null);
+  const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Restore state from sessionStorage on mount
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Hydrate draft from sessionStorage (keeps chat-like UX across refreshes).
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedTab = sessionStorage.getItem(SESSION_KEYS.ACTIVE_TAB) as "url" | "text" | "image" | null;
-      const savedUrl = sessionStorage.getItem(SESSION_KEYS.URL);
-      const savedText = sessionStorage.getItem(SESSION_KEYS.TEXT_CONTENT);
-      const savedImageUrl = sessionStorage.getItem(SESSION_KEYS.IMAGE_URL);
-      const savedImagePreview = sessionStorage.getItem(SESSION_KEYS.IMAGE_PREVIEW);
-
-      if (savedTab) setActiveTab(savedTab);
-      if (savedUrl) setUrl(savedUrl);
-      if (savedText) setTextContent(savedText);
-      if (savedImageUrl) setImageUrl(savedImageUrl);
-      if (savedImagePreview) setImagePreview(savedImagePreview);
-
-      setHydrated(true);
-    }
+    if (typeof window === "undefined") return;
+    const savedDraft = sessionStorage.getItem(SESSION_KEYS.DRAFT);
+    if (savedDraft) setDraft(savedDraft);
+    setHydrated(true);
   }, []);
 
-  // Persist activeTab to sessionStorage
   useEffect(() => {
-    if (hydrated) {
-      sessionStorage.setItem(SESSION_KEYS.ACTIVE_TAB, activeTab);
-    }
-  }, [activeTab, hydrated]);
+    if (!hydrated) return;
+    sessionStorage.setItem(SESSION_KEYS.DRAFT, draft);
+  }, [draft, hydrated]);
 
-  // Persist url to sessionStorage
+  // Auto-scroll to newest message.
   useEffect(() => {
-    if (hydrated) {
-      sessionStorage.setItem(SESSION_KEYS.URL, url);
-    }
-  }, [url, hydrated]);
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
 
-  // Persist textContent to sessionStorage
+  const updateAssistantMessage = (id: string, patch: Partial<Extract<ChatMessage, { role: "assistant" }>>) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.role === "assistant" && m.id === id ? ({ ...m, ...patch } as ChatMessage) : m)),
+    );
+  };
+
+  const resizeTextarea = () => {
+    if (!textareaRef.current) return;
+
+    const minHeight = 48; // aligns with h-12 buttons
+    const maxHeight = 160; // ~6 lines before scrolling
+
+    textareaRef.current.style.height = "0px";
+    const scrollHeight = textareaRef.current.scrollHeight;
+    const next = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+
+    textareaRef.current.style.height = `${next}px`;
+    textareaRef.current.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
+    textareaRef.current.style.overflowX = "hidden";
+  };
+
   useEffect(() => {
-    if (hydrated) {
-      sessionStorage.setItem(SESSION_KEYS.TEXT_CONTENT, textContent);
-    }
-  }, [textContent, hydrated]);
+    resizeTextarea();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
 
-  // Persist imageUrl to sessionStorage
-  useEffect(() => {
-    if (hydrated) {
-      sessionStorage.setItem(SESSION_KEYS.IMAGE_URL, imageUrl);
-    }
-  }, [imageUrl, hydrated]);
-
-  // Persist imagePreview to sessionStorage
-  useEffect(() => {
-    if (hydrated) {
-      if (imagePreview) {
-        sessionStorage.setItem(SESSION_KEYS.IMAGE_PREVIEW, imagePreview);
-      } else {
-        sessionStorage.removeItem(SESSION_KEYS.IMAGE_PREVIEW);
-      }
-    }
-  }, [imagePreview, hydrated]);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFileSelected = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
@@ -156,100 +282,108 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
       return;
     }
 
-    setUploading(true);
+    const reader = new FileReader();
+    const preview = await new Promise<string>((resolve) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+
+    setAttachment({ file, preview });
+  };
+
+  const handleDrop: React.DragEventHandler<HTMLDivElement> = async (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    await handleFileSelected(file);
+  };
+
+  const handleSend = async () => {
+    if (busy) return;
+
+    const trimmed = draft.trim();
+    if (!trimmed && !attachment) {
+      toast.error("Paste a URL, email text, or attach an image");
+      return;
+    }
+
+    setBusy(true);
+
+    const userMessageId = createId();
+    const assistantMessageId = createId();
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: userMessageId,
+        role: "user",
+        createdAt: Date.now(),
+        text: trimmed,
+        imagePreview: attachment?.preview ?? null,
+      },
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        createdAt: Date.now(),
+        status: "analyzing",
+        phase: attachment ? "Uploading image…" : "Analyzing…",
+      },
+    ]);
+
+    setDraft("");
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
     try {
-      // Convert image to base64 for persistent preview
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-      
-      const base64Preview = await base64Promise;
-      setImagePreview(base64Preview);
+      let url: string | undefined;
+      let textContent: string | undefined;
+      let imageUrl: string | undefined;
 
-      // Upload image for record keeping (in parallel with OCR)
-      const uploadPromise = (async () => {
+      if (attachment) {
+        updateAssistantMessage(assistantMessageId, { phase: "Uploading image…" });
+        const preparedFile = await downscaleImageFile(attachment.file, 1600);
+
         const formData = new FormData();
-        formData.append("file", file);
-        const result = await uploadScanImage(formData);
-        setImageUrl(result.imageUrl);
-      })();
+        formData.append("file", preparedFile);
 
-      // Extract text using OCR
-      setExtractingText(true);
-      toast.info("Extracting text from image...");
-      
-      try {
-        const extractedText = await extractTextFromImage(file);
-        
-        if (extractedText && extractedText.trim().length > 10) {
-          setTextContent(extractedText);
-          toast.success("Text extracted! Review and edit if needed, then analyze.");
-        } else {
-          toast.warning("Little or no text detected. You can add text manually.");
+        const uploadPromise = uploadScanImage(formData);
+
+        updateAssistantMessage(assistantMessageId, { phase: "Extracting text (OCR)…" });
+        const ocrPromise = import("@/lib/integrations/ocr")
+          .then(({ extractTextFromImage }) => extractTextFromImage(preparedFile))
+          .then((value) => value?.trim() || "")
+          .catch(() => "");
+
+        const [uploadResult, extractedText] = await Promise.all([uploadPromise, ocrPromise]);
+        imageUrl = uploadResult.imageUrl;
+        if (extractedText.length > 0) {
+          textContent = extractedText;
         }
-      } catch (ocrError) {
-        console.error("OCR failed:", ocrError);
-        toast.warning("Text extraction failed. You can add text manually.");
-      } finally {
-        setExtractingText(false);
+      } else {
+        const detectedUrl = findFirstUrl(trimmed);
+        if (detectedUrl && detectedUrl === trimmed.trim()) {
+          url = detectedUrl;
+        } else if (detectedUrl) {
+          url = detectedUrl;
+          textContent = trimmed;
+        } else {
+          textContent = trimmed;
+        }
       }
 
-      // Wait for upload to complete
-      await uploadPromise;
-      
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upload image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
+      updateAssistantMessage(assistantMessageId, { phase: "Running analysis…" });
 
-  const handleClearImage = () => {
-    setImagePreview(null);
-    setImageUrl("");
-    setTextContent("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    // Clear from sessionStorage too
-    sessionStorage.removeItem(SESSION_KEYS.IMAGE_PREVIEW);
-    sessionStorage.removeItem(SESSION_KEYS.IMAGE_URL);
-    sessionStorage.removeItem(SESSION_KEYS.TEXT_CONTENT);
-  };
-
-  const handleAnalyze = async () => {
-    if (activeTab === "url" && !url.trim()) {
-      toast.error("Please enter a URL");
-      return;
-    }
-    if (activeTab === "text" && !textContent.trim()) {
-      toast.error("Please enter some text");
-      return;
-    }
-    if (activeTab === "image" && !imageUrl) {
-      toast.error("Please upload an image first");
-      return;
-    }
-
-    setLastAnalyzedTab(activeTab);
-    setAnalyzing(true);
-    setResult(null);
-    setLimitInfo(null);
-
-    try {
       const data = await analyzePhishing({
-        url: activeTab === "url" ? url : undefined,
-        textContent: activeTab === "text" || (activeTab === "image" && textContent.trim()) 
-          ? textContent 
-          : undefined,
-        imageUrl: activeTab === "image" ? imageUrl : undefined,
+        url,
+        textContent,
+        imageUrl,
       });
 
-      setResult(data);
+      updateAssistantMessage(assistantMessageId, {
+        status: "done",
+        phase: undefined,
+        result: data,
+      });
       toast.success("Analysis complete");
     } catch (error: any) {
       let message = error?.message || "Analysis failed";
@@ -259,448 +393,369 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
         const json = message.replace("PG_LIMIT:", "");
         try {
           const payload = JSON.parse(json);
-          setLimitInfo({
+          const limitInfo: LimitInfo = {
             message: payload.message || "Scan limit reached",
             planId: payload.planId,
             organizationSlug: payload.organizationSlug,
             limits: payload.limits,
+          };
+          updateAssistantMessage(assistantMessageId, {
+            status: "limit",
+            phase: undefined,
+            limitInfo,
           });
-          message = payload.message || message;
+          toast.error(limitInfo.message);
+          return;
         } catch (e) {
           console.warn("Failed to parse limit payload", e);
         }
       }
 
+      updateAssistantMessage(assistantMessageId, {
+        status: "error",
+        phase: undefined,
+        errorMessage: message,
+      });
       toast.error(message);
       console.error(error);
     } finally {
-      setAnalyzing(false);
+      setBusy(false);
     }
   };
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case "safe":
-        return "text-green-600 dark:text-green-400";
-      case "low":
-        return "text-zinc-700 dark:text-zinc-300";
-      case "medium":
-        return "text-yellow-600 dark:text-yellow-400";
-      case "high":
-        return "text-orange-600 dark:text-orange-400";
-      case "critical":
-        return "text-red-600 dark:text-red-400";
-      default:
-        return "text-gray-600 dark:text-gray-400";
-    }
-  };
-
-  const getRiskIcon = (level: string) => {
-    if (level === "safe") return <CheckCircle className="w-16 h-16" />;
-    if (level === "low" || level === "medium") return <AlertTriangle className="w-16 h-16" />;
-    return <XCircle className="w-16 h-16" />;
-  };
-
-  const upgradeHref: Route = limitInfo?.organizationSlug
-    ? (`/org/${limitInfo.organizationSlug}` as Route)
-    : "/subscriptions";
-
-  const displayThreats = useMemo(
-    () => (result ? filterUserFacingThreats(result.detectedThreats || []) : []),
-    [result],
+  const visibleMessages = messages.filter(
+    (message) =>
+      !(
+        message.role === "assistant" &&
+        message.status === "done" &&
+        !message.result &&
+        !message.errorMessage &&
+        !message.limitInfo
+      ),
   );
 
-  const keyFactors = useMemo(() => {
-    if (!result) return [];
-
-    const formatPercent = (value: number) => `${(value * 100).toFixed(1)}%`;
-    const humanize = (value: string) =>
-      value
-        .replace(/[_-]+/g, " ")
-        .replace(/\b\w/g, (match) => match.toUpperCase());
-
-    const policyReasonMap: Record<string, string> = {
-      high_confidence_reputation_hit: "High confidence + reputation hit",
-      high_risk_requires_user_confirmation: "High risk requires confirmation",
-      medium_risk_advisory: "Medium risk advisory",
-      risk_below_enforcement_threshold: "Risk below enforcement threshold",
-    };
-
-    const factors: string[] = [];
-
-    if (result.policyDecision) {
-      const actionLabel =
-        result.policyDecision.action === "allow"
-          ? "Allowed"
-          : result.policyDecision.action === "warn"
-            ? "Warning"
-            : result.policyDecision.hardBlock
-              ? "Blocked (hard)"
-              : "Blocked";
-      const reason =
-        policyReasonMap[result.policyDecision.reason] || humanize(result.policyDecision.reason);
-      factors.push(`Decision: ${actionLabel} — ${reason}`);
-    }
-
-    if (typeof result.modelVersions?.safeBrowsingHit === "boolean") {
-      factors.push(
-        `Google Safe Browsing: ${result.modelVersions.safeBrowsingHit ? "Flagged as unsafe" : "No match found"}`,
-      );
-    }
-
-    if (result.scoreBreakdown) {
-      if (lastAnalyzedTab === "url") {
-        factors.push(
-          `URL checks: ${formatPercent(result.scoreBreakdown.urlHeuristicScore)} heuristics + ${formatPercent(result.scoreBreakdown.urlMlScore)} AI`,
-        );
-      } else {
-        factors.push(
-          `Content checks: ${formatPercent(result.scoreBreakdown.textHeuristicScore)} heuristics + ${formatPercent(result.scoreBreakdown.textMlScore)} AI`,
-        );
-      }
-      factors.push(`Combined signal score: ${formatPercent(result.scoreBreakdown.weightedScore)}`);
-    }
-
-    if (result.retentionPolicy) {
-      const retentionParts: string[] = [];
-      retentionParts.push(result.retentionPolicy.storedText ? "text stored" : "text not stored");
-      if (result.retentionPolicy.storedUrl) {
-        retentionParts.push(
-          result.retentionPolicy.usedUrlHostOnly ? "URL stored (host only)" : "URL stored (full)",
-        );
-      } else {
-        retentionParts.push("URL not stored");
-      }
-      if (result.retentionPolicy.forensicsMode) {
-        retentionParts.push("forensics mode on");
-      }
-      factors.push(`Privacy: ${retentionParts.join(" • ")}`);
-    }
-
-    return factors;
-  }, [lastAnalyzedTab, result]);
+  const assistantAvatarSrc = "/icon.png";
 
   const content = (
     <>
-        {/* Welcome Section */}
-        <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">
-              Phishing Analysis
-            </h1>
-            <p className="text-base text-gray-600 dark:text-gray-400">
-              Analyze URLs, text content, and images for potential phishing threats
-            </p>
-          </div>
-          <Button asChild variant="outline" className="w-fit">
-            <a href="#history">View scan history</a>
-          </Button>
-        </div>
+      <Card className="border-cyan-400/15 bg-card shadow-lg shadow-black/30">
+        <CardHeader>
+          <CardTitle className="text-2xl">Analyze</CardTitle>
+          <CardDescription>
+            Paste a URL, email text, or drop a screenshot. PhishGuard replies with a phishing verdict, confidence,
+            and key indicators.
+          </CardDescription>
+        </CardHeader>
 
-        {limitInfo && (
-          <div className="mb-6 border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/70 dark:bg-amber-500/10 dark:text-amber-100 rounded-md p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-500 dark:text-amber-300" />
-              <div className="flex-1">
-                <div className="font-semibold">Scan limit reached</div>
-                <p className="text-sm">{limitInfo.message}</p>
-                {limitInfo.limits && (
-                  <p className="text-xs mt-1">
-                    Monthly {limitInfo.limits.monthly.used}/{limitInfo.limits.monthly.limit} / Hourly {limitInfo.limits.hourly.used}/{limitInfo.limits.hourly.limit}
-                  </p>
+        <CardContent>
+          <div
+            className="rounded-2xl border border-cyan-400/15 bg-background p-3"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDrop}
+          >
+            <div
+              className={cn(
+                "no-scrollbar max-h-[520px] overflow-y-auto overflow-x-hidden",
+                embedded ? "min-h-[420px]" : "min-h-[520px]",
+              )}
+            >
+              <div className="space-y-3">
+                {visibleMessages.length === 0 ? (
+                  <div className="flex items-end gap-3">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+                      <img
+                        src={assistantAvatarSrc}
+                        alt="PhishGuard"
+                        className="h-full w-full object-cover brightness-110 saturate-125"
+                        loading="eager"
+                      />
+                    </div>
+                    <div className="max-w-[88%] rounded-3xl rounded-bl-lg border border-white/10 bg-zinc-950 px-4 py-3 text-zinc-100">
+                      <p className="text-sm font-semibold">Drop or paste anything</p>
+                      <p className="mt-1 text-sm text-zinc-300">
+                        Paste a URL, paste an email body, or drag-and-drop a screenshot. I&apos;ll reply with a
+                        phishing verdict and key indicators.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  visibleMessages.map((message) => {
+                    if (message.role === "user") {
+                      return (
+                        <div key={message.id} className="flex justify-end">
+                          <div className="max-w-[88%] overflow-hidden rounded-3xl rounded-br-lg border border-cyan-400/20 bg-cyan-950 px-4 py-3 text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.08)]">
+                            {message.imagePreview ? (
+                              <img
+                                src={message.imagePreview}
+                                alt="Uploaded"
+                                className="mb-2 max-h-56 w-full rounded-xl border border-white/10 object-cover"
+                              />
+                            ) : null}
+                            {message.text ? (
+                              <p className="whitespace-pre-wrap break-words text-sm leading-6 [overflow-wrap:anywhere]">
+                                {message.text}
+                              </p>
+                            ) : (
+                              <p className="text-sm text-cyan-100/80">Image uploaded</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (message.status === "analyzing") {
+                      return (
+                        <div key={message.id} className="flex items-end gap-3">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+                            <img
+                              src={assistantAvatarSrc}
+                              alt="PhishGuard"
+                              className="h-full w-full object-cover brightness-110 saturate-125"
+                              loading="eager"
+                            />
+                          </div>
+                          <div className="max-w-[88%] rounded-3xl rounded-bl-lg border border-white/10 bg-zinc-950 px-4 py-3 text-zinc-100">
+                            <div className="flex items-center gap-3 text-zinc-200">
+                              <div
+                                className="flex items-center gap-1.5 [&>span]:animate-bounce [&>span]:[animation-duration:900ms]"
+                                aria-hidden="true"
+                              >
+                                <span
+                                  className="h-2 w-2 rounded-full bg-cyan-200/80"
+                                  style={{ animationDelay: "0ms" }}
+                                />
+                                <span
+                                  className="h-2 w-2 rounded-full bg-cyan-200/80"
+                                  style={{ animationDelay: "120ms" }}
+                                />
+                                <span
+                                  className="h-2 w-2 rounded-full bg-cyan-200/80"
+                                  style={{ animationDelay: "240ms" }}
+                                />
+                              </div>
+                              <p className="text-sm">{message.phase || "Analyzing…"}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (message.status === "error") {
+                      return (
+                        <div key={message.id} className="flex items-end gap-3">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+                            <img
+                              src={assistantAvatarSrc}
+                              alt="PhishGuard"
+                              className="h-full w-full object-cover brightness-110 saturate-125"
+                              loading="eager"
+                            />
+                          </div>
+                          <div className="max-w-[88%] rounded-3xl rounded-bl-lg border border-red-500/25 bg-red-950 px-4 py-3 text-red-100">
+                            <p className="text-sm font-semibold">Analysis failed</p>
+                            <p className="mt-1 text-sm text-red-100/80">{message.errorMessage}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (message.status === "limit") {
+                      const upgradeHref: Route = message.limitInfo?.organizationSlug
+                        ? (`/org/${message.limitInfo.organizationSlug}` as Route)
+                        : "/subscriptions";
+                      return (
+                        <div key={message.id} className="flex items-end gap-3">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+                            <img
+                              src={assistantAvatarSrc}
+                              alt="PhishGuard"
+                              className="h-full w-full object-cover brightness-110 saturate-125"
+                              loading="eager"
+                            />
+                          </div>
+                          <div className="max-w-[88%] rounded-3xl rounded-bl-lg border border-amber-500/25 bg-amber-950 px-4 py-3 text-amber-100">
+                            <p className="text-sm font-semibold">Limit reached</p>
+                            <p className="mt-1 text-sm text-amber-100/80">{message.limitInfo?.message}</p>
+                            <div className="mt-3 flex items-center gap-2">
+                              <Button asChild size="sm" className="bg-amber-400 text-amber-950 hover:bg-amber-300">
+                                <Link href={upgradeHref}>Upgrade plan</Link>
+                              </Button>
+                              <p className="text-xs text-amber-100/70">Then retry your scan.</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // done
+                    const result = message.result;
+                    if (!result) return null;
+                    const displayThreats = filterUserFacingThreats(result.detectedThreats || []);
+                    const keyFactors = getKeyFactors(result).slice(0, 4);
+
+                    return (
+                      <div key={message.id} className="flex items-end gap-3">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+                          <img
+                            src={assistantAvatarSrc}
+                            alt="PhishGuard"
+                            className="h-full w-full object-cover brightness-110 saturate-125"
+                            loading="eager"
+                          />
+                        </div>
+                        <div className="max-w-[88%] rounded-3xl rounded-bl-lg border border-white/10 bg-zinc-950 px-4 py-3 text-zinc-100">
+                          <div className="flex items-start gap-3">
+                            <div className={cn("mt-0.5", getRiskColor(result.riskLevel))}>
+                              {getRiskIcon(result.riskLevel)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <p className="text-base font-semibold capitalize">
+                                  {result.riskLevel} risk
+                                </p>
+                                <p className="text-xs text-zinc-400">
+                                  {(result.overallScore * 100).toFixed(1)}% overall •{" "}
+                                  {(result.confidence * 100).toFixed(1)}% confidence
+                                </p>
+                              </div>
+                              <p className="mt-2 break-words text-sm leading-6 text-zinc-300 [overflow-wrap:anywhere]">
+                                {result.analysis}
+                              </p>
+
+                              {keyFactors.length > 0 ? (
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                                    Key factors
+                                  </p>
+                                  <ul className="mt-2 space-y-1 break-words text-sm text-zinc-300 [overflow-wrap:anywhere]">
+                                    {keyFactors.map((factor, idx) => (
+                                      <li key={idx} className="flex gap-2">
+                                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-400" />
+                                        <span className="min-w-0">{factor}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+
+                              {displayThreats.length > 0 ? (
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                                    Indicators found
+                                  </p>
+                                  <ul className="mt-2 space-y-1 break-words text-sm text-zinc-300 [overflow-wrap:anywhere]">
+                                    {displayThreats.slice(0, 6).map((threat, idx) => (
+                                      <li key={idx} className="flex items-start gap-2">
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                                        <span className="min-w-0">{threat}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => setLimitInfo(null)}>
-                    Dismiss
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link href={upgradeHref}>
-                      Upgrade or Request More
-                    </Link>
+              </div>
+              <div ref={endRef} />
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {attachment ? (
+                <div className="flex items-center gap-3 rounded-2xl border border-cyan-400/15 bg-zinc-950 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 text-cyan-300" />
+                    <p className="text-sm text-zinc-200">Image attached</p>
+                  </div>
+                  <div className="flex-1" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-zinc-300 hover:text-zinc-50"
+                    onClick={() => {
+                      setAttachment(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    aria-label="Remove attachment"
+                  >
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
+              ) : null}
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 flex-wrap">
-          <Button
-            variant={activeTab === "url" ? "default" : "outline"}
-            onClick={() => setActiveTab("url")}
-            className="flex items-center gap-2"
-          >
-            <LinkIcon className="w-4 h-4" />
-            URL Analysis
-          </Button>
-          <Button
-            variant={activeTab === "text" ? "default" : "outline"}
-            onClick={() => setActiveTab("text")}
-            className="flex items-center gap-2"
-          >
-            <FileText className="w-4 h-4" />
-            Text Analysis
-          </Button>
-          <Button
-            variant={activeTab === "image" ? "default" : "outline"}
-            onClick={() => setActiveTab("image")}
-            className="flex items-center gap-2"
-          >
-            <ImageIcon className="w-4 h-4" />
-            Image Analysis
-          </Button>
-        </div>
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <textarea
+                    ref={textareaRef}
+                    className={cn(
+                      "no-scrollbar w-full min-h-12 resize-none rounded-2xl border border-input bg-background px-4 py-3 text-sm leading-6 text-foreground",
+                      "break-words [overflow-wrap:anywhere] overflow-x-hidden",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                    )}
+                    placeholder="Paste a URL, email text, or drop an image…"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                    rows={1}
+                    disabled={busy}
+                  />
+                </div>
 
-        {/* Input Section */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-xl">
-              {activeTab === "url" && "Enter URL"}
-              {activeTab === "text" && "Enter Text Content"}
-              {activeTab === "image" && "Upload Image"}
-            </CardTitle>
-            <CardDescription>
-              {activeTab === "url" && "Enter a website URL to check for phishing indicators"}
-              {activeTab === "text" && "Paste email content or message text to analyze"}
-              {activeTab === "image" && "Upload a screenshot of suspicious email or message"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-          {activeTab === "url" ? (
-            <div className="space-y-3">
-              <Label htmlFor="url">URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="url"
-                  placeholder="https://example.com"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="flex-1"
-                />
-                <Button 
-                  onClick={handleAnalyze} 
-                  disabled={analyzing}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  {analyzing ? (
-                    <>Analyzing...</>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Analyze
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : activeTab === "text" ? (
-            <div className="space-y-3">
-              <Label htmlFor="text">Text Content</Label>
-              <textarea
-                id="text"
-                className="w-full min-h-50 p-3 rounded-lg border border-input bg-background"
-                placeholder="Paste email or message content here..."
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-              />
-              <Button 
-                onClick={handleAnalyze} 
-                disabled={analyzing} 
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {analyzing ? (
-                  <>Analyzing...</>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5 mr-2" />
-                    Analyze
-                  </>
-                )}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleImageUpload}
                   className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    void handleFileSelected(file);
+                  }}
                 />
+
                 <Button
+                  type="button"
                   variant="outline"
+                  className="h-12 w-12 rounded-2xl border-cyan-400/20 bg-background px-0"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex-1"
+                  disabled={busy}
+                  aria-label="Attach image"
                 >
-                  {uploading ? (
-                    <>Uploading...</>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Choose Image
-                    </>
-                  )}
+                  <ImageIcon className="h-5 w-5" />
+                </Button>
+
+                <Button
+                  type="button"
+                  className="h-12 rounded-2xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+                  onClick={() => void handleSend()}
+                  disabled={busy}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Send
                 </Button>
               </div>
 
-              {imagePreview && (
-                <div className="space-y-3">
-                  <div className="relative rounded-lg border overflow-hidden bg-gray-50">
-                    <img
-                      src={imagePreview}
-                      alt="Uploaded preview"
-                      className="w-full h-auto max-h-100 object-contain"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearImage}
-                      className="absolute top-2 right-2 bg-white/90 hover:bg-white"
-                    >
-                      <XCircle className="w-4 h-4 mr-1" />
-                      Clear
-                    </Button>
-                  </div>
-                  
-                  {extractingText && (
-                    <div className="flex items-center gap-2 rounded-lg bg-zinc-100 p-3 text-sm text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                      <Loader className="h-4 w-4 animate-spin" />
-                      Extracting text from image...
-                    </div>
-                  )}
-                  
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                      <div>
-                        <strong>Note:</strong> OCR text extraction may not be perfect, especially with screenshots. 
-                        Please review and edit the extracted text as needed before analyzing.
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="image-text">
-                      {textContent ? "Extracted Text (Review and edit if needed)" : "Add text from the image (optional)"}
-                    </Label>
-                    <textarea
-                      id="image-text"
-                      className="w-full min-h-30 p-3 rounded-lg border border-input bg-background"
-                      placeholder="Text will be extracted automatically from image, or enter manually..."
-                      value={textContent}
-                      onChange={(e) => setTextContent(e.target.value)}
-                      disabled={extractingText}
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={handleAnalyze} 
-                    disabled={analyzing || extractingText} 
-                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    {analyzing ? (
-                      <>Analyzing...</>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Analyze Image
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Tip: Press Enter to send, Shift+Enter for a new line.
+              </p>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
-
-      {/* Results Section */}
-        {result && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Analysis Results</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Risk Level */}
-            <div className="flex items-center gap-4">
-              <div className={getRiskColor(result.riskLevel)}>
-                {getRiskIcon(result.riskLevel)}
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold capitalize">{result.riskLevel} Risk</h3>
-                <p className="text-muted-foreground">
-                  {result.isPhishing ? "Potential phishing detected" : "No immediate threats detected"}
-                </p>
-              </div>
-            </div>
-
-            {/* Scores */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground mb-1">Overall Score</p>
-                <p className="text-2xl font-bold">{(result.overallScore * 100).toFixed(1)}%</p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground mb-1">Confidence</p>
-                <p className="text-2xl font-bold">{(result.confidence * 100).toFixed(1)}%</p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground mb-1">URL Score</p>
-                <p className="text-2xl font-bold">{(result.urlScore * 100).toFixed(1)}%</p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground mb-1">Text Score</p>
-                <p className="text-2xl font-bold">{(result.textScore * 100).toFixed(1)}%</p>
-              </div>
-            </div>
-
-            {/* Key factors */}
-            {keyFactors.length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-2">Key factors</h4>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  {keyFactors.map((factor, idx) => (
-                    <li key={idx} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden="true" />
-                      <span>{factor}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Indicators found */}
-            {displayThreats.length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-2">Indicators found</h4>
-                <ul className="space-y-1">
-                  {displayThreats.map((threat, idx) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm">
-                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
-                      <span>{threat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Analysis Details */}
-            <div>
-              <h4 className="font-semibold mb-2">Analysis Details</h4>
-              <p className="text-sm text-muted-foreground">{result.analysis}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </>
   );
 
-  if (embedded) {
-    return content;
-  }
+  if (embedded) return content;
 
   return (
     <div className="min-h-screen bg-background">
@@ -708,5 +763,3 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
     </div>
   );
 }
-
-

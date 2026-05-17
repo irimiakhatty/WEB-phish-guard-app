@@ -121,9 +121,17 @@ export default function ScansClient({
                           {scan.url}
                         </a>
                       ) : (
-                        "Text content analysis"
+                        scan.imageUrl
+                          ? "Image analysis"
+                          : scan.textContent
+                            ? "Text content analysis"
+                            : "Content analysis"
                       )}
                     </CardTitle>
+
+                    {scan.analysis ? (
+                      <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{scan.analysis}</p>
+                    ) : null}
                     <CardDescription className="mt-2 flex items-center gap-2">
                       <Clock className="h-4 w-4" />
                       {new Date(scan.createdAt).toLocaleString("en-GB")}

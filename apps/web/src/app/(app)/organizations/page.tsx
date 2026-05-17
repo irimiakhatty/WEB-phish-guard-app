@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus, Users, Shield, Calendar, Building2, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { redirect } from "next/navigation";
 import { ClickablePlanBadge } from "@/components/clickable-plan-badge";
 
@@ -96,21 +95,6 @@ export default async function OrganizationsPage() {
                         @{org.slug}
                       </CardDescription>
                     </div>
-                    <Badge variant={org.role === "admin" || org.role === "Super Admin" ? "default" : "secondary"}>
-                      {org.role === "admin" ? (
-                        <>
-                          <Shield className="w-3 h-3 mr-1" />
-                          Org Admin
-                        </>
-                      ) : org.role === "Super Admin" ? (
-                        <>
-                          <Shield className="w-3 h-3 mr-1" />
-                          Super Admin
-                        </>
-                      ) : (
-                        "Member"
-                      )}
-                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

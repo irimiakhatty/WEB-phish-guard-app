@@ -3,10 +3,18 @@ import type {
   getAllSubscriptions,
   getAllUsers,
   getRecentActivity,
+  getRiskReport,
 } from "@/server/actions/admin";
 import type { getAllScans } from "@/server/actions/scans";
 
-export const ADMIN_TABS = ["users", "organizations", "subscriptions", "scans", "activity"] as const;
+export const ADMIN_TABS = [
+  "users",
+  "organizations",
+  "subscriptions",
+  "scans",
+  "reports",
+  "activity",
+] as const;
 
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
@@ -25,6 +33,11 @@ export type AdminRecentScan = AdminActivityData["recentScans"][number];
 export type AdminRecentUser = AdminActivityData["recentUsers"][number];
 
 export type AdminScan = Awaited<ReturnType<typeof getAllScans>>[number];
+
+export type AdminRiskReportData = Awaited<ReturnType<typeof getRiskReport>>;
+export type AdminRiskDepartmentRow = AdminRiskReportData["departments"][number];
+export type AdminRiskUserRow = AdminRiskReportData["users"][number];
+export type AdminRiskIncidentRow = AdminRiskReportData["incidents"][number];
 
 export function normalizeAdminTab(value?: string | null): AdminTab {
   if (value && ADMIN_TABS.includes(value as AdminTab)) {

@@ -50,8 +50,8 @@
   --card-foreground: #fafafa;
   --popover: #09090b;
   --popover-foreground: #fafafa;
-  --primary: #7c3aed;
-  --primary-foreground: #ffffff;
+  --primary: #00e5ff;
+  --primary-foreground: #001216;
   --secondary: #18181b;
   --secondary-foreground: #fafafa;
   --muted: #18181b;
@@ -64,7 +64,7 @@
   --input: #27272a;
   --input-background: #111113;
   --switch-background: #3f3f46;
-  --ring: #a78bfa;
+  --ring: #00e5ff;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -72,12 +72,12 @@
   --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: #09090b;
   --sidebar-foreground: #fafafa;
-  --sidebar-primary: #7c3aed;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary: #00e5ff;
+  --sidebar-primary-foreground: #001216;
   --sidebar-accent: #18181b;
   --sidebar-accent-foreground: #fafafa;
   --sidebar-border: #27272a;
-  --sidebar-ring: #a78bfa;
+  --sidebar-ring: #00e5ff;
 }
 
 @theme inline {
@@ -133,6 +133,17 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
   }
 }
 

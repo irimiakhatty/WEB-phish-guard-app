@@ -29,7 +29,7 @@ export default async function AnalyzePage() {
             <div>
               <h2 className="text-2xl font-semibold text-zinc-100">Scan history</h2>
               <p className="text-sm text-muted-foreground">
-                Your most recent phishing analyses (last {scans.length} events).
+                Your most recent analyses (last {scans.length} events).
               </p>
             </div>
           </div>

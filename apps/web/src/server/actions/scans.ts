@@ -156,6 +156,13 @@ export async function getAllScans() {
           email: true,
         },
       },
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/auth/api-auth";
-import prisma from "@phish-guard-app/db";
+import { getRiskReport } from "@phish-guard-app/backend/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,78 +24,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const departmentAgg = await prisma.scan.groupBy({
-      by: ["departmentId"],
-      _count: { id: true },
-      where: {
-        isDeleted: false,
-        OR: [{ isPhishing: true }, { riskLevel: { in: ["high", "critical"] } }],
-      },
-      orderBy: { _count: { id: "desc" } },
-      take: 5,
-    });
-    const departmentIds = departmentAgg
-      .map((row) => row.departmentId)
-      .filter((id): id is string => Boolean(id));
-    const departmentsLookup = departmentIds.length
-      ? await prisma.organizationDepartment.findMany({
-          where: {
-            id: { in: departmentIds },
-          },
-          select: {
-            id: true,
-            name: true,
-            organization: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        })
-      : [];
-    const departmentsById = new Map(
-      departmentsLookup.map((department) => [
-        department.id,
-        {
-          name: department.name,
-          organizationName: department.organization.name,
-        },
-      ])
-    );
-    const departments = departmentAgg.map((row) => {
-      const details = row.departmentId ? departmentsById.get(row.departmentId) : null;
-      return {
-        departmentId: row.departmentId || "unassigned",
-        departmentName: details?.name || "Unassigned",
-        organizationName: details?.organizationName || null,
-        _count: row._count,
-      };
-    });
-
-    const users = await prisma.userAction.groupBy({
-      by: ["userId"],
-      _count: { id: true },
-      where: { actionType: "clicked_suspicious_link" },
-      orderBy: { _count: { id: "desc" } },
-      take: 5,
-    });
-
-    const since = new Date();
-    since.setDate(since.getDate() - 30);
-
-    const incidents = await prisma.emailScan.groupBy({
-      by: ["detectedAt"],
-      _count: { id: true },
-      where: { detectedAt: { gte: since } },
-      orderBy: { detectedAt: "asc" },
-    });
+    const report = await getRiskReport();
 
     return NextResponse.json({
       success: true,
       data: {
-        departments,
-        users,
-        incidents,
+        ...report,
       },
     });
   } catch (error) {

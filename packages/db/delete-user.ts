@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "./src/index.js";
 
 async function deleteUserByEmail() {
   const email = process.argv[2];

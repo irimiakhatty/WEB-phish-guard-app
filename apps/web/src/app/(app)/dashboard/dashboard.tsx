@@ -209,12 +209,12 @@ export default function Dashboard({
 
           <Card className="lg:col-span-4">
             <CardHeader>
-              <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-200/80" />
+                <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-400" />
                   Threats {isSuperAdmin ? "Detected" : "Blocked"}
-                </div>
-              </CardTitle>
+                  </div>
+                </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-1 text-4xl font-semibold tracking-tight text-foreground">
@@ -223,7 +223,7 @@ export default function Dashboard({
               <p className="text-sm text-muted-foreground">Phishing attempts detected</p>
               <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
                 <div
-                  className="h-full rounded-full bg-red-400/70"
+                  className="h-full rounded-full bg-red-500/90"
                   style={{ width: `${threatPercent}%` }}
                 />
               </div>
@@ -233,12 +233,12 @@ export default function Dashboard({
 
           <Card className="lg:col-span-3">
             <CardHeader>
-              <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-200/80" />
+                <CardTitle className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
                   Safe {isSuperAdmin ? "Scans" : "Sites"}
-                </div>
-              </CardTitle>
+                  </div>
+                </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-1 text-4xl font-semibold tracking-tight text-foreground">
@@ -247,7 +247,7 @@ export default function Dashboard({
               <p className="text-sm text-muted-foreground">Verified as legitimate</p>
               <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
                 <div
-                  className="h-full rounded-full bg-emerald-400/70"
+                  className="h-full rounded-full bg-emerald-500/90"
                   style={{ width: `${safePercent}%` }}
                 />
               </div>
@@ -337,7 +337,7 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Card className="bg-red-500/5">
+              <Card className="bg-red-500/8">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Threats Blocked This Month
@@ -361,7 +361,7 @@ export default function Dashboard({
                 </CardContent>
               </Card>
 
-              <Card className="bg-emerald-500/5">
+              <Card className="bg-emerald-500/8">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Most Targeted Employee
@@ -425,7 +425,7 @@ export default function Dashboard({
 
                           <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
+                              className="h-full rounded-full bg-[#00e5ff]/70 shadow-[0_0_16px_rgba(0,229,255,0.25)]"
                               style={{ width: `${barWidth}%` }}
                             />
                           </div>

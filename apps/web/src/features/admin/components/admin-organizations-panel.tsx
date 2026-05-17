@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAllOrganizations, searchOrganizations, deleteOrganizationAsAdmin } from "@/server/actions/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { getPlanById } from "@/lib/billing/subscription-plans";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +32,7 @@ import {
   ChevronRight,
   Building2,
   Users,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import type { AdminOrganization } from "./types";
@@ -43,6 +45,15 @@ export default function AdminOrganizationsPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [orgToDelete, setOrgToDelete] = useState<AdminOrganization | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const currency = useMemo(
+    () =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
 
   const loadOrganizations = async (page = currentPage) => {
     setLoading(true);
@@ -129,6 +140,16 @@ export default function AdminOrganizationsPanel() {
                       <Badge variant="secondary" className="text-xs">
                         {organization.subscription?.plan || "team_free"}
                       </Badge>
+                      <span className="flex items-center">
+                        <DollarSign className="mr-1 h-3 w-3" />
+                        {(() => {
+                          const planId = organization.subscription?.plan ?? "team_free";
+                          const plan = getPlanById(planId);
+                          const estimatedMrr =
+                            organization.subscription?.status === "active" ? plan.price : 0;
+                          return `${currency.format(estimatedMrr)}/mo`;
+                        })()}
+                      </span>
                     </div>
                     {organization.members[0] ? (
                       <p className="mt-1 text-xs text-muted-foreground">

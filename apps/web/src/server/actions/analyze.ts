@@ -664,9 +664,10 @@ export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeConte
   const allThreats: string[] = [];
   let mlDetectionUsed = false;
   let extractedText = input.textContent || "";
+  const shouldRunOcr = Boolean(input.imageUrl) && extractedText.trim().length === 0;
 
   // === IMAGE ANALYSIS (OCR) ===
-  if (input.imageUrl) {
+  if (shouldRunOcr && input.imageUrl) {
     try {
       console.log("ðŸ–¼ï¸ Processing image with OCR...");
       // Extract text from image using OCR
@@ -679,7 +680,9 @@ export async function analyzePhishing(input: AnalyzeInput, context: AnalyzeConte
       
       // Extract text
       const ocrText = await extractTextFromImage(file);
-      extractedText = ocrText;
+      if (ocrText.trim().length > 0) {
+        extractedText = ocrText;
+      }
       console.log(`✅ OCR extracted ${ocrText.length} characters`);
       
       if (ocrText.length < 10) {

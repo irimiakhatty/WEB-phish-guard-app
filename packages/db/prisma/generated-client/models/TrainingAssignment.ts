@@ -221,7 +221,7 @@ export type TrainingAssignmentGroupByOutputType = {
   _max: TrainingAssignmentMaxAggregateOutputType | null
 }
 
-type GetTrainingAssignmentGroupByPayload<T extends TrainingAssignmentGroupByArgs> = Prisma.PrismaPromise<
+export type GetTrainingAssignmentGroupByPayload<T extends TrainingAssignmentGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<TrainingAssignmentGroupByOutputType, T['by']> &
       {
@@ -1959,6 +1959,11 @@ export type TrainingAssignmentFindManyArgs<ExtArgs extends runtime.Types.Extensi
    * Skip the first `n` TrainingAssignments.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of TrainingAssignments.
+   */
   distinct?: Prisma.TrainingAssignmentScalarFieldEnum | Prisma.TrainingAssignmentScalarFieldEnum[]
 }
 
