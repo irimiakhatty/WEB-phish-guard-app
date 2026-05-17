@@ -7,6 +7,7 @@ import { getPlanById } from "@/lib/billing/subscription-plans";
 import {
   createCsv,
   getStandardReportDefinition,
+  type CsvColumn,
   type StandardReportFormat,
   type StandardReportId,
 } from "@/features/admin/reports/standard-reports";
@@ -102,9 +103,293 @@ export type ExportedStandardReport = {
   bytes: number;
 };
 
+export type StandardReportPreview =
+  | {
+      kind: "table";
+      columns: Array<{ header: string; key: string }>;
+      rows: Array<Record<string, unknown>>;
+      totalRows: number;
+      truncated: boolean;
+    }
+  | {
+      kind: "json";
+      json: string;
+    };
+
 function buildReportFilename(reportId: StandardReportId, format: StandardReportFormat) {
   const date = new Date().toISOString().slice(0, 10);
   return `phishguard_${reportId}_${date}.${format}`;
+}
+
+function clampPreviewLimit(limit: number) {
+  if (!Number.isFinite(limit)) {
+    return 50;
+  }
+
+  return Math.max(5, Math.min(200, Math.floor(limit)));
+}
+
+function serializeCellValue(value: unknown) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(" | ");
+  }
+
+  return value;
+}
+
+function serializeRow(row: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, serializeCellValue(value)])
+  );
+}
+
+export async function getStandardReportPreview(
+  reportId: StandardReportId,
+  limit = 50
+): Promise<StandardReportPreview> {
+  await requireSuperAdmin();
+
+  const previewLimit = clampPreviewLimit(limit);
+
+  switch (reportId) {
+    case "platform_overview": {
+      const stats = await adminService.getGlobalStats();
+      return {
+        kind: "json",
+        json: JSON.stringify({ generatedAt: new Date().toISOString(), reportId, data: stats }, null, 2),
+      };
+    }
+
+    case "risk_signals_30d": {
+      const report = await adminService.getRiskReport();
+      return {
+        kind: "json",
+        json: JSON.stringify({ generatedAt: new Date().toISOString(), reportId, data: report }, null, 2),
+      };
+    }
+
+    case "organizations_snapshot": {
+      const { organizations, totalCount } = await adminService.getAllOrganizations(1, previewLimit);
+      const rows = organizations.map((org) => {
+        const planId = org.subscription?.plan ?? "team_free";
+        const plan = getPlanById(planId);
+        const estimatedMrrUsd = org.subscription?.status === "active" ? plan.price : 0;
+
+        return {
+          organizationId: org.id,
+          name: org.name,
+          slug: org.slug,
+          planId,
+          subscriptionStatus: org.subscription?.status ?? "none",
+          members: org._count.members,
+          scans: org._count.scans,
+          estimatedMrrUsd,
+          createdAt: org.createdAt.toISOString(),
+        };
+      });
+
+      const columns: CsvColumn<(typeof rows)[number]>[] = [
+        { header: "organizationId", key: "organizationId" },
+        { header: "name", key: "name" },
+        { header: "slug", key: "slug" },
+        { header: "planId", key: "planId" },
+        { header: "subscriptionStatus", key: "subscriptionStatus" },
+        { header: "members", key: "members" },
+        { header: "scans", key: "scans" },
+        { header: "estimatedMrrUsd", key: "estimatedMrrUsd" },
+        { header: "createdAt", key: "createdAt" },
+      ];
+
+      return {
+        kind: "table",
+        columns: columns.map((column) => ({ header: column.header, key: column.key })),
+        rows: rows.map(serializeRow),
+        totalRows: totalCount,
+        truncated: totalCount > rows.length,
+      };
+    }
+
+    case "subscriptions_paid": {
+      const { personalSubscriptions, teamSubscriptions } = await adminService.getAllSubscriptions();
+
+      const rows = [
+        ...personalSubscriptions.map((sub) => ({
+          type: "personal",
+          entityId: sub.userId,
+          entityName: sub.user?.name ?? "",
+          entityEmail: sub.user?.email ?? "",
+          organizationId: "",
+          organizationSlug: "",
+          organizationName: "",
+          planId: sub.plan,
+          status: sub.status,
+          cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+          currentPeriodStart: sub.currentPeriodStart.toISOString(),
+          currentPeriodEnd: sub.currentPeriodEnd.toISOString(),
+          createdAt: sub.createdAt.toISOString(),
+        })),
+        ...teamSubscriptions.map((sub) => ({
+          type: "team",
+          entityId: "",
+          entityName: "",
+          entityEmail: "",
+          organizationId: sub.organizationId,
+          organizationSlug: sub.organization?.slug ?? "",
+          organizationName: sub.organization?.name ?? "",
+          planId: sub.plan,
+          status: sub.status,
+          cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+          currentPeriodStart: sub.currentPeriodStart.toISOString(),
+          currentPeriodEnd: sub.currentPeriodEnd.toISOString(),
+          createdAt: sub.createdAt.toISOString(),
+        })),
+      ];
+
+      const columns: CsvColumn<(typeof rows)[number]>[] = [
+        { header: "type", key: "type" },
+        { header: "planId", key: "planId" },
+        { header: "status", key: "status" },
+        { header: "cancelAtPeriodEnd", key: "cancelAtPeriodEnd" },
+        { header: "currentPeriodStart", key: "currentPeriodStart" },
+        { header: "currentPeriodEnd", key: "currentPeriodEnd" },
+        { header: "entityId", key: "entityId" },
+        { header: "entityName", key: "entityName" },
+        { header: "entityEmail", key: "entityEmail" },
+        { header: "organizationId", key: "organizationId" },
+        { header: "organizationName", key: "organizationName" },
+        { header: "organizationSlug", key: "organizationSlug" },
+        { header: "createdAt", key: "createdAt" },
+      ];
+
+      const limited = rows.slice(0, previewLimit);
+      return {
+        kind: "table",
+        columns: columns.map((column) => ({ header: column.header, key: column.key })),
+        rows: limited.map(serializeRow),
+        totalRows: rows.length,
+        truncated: rows.length > limited.length,
+      };
+    }
+
+    case "recent_users": {
+      const activity = await adminService.getRecentActivity(previewLimit);
+      const rows = activity.recentUsers.map((user) => ({
+        userId: user.id,
+        name: user.name ?? "",
+        email: user.email,
+        createdAt: user.createdAt.toISOString(),
+      }));
+
+      const columns: CsvColumn<(typeof rows)[number]>[] = [
+        { header: "userId", key: "userId" },
+        { header: "name", key: "name" },
+        { header: "email", key: "email" },
+        { header: "createdAt", key: "createdAt" },
+      ];
+
+      return {
+        kind: "table",
+        columns: columns.map((column) => ({ header: column.header, key: column.key })),
+        rows: rows.map(serializeRow),
+        totalRows: rows.length,
+        truncated: false,
+      };
+    }
+
+    case "recent_scans": {
+      const activity = await adminService.getRecentActivity(previewLimit);
+      const rows = activity.recentScans.map((scan) => ({
+        scanId: scan.id,
+        createdAt: scan.createdAt.toISOString(),
+        source: scan.source,
+        userName: scan.user?.name ?? "",
+        userEmail: scan.user?.email ?? "",
+        organizationName: scan.organization?.name ?? "",
+        organizationSlug: scan.organization?.slug ?? "",
+        riskLevel: scan.riskLevel,
+        isPhishing: scan.isPhishing,
+        overallScorePct: Math.round(scan.overallScore * 1000) / 10,
+        confidencePct: Math.round(scan.confidence * 1000) / 10,
+        url: scan.url ?? "",
+      }));
+
+      const columns: CsvColumn<(typeof rows)[number]>[] = [
+        { header: "scanId", key: "scanId" },
+        { header: "createdAt", key: "createdAt" },
+        { header: "source", key: "source" },
+        { header: "userName", key: "userName" },
+        { header: "userEmail", key: "userEmail" },
+        { header: "organizationName", key: "organizationName" },
+        { header: "organizationSlug", key: "organizationSlug" },
+        { header: "riskLevel", key: "riskLevel" },
+        { header: "isPhishing", key: "isPhishing" },
+        { header: "overallScorePct", key: "overallScorePct" },
+        { header: "confidencePct", key: "confidencePct" },
+        { header: "url", key: "url" },
+      ];
+
+      return {
+        kind: "table",
+        columns: columns.map((column) => ({ header: column.header, key: column.key })),
+        rows: rows.map(serializeRow),
+        totalRows: rows.length,
+        truncated: false,
+      };
+    }
+
+    case "activity_log": {
+      const activity = await adminService.getRecentActivity(previewLimit);
+
+      const scanEvents = activity.recentScans.map((scan) => ({
+        eventType: "scan",
+        time: scan.createdAt.toISOString(),
+        actor: scan.user?.email ?? "",
+        action: scan.isPhishing ? "Phishing detected" : "Scan completed",
+        target: scan.url ?? "",
+        organization: scan.organization?.name ?? "",
+        details: `${scan.riskLevel}; score=${Math.round(scan.overallScore * 1000) / 10}%`,
+      }));
+
+      const userEvents = activity.recentUsers.map((user) => ({
+        eventType: "user",
+        time: user.createdAt.toISOString(),
+        actor: user.email,
+        action: "New user account",
+        target: user.name ?? user.email,
+        organization: "",
+        details: "",
+      }));
+
+      const rows = [...scanEvents, ...userEvents].sort((a, b) => b.time.localeCompare(a.time));
+
+      const columns: CsvColumn<(typeof rows)[number]>[] = [
+        { header: "eventType", key: "eventType" },
+        { header: "time", key: "time" },
+        { header: "actor", key: "actor" },
+        { header: "action", key: "action" },
+        { header: "target", key: "target" },
+        { header: "organization", key: "organization" },
+        { header: "details", key: "details" },
+      ];
+
+      return {
+        kind: "table",
+        columns: columns.map((column) => ({ header: column.header, key: column.key })),
+        rows: rows.map(serializeRow),
+        totalRows: rows.length,
+        truncated: false,
+      };
+    }
+
+    default: {
+      const exhaustive: never = reportId;
+      throw new Error(`Unhandled report preview: ${exhaustive}`);
+    }
+  }
 }
 
 export async function exportStandardReport(

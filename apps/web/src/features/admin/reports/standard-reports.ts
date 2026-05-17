@@ -82,18 +82,20 @@ export function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
-type CsvColumn<Row> = {
+export type CsvColumn<Row extends Record<string, unknown>> = {
   header: string;
-  key: keyof Row;
+  key: keyof Row & string;
 };
 
-function escapeCsvValue(value: unknown) {
+function escapeCsvValue(value: unknown, delimiter: string) {
   if (value === null || value === undefined) {
     return "";
   }
 
   const stringValue = typeof value === "string" ? value : String(value);
-  const needsQuoting = /[",\n\r]/.test(stringValue);
+  const needsQuoting =
+    stringValue.includes(delimiter) ||
+    /[",\n\r]/.test(stringValue);
 
   if (!needsQuoting) {
     return stringValue;
@@ -102,15 +104,32 @@ function escapeCsvValue(value: unknown) {
   return `"${stringValue.replaceAll("\"", "\"\"")}"`;
 }
 
+export type CreateCsvOptions = {
+  delimiter?: string;
+  lineEnding?: "\n" | "\r\n";
+  /**
+   * Excel-compatible separator hint. When enabled, the file starts with `sep=<delimiter>`.
+   * This improves opening the file directly in Excel across regional settings.
+   */
+  includeExcelSeparatorHint?: boolean;
+};
+
 export function createCsv<Row extends Record<string, unknown>>(
   columns: CsvColumn<Row>[],
-  rows: Row[]
+  rows: Row[],
+  options: CreateCsvOptions = {}
 ) {
-  const headerRow = columns.map((column) => escapeCsvValue(column.header)).join(",");
+  const delimiter = options.delimiter ?? ";";
+  const lineEnding = options.lineEnding ?? "\r\n";
+  const includeExcelSeparatorHint = options.includeExcelSeparatorHint ?? true;
+
+  const headerRow = columns
+    .map((column) => escapeCsvValue(column.header, delimiter))
+    .join(delimiter);
   const bodyRows = rows.map((row) =>
-    columns.map((column) => escapeCsvValue(row[column.key])).join(",")
+    columns.map((column) => escapeCsvValue(row[column.key], delimiter)).join(delimiter)
   );
 
-  return [headerRow, ...bodyRows].join("\n");
+  const lines = includeExcelSeparatorHint ? [`sep=${delimiter}`, headerRow, ...bodyRows] : [headerRow, ...bodyRows];
+  return lines.join(lineEnding);
 }
-
