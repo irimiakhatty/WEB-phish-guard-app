@@ -445,7 +445,6 @@ async function scan() {
 
   if (!textInput && !urlInput) {
     resultDiv.className = "result-card";
-    resultDiv.style.border = "1px solid var(--border)";
     resultDiv.innerHTML =
       "<span style='color:var(--muted-foreground)'>Please enter text or a URL to scan.</span>";
     return;

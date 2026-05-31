@@ -68,15 +68,15 @@ export default function SignInForm({
   }
 
   return (
-    <Card className="border-zinc-200/80 bg-card shadow-xl dark:border-zinc-800/80">
+    <Card className="border border-white/10 bg-white/5 shadow-2xl shadow-black/60 backdrop-blur-sm">
       <CardHeader className="space-y-3 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-cyan-100">
           <Shield className="h-6 w-6" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-gray-900 dark:text-white">
+        <CardTitle className="text-2xl font-semibold text-white">
           Welcome back
         </CardTitle>
-        <CardDescription className="text-sm">
+        <CardDescription className="text-sm text-zinc-300">
           Sign in to manage your PhishGuard workspace
         </CardDescription>
       </CardHeader>
@@ -165,7 +165,7 @@ export default function SignInForm({
           <Button
             variant="outline"
             onClick={onSwitchToSignUp}
-            className="w-full"
+            className="w-full border-white/15 bg-transparent text-white hover:bg-white/5"
           >
             Create account
           </Button>

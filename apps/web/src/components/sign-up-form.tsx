@@ -69,6 +69,7 @@ export default function SignUpForm({
   onSwitchToSignIn: () => void;
   defaultAccountType?: "personal" | "organization";
 }) {
+  const formId = "phishguard-sign-up-form";
   const router = useRouter();
   const { isPending } = authClient.useSession();
   const [showPassword, setShowPassword] = useState(false);
@@ -140,33 +141,34 @@ export default function SignUpForm({
   }
 
   return (
-    <Card className="border-zinc-200/80 bg-card shadow-xl dark:border-zinc-800/80">
-      <CardHeader className="space-y-3 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900">
+    <Card className="gap-4 border border-white/10 bg-white/5 shadow-2xl shadow-black/60 backdrop-blur-sm max-h-[calc(100svh-10rem)]">
+      <CardHeader className="space-y-2 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 text-cyan-100">
           <Shield className="h-6 w-6" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-gray-900 dark:text-white">
+        <CardTitle className="text-2xl font-semibold text-white">
           Create your account
         </CardTitle>
-        <CardDescription className="text-sm">
+        <CardDescription className="text-sm text-zinc-300">
           Choose your account type and get started in minutes
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="min-h-0 overflow-y-auto">
         <form
+          id={formId}
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
             form.handleSubmit();
           }}
-          className="space-y-4"
+          className="space-y-3"
         >
           <div>
             <form.Field name="accountType">
               {(field) => (
-                <div className="grid grid-cols-2 gap-3 mb-2">
+                <div className="mb-1 grid grid-cols-2 gap-3">
                   <div
-                    className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                    className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border p-3 transition-all ${
                       field.state.value === "personal"
                         ? "border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 dark:border-zinc-100 dark:bg-zinc-900/60 dark:ring-zinc-100"
                         : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
@@ -174,14 +176,14 @@ export default function SignUpForm({
                     onClick={() => field.handleChange("personal")}
                   >
                     <User
-                      className={`h-6 w-6 ${
+                      className={`h-5 w-5 ${
                         field.state.value === "personal"
                           ? "text-zinc-900 dark:text-zinc-100"
                           : "text-zinc-500"
                       }`}
                     />
                     <span
-                      className={`text-sm font-medium ${
+                      className={`text-sm font-medium leading-none ${
                         field.state.value === "personal"
                           ? "text-zinc-900 dark:text-zinc-100"
                           : "text-zinc-600 dark:text-zinc-400"
@@ -191,7 +193,7 @@ export default function SignUpForm({
                     </span>
                   </div>
                   <div
-                    className={`cursor-pointer border rounded-lg p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                    className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border p-3 transition-all ${
                       field.state.value === "organization"
                         ? "border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 dark:border-zinc-100 dark:bg-zinc-900/60 dark:ring-zinc-100"
                         : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-500"
@@ -199,20 +201,20 @@ export default function SignUpForm({
                     onClick={() => field.handleChange("organization")}
                   >
                     <Building2
-                      className={`h-6 w-6 ${
+                      className={`h-5 w-5 ${
                         field.state.value === "organization"
                           ? "text-zinc-900 dark:text-zinc-100"
                           : "text-zinc-500"
                       }`}
                     />
                     <span
-                      className={`text-sm font-medium ${
+                      className={`text-sm font-medium leading-none ${
                         field.state.value === "organization"
                           ? "text-zinc-900 dark:text-zinc-100"
                           : "text-zinc-600 dark:text-zinc-400"
                       }`}
                     >
-                      Organization Admin
+                      Organization
                     </span>
                   </div>
                 </div>
@@ -224,12 +226,9 @@ export default function SignUpForm({
               {(accountType) =>
                 accountType === "organization" ? (
                 <div className="rounded-lg border border-zinc-300/80 bg-zinc-100/80 px-4 py-3 text-sm text-zinc-900 dark:border-zinc-700/80 dark:bg-zinc-900/40 dark:text-zinc-100">
-                  <p className="font-medium">Organization admin setup</p>
+                  <p className="font-medium">Organization setup</p>
                   <p className="mt-1 text-zinc-700 dark:text-zinc-300">
-                    You will create the organization workspace and become its first admin.
-                  </p>
-                  <p className="mt-1 text-zinc-700 dark:text-zinc-300">
-                    After sign up, you can invite members and manage security settings.
+                    Create the workspace and become the first admin. Invite members and manage settings after sign up.
                   </p>
                 </div>
               ) : null
@@ -239,7 +238,7 @@ export default function SignUpForm({
           <div>
             <form.Field name="name">
               {(field) => (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor={field.name}>Full Name</Label>
                   <Input
                     id={field.name}
@@ -265,7 +264,7 @@ export default function SignUpForm({
                 <div>
                   <form.Field name="organizationName">
                     {(field) => (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <Label htmlFor={field.name}>Organization Name</Label>
                         <Input
                           id={field.name}
@@ -294,7 +293,7 @@ export default function SignUpForm({
           <div>
             <form.Field name="email">
               {(field) => (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor={field.name}>Email</Label>
                   <Input
                     id={field.name}
@@ -318,7 +317,7 @@ export default function SignUpForm({
           <div>
             <form.Field name="password">
               {(field) => (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor={field.name}>Password</Label>
                   <div className="relative">
                     <Input
@@ -340,11 +339,11 @@ export default function SignUpForm({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <ul className="mt-2 space-y-1">
+                  <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
                     {getPasswordRuleStates(field.state.value).map((rule) => (
                       <li
                         key={rule.id}
-                        className={`flex items-center gap-2 text-xs ${
+                        className={`flex items-center gap-2 text-[11px] ${
                           rule.passed
                             ? "text-emerald-700 dark:text-emerald-400"
                             : "text-muted-foreground"
@@ -369,29 +368,32 @@ export default function SignUpForm({
             </form.Field>
           </div>
 
-          <form.Subscribe>
-            {(state) => (
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!state.canSubmit || state.isSubmitting}
-              >
-                {state.isSubmitting ? "Creating account..." : "Sign Up"}
-              </Button>
-            )}
-          </form.Subscribe>
         </form>
 
-        <div className="mt-6">
-          <Button
-            variant="outline"
-            onClick={onSwitchToSignIn}
-            className="w-full"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to sign in
-          </Button>
-        </div>
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+          {([canSubmit, isSubmitting]) => (
+            <div className="sticky bottom-0 -mx-6 mt-4 border-t border-white/10 bg-black/50 px-6 pb-1 pt-4 backdrop-blur-sm">
+              <Button
+                type="submit"
+                form={formId}
+                className="w-full"
+                disabled={!canSubmit || isSubmitting}
+              >
+                {isSubmitting ? "Creating account..." : "Sign Up"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onSwitchToSignIn}
+                className="mt-3 w-full border-white/15 bg-transparent text-white hover:bg-white/5"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to sign in
+              </Button>
+            </div>
+          )}
+        </form.Subscribe>
       </CardContent>
     </Card>
   );

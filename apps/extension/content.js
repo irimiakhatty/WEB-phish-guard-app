@@ -51,13 +51,22 @@ function ensureStyles() {
             gap: 12px;
             align-items: flex-start;
             border-radius: 14px;
-            border: 1px solid var(--pg-border);
             background: var(--pg-bg);
             color: var(--pg-text);
             padding: 12px 14px;
             margin: 12px 0;
-            box-shadow: none;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
             animation: pg-in 220ms ease-out;
+        }
+        .pg-flag::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: var(--pg-icon-bg);
+            opacity: 0.9;
         }
         .pg-flag--compact {
             padding: 8px 12px;
@@ -110,7 +119,6 @@ function ensureStyles() {
             border-radius: 999px;
             background: var(--pg-badge-bg);
             color: var(--pg-badge-text);
-            border: 1px solid var(--pg-badge-border);
         }
         .pg-flag__desc {
             font-size: 12px;
@@ -127,7 +135,6 @@ function ensureStyles() {
             flex-wrap: wrap;
         }
         .pg-flag__feedback {
-            border: 1px solid var(--pg-border);
             background: rgba(255, 255, 255, 0.85);
             color: var(--pg-text);
             font-size: 11px;
@@ -141,7 +148,6 @@ function ensureStyles() {
             cursor: default;
         }
         .pg-flag__feedback.is-selected {
-            border-color: #2563eb;
             color: #1d4ed8;
             background: #dbeafe;
         }
@@ -164,15 +170,13 @@ function ensureStyles() {
             cursor: default;
         }
         .pg-flag__cta--ghost {
-            background: transparent;
+            background: rgba(37, 99, 235, 0.08);
             color: #2563eb;
-            border: 1px solid #bfdbfe;
         }
         .pg-flag__ai {
             font-size: 11px;
             color: var(--pg-muted);
             background: rgba(255, 255, 255, 0.7);
-            border: 1px dashed var(--pg-border);
             padding: 6px 8px;
             border-radius: 10px;
         }
@@ -184,14 +188,12 @@ function ensureStyles() {
             margin: 12px 0;
             padding: 14px;
             border-radius: 16px;
-            border: 1px solid rgba(15, 23, 42, 0.14);
             background: #ffffff;
             color: #0f172a;
-            box-shadow: none;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
             animation: pg-in 220ms ease-out;
         }
         .pg-prompt--limit {
-            border-color: rgba(239, 68, 68, 0.28);
             background: #fff1f2;
             color: #7f1d1d;
         }
@@ -271,7 +273,6 @@ function ensureStyles() {
         .pg-prompt__button--secondary {
             background: rgba(255, 255, 255, 0.8);
             color: #0f172a;
-            border: 1px solid rgba(15, 23, 42, 0.14);
         }
         .pg-prompt__status {
             font-size: 11px;
