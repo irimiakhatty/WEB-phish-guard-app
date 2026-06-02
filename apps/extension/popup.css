@@ -79,7 +79,6 @@ textarea {
   position: relative;
   overflow: hidden;
   background: var(--surface);
-  box-shadow: var(--shadow-soft);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
 }
@@ -91,8 +90,8 @@ textarea {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(0, 229, 255, 0.025);
-  opacity: 0.6;
+  background: transparent;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -143,7 +142,6 @@ textarea {
   border-radius: 12px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .logo-icon img {
@@ -401,7 +399,6 @@ textarea {
   padding: 0.8rem 0.92rem;
   font-size: 0.9rem;
   transition: 160ms ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 input[type="text"]::placeholder,
@@ -413,7 +410,6 @@ input[type="text"]:focus,
 textarea:focus {
   outline: none;
   box-shadow:
-    0 0 0 4px rgba(0, 229, 255, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -438,7 +434,7 @@ textarea {
 }
 
 .btn:hover {
-  filter: brightness(1.03);
+  opacity: 0.9;
 }
 
 .btn:disabled {
@@ -450,11 +446,10 @@ textarea {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-foreground);
-  box-shadow: 0 14px 30px rgba(0, 229, 255, 0.12);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.02);
+  opacity: 0.9;
 }
 
 .btn-secondary {
@@ -529,7 +524,6 @@ textarea {
   background: var(--surface);
   padding: 0.9rem;
   text-align: center;
-  box-shadow: var(--shadow-soft);
 }
 
 .result-safe {

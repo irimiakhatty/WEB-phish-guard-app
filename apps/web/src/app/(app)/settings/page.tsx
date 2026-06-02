@@ -57,7 +57,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       : undefined;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-100/60 dark:from-zinc-950 dark:via-zinc-950 dark:to-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[1680px] px-6 py-10 sm:px-8 lg:px-12">
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>

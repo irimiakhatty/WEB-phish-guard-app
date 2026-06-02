@@ -370,7 +370,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
                   return (
                     <div key={label} className="flex flex-col items-center gap-2 flex-1">
                       <div
-                        className="w-full rounded-md bg-gradient-to-t from-violet-400/40 via-indigo-400/25 to-sky-400/20"
+                        className="w-full rounded-md bg-primary/40"
                         style={{ height }}
                         title={`${count} scans`}
                       />
@@ -412,7 +412,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
 
                       <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-violet-400/70 via-indigo-400/60 to-sky-400/55"
+                          className="h-full rounded-full bg-primary"
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>
