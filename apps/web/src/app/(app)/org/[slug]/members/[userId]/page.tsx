@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, AlertTriangle, CheckCircle, Activity, Shield, TrendingUp } from "lucide-react";
 import { ATTACK_TYPES, classifyAttackType } from "@/lib/security/attack-types";
+import { TrainingRecommendations } from "@/components/training-recommendations";
 
 interface PageProps {
   params: Promise<{ slug: string; userId: string }>;
@@ -309,6 +310,13 @@ export default async function MemberProfilePage({ params }: PageProps) {
             </div>
           </CardContent>
         </Card>
+
+        <TrainingRecommendations
+          organizationId={organization.id}
+          userId={userId}
+          slug={slug}
+          isAdmin={isAdmin}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
