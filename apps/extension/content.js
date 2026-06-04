@@ -26,7 +26,6 @@ const PROMPT_ID = "phishguard-scan-prompt";
 const CONTAINER_ID = "phishguard-scan-container";
 const MAX_DEEP_SCAN_CHARS = 5000;
 const MIN_EMAIL_SCAN_CHARS = 50;
-const SCAN_CACHE_PREFIX = "pg_scan_cache_";
 const SCAN_BURST_DELAYS_MS = [0, 500, 1200, 2500, 5000, 9000];
 const scanCacheMemory = new Map();
 
@@ -43,7 +42,7 @@ function getOverallScore(response) {
     return Math.max(textScore, urlScore, heuristicScore);
 }
 
-const INBOX_STYLE_VERSION = "3";
+const INBOX_STYLE_VERSION = "4";
 
 function escapeHtml(value) {
     return String(value || "")
@@ -76,316 +75,7 @@ function ensureStyles() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.dataset.version = INBOX_STYLE_VERSION;
-    style.textContent = `
-        .pg-container {
-            margin: 12px 0;
-        }
-        .pg-flag {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            border-radius: 12px;
-            background: var(--pg-bg);
-            color: var(--pg-text);
-            border: 1px solid var(--pg-border);
-            border-left: 3px solid var(--pg-accent);
-            padding: 12px 14px;
-            margin: 0;
-            position: relative;
-            overflow: hidden;
-            box-shadow: none;
-            animation: pg-in 220ms ease-out;
-        }
-        .pg-flag--compact {
-            padding: 8px 12px;
-            align-items: center;
-        }
-        .pg-flag--compact .pg-flag__desc {
-            display: none;
-        }
-        .pg-flag__icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 999px;
-            background: var(--pg-icon-bg);
-            color: var(--pg-icon);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 34px;
-            animation: pg-pop 220ms ease-out;
-        }
-        .pg-flag__icon--emphasis {
-            outline: 2px solid var(--pg-accent);
-            outline-offset: 1px;
-        }
-        .pg-flag__icon svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-        }
-        .pg-flag__content {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            min-width: 0;
-        }
-        .pg-flag__header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .pg-flag__title {
-            font-weight: 700;
-            font-size: 14px;
-        }
-        .pg-flag__badge {
-            font-size: 11px;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: var(--pg-badge-bg);
-            color: var(--pg-badge-text);
-        }
-        .pg-flag__desc {
-            font-size: 12px;
-            color: var(--pg-muted);
-        }
-        .pg-flag__meta {
-            font-size: 11px;
-            color: var(--pg-muted);
-        }
-        .pg-flag__actions {
-            margin-top: 2px;
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .pg-flag__feedback {
-            background: #ffffff;
-            color: var(--pg-text);
-            border: 1px solid var(--pg-border);
-            font-size: 11px;
-            font-weight: 600;
-            padding: 6px 10px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .pg-flag__feedback[disabled] {
-            opacity: 0.7;
-            cursor: default;
-        }
-        .pg-flag__feedback.is-selected {
-            color: #1d4ed8;
-            background: #dbeafe;
-        }
-        .pg-flag__feedback-status {
-            font-size: 11px;
-            color: var(--pg-muted);
-        }
-        .pg-flag__cta {
-            border: none;
-            background: #2563eb;
-            color: #fff;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 6px 10px;
-            border-radius: 999px;
-            cursor: pointer;
-        }
-        .pg-flag__cta[disabled] {
-            opacity: 0.7;
-            cursor: default;
-        }
-        .pg-flag__cta--ghost {
-            background: #f6f8fa;
-            color: #0969da;
-            border: 1px solid #d0d7de;
-        }
-        .pg-flag__ai {
-            font-size: 11px;
-            color: var(--pg-muted);
-            background: #f6f8fa;
-            border: 1px solid var(--pg-border);
-            padding: 6px 8px;
-            border-radius: 6px;
-        }
-        .pg-prompt {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            margin: 0;
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid #d0d7de;
-            border-left: 3px solid #58a6ff;
-            background: #f6f8fa;
-            color: #24292f;
-            box-shadow: none;
-            animation: pg-in 220ms ease-out;
-        }
-        .pg-prompt--limit {
-            background: #fff1f3;
-            color: #cf222e;
-            border-color: #ffbdc5;
-            border-left-color: #f85149;
-        }
-        .pg-prompt__icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 999px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 36px;
-            background: #dbeafe;
-            color: #1d4ed8;
-        }
-        .pg-prompt--limit .pg-prompt__icon {
-            background: #fee2e2;
-            color: #b91c1c;
-        }
-        .pg-prompt__icon svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-        }
-        .pg-prompt__content {
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .pg-prompt__eyebrow {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: #57606a;
-        }
-        .pg-prompt__title {
-            font-size: 14px;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-        .pg-prompt__desc {
-            font-size: 12px;
-            line-height: 1.45;
-            color: #57606a;
-        }
-        .pg-prompt--limit .pg-prompt__eyebrow,
-        .pg-prompt--limit .pg-prompt__desc {
-            color: #a40e26;
-        }
-        .pg-prompt__meta {
-            font-size: 11px;
-            font-weight: 600;
-        }
-        .pg-prompt__actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 4px;
-        }
-        .pg-prompt__button {
-            border: none;
-            border-radius: 999px;
-            padding: 7px 12px;
-            font-size: 11px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .pg-prompt__button[disabled] {
-            opacity: 0.7;
-            cursor: default;
-        }
-        .pg-prompt__button--primary {
-            background: #238636;
-            color: #ffffff;
-        }
-        .pg-prompt__button--secondary {
-            background: #f6f8fa;
-            color: #24292f;
-            border: 1px solid #d0d7de;
-        }
-        .pg-prompt__status {
-            font-size: 11px;
-            color: #57606a;
-        }
-        .pg-prompt--limit .pg-prompt__status {
-            color: #a40e26;
-        }
-        .pg-flag--pending,
-        .pg-flag--neutral {
-            --pg-bg: #f6f8fa;
-            --pg-border: #d0d7de;
-            --pg-accent: #8b949e;
-            --pg-text: #24292f;
-            --pg-muted: #57606a;
-            --pg-icon-bg: #eaeef2;
-            --pg-icon: #57606a;
-            --pg-badge-bg: #eaeef2;
-            --pg-badge-text: #57606a;
-        }
-        .pg-flag--safe {
-            --pg-bg: #f0fff4;
-            --pg-border: #aceebb;
-            --pg-accent: #3fb950;
-            --pg-text: #1a7f37;
-            --pg-muted: #1a7f37;
-            --pg-icon-bg: #3fb950;
-            --pg-icon: #ffffff;
-            --pg-badge-bg: #dafbe1;
-            --pg-badge-text: #1a7f37;
-        }
-        .pg-flag--low {
-            --pg-bg: #f6f8fa;
-            --pg-border: #d0d7de;
-            --pg-accent: #58a6ff;
-            --pg-text: #0969da;
-            --pg-muted: #0969da;
-            --pg-icon-bg: #58a6ff;
-            --pg-icon: #ffffff;
-            --pg-badge-bg: #ddf4ff;
-            --pg-badge-text: #0969da;
-        }
-        .pg-flag--medium {
-            --pg-bg: #fff8c5;
-            --pg-border: #f0ce4e;
-            --pg-accent: #d29922;
-            --pg-text: #7d4e00;
-            --pg-muted: #7d4e00;
-            --pg-icon-bg: #d29922;
-            --pg-icon: #ffffff;
-            --pg-badge-bg: #fff8c5;
-            --pg-badge-text: #7d4e00;
-        }
-        .pg-flag--high,
-        .pg-flag--critical,
-        .pg-flag--block {
-            --pg-bg: #fff1f3;
-            --pg-border: #ffbdc5;
-            --pg-accent: #f85149;
-            --pg-text: #cf222e;
-            --pg-muted: #a40e26;
-            --pg-icon-bg: #f85149;
-            --pg-icon: #ffffff;
-            --pg-badge-bg: #ffebe9;
-            --pg-badge-text: #cf222e;
-        }
-        @keyframes pg-in {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pg-pop {
-            from { opacity: 0; transform: scale(0.96); }
-            to { opacity: 1; transform: scale(1); }
-        }
-    `;
+    style.textContent = `@import url("${chrome.runtime.getURL("inbox-styles.css")}");`;
     document.head.appendChild(style);
 }
 
@@ -409,24 +99,25 @@ function hashCode(str) {
     return hash;
 }
 
-function readSyncState(defaults) {
-    return new Promise((resolve) => {
-        try {
-            if (!chrome?.storage?.sync) {
-                resolve(defaults);
-                return;
-            }
-            chrome.storage.sync.get(defaults, (items) => {
-                if (chrome.runtime.lastError) {
-                    resolve(defaults);
-                    return;
-                }
-                resolve(items);
-            });
-        } catch {
-            resolve(defaults);
+const INBOX_SETTINGS_DEFAULTS = {
+    autoScan: true,
+    userPlan: null,
+    subscriptionStatus: null,
+    userRole: "user",
+    scansRemaining: 0,
+    planName: "Free"
+};
+
+async function fetchInboxSettings() {
+    try {
+        const response = await sendRuntimeMessage({ action: "GET_INBOX_SETTINGS" });
+        if (!response || typeof response !== "object") {
+            return { ...INBOX_SETTINGS_DEFAULTS };
         }
-    });
+        return { ...INBOX_SETTINGS_DEFAULTS, ...response };
+    } catch {
+        return { ...INBOX_SETTINGS_DEFAULTS };
+    }
 }
 
 function sendRuntimeMessage(message) {
@@ -592,13 +283,12 @@ async function readCachedScanResult(contentHash) {
         return memoryHit;
     }
 
-    const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
     try {
-        if (!chrome?.storage?.local) {
-            return null;
-        }
-        const stored = await chrome.storage.local.get(cacheKey);
-        const hit = stored[cacheKey] || null;
+        const response = await sendRuntimeMessage({
+            action: "GET_SCAN_CACHE",
+            contentHash
+        });
+        const hit = response?.result || null;
         if (hit) {
             scanCacheMemory.set(String(contentHash), hit);
         }
@@ -608,18 +298,13 @@ async function readCachedScanResult(contentHash) {
     }
 }
 
-async function writeCachedScanResult(contentHash, result) {
+function writeCachedScanResult(contentHash, result) {
     scanCacheMemory.set(String(contentHash), result);
-
-    const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
-    try {
-        if (!chrome?.storage?.local) {
-            return;
-        }
-        await chrome.storage.local.set({ [cacheKey]: result });
-    } catch {
-        // Extension context may be invalidated after reload; in-memory cache still works.
-    }
+    sendRuntimeMessage({
+        action: "SET_SCAN_CACHE",
+        contentHash,
+        result
+    }).catch(() => {});
 }
 
 // --- 3. SCANNING LOGIC ---
@@ -630,9 +315,9 @@ function mountInboxCard(element, target) {
 
     ensureStyles();
 
-    const mountPoint = getMessageMountPoint(target);
+    const mountPoint = getMessageMountPoint(target) || target.parentElement;
     if (!mountPoint) {
-        target.prepend(element);
+        target.parentElement?.insertBefore(element, target);
         return true;
     }
 
@@ -641,9 +326,9 @@ function mountInboxCard(element, target) {
         container = document.createElement("div");
         container.id = CONTAINER_ID;
         container.className = "pg-container";
-        mountPoint.insertBefore(container, mountPoint.firstChild);
-    } else if (container.parentElement !== mountPoint || container !== mountPoint.firstElementChild) {
-        mountPoint.insertBefore(container, mountPoint.firstChild);
+        mountPoint.insertBefore(container, target);
+    } else if (container.nextElementSibling !== target) {
+        mountPoint.insertBefore(container, target);
     }
 
     container.replaceChildren(element);
@@ -664,12 +349,11 @@ function injectScanPending() {
     flag.className = "pg-flag pg-flag--pending pg-flag--compact";
     flag.innerHTML = `
         <div class="pg-flag__icon">${buildIconSvg("check")}</div>
-        <div class="pg-flag__content">
-            <div class="pg-flag__header">
+        <div class="pg-flag__main">
+            <div class="pg-flag__primary">
                 <span class="pg-flag__title">Analyzing email</span>
                 <span class="pg-flag__badge">PhishGuard</span>
             </div>
-            <div class="pg-flag__desc">Checking this message with your workspace policy...</div>
         </div>
     `;
     mountInboxCard(flag, target);
@@ -694,12 +378,12 @@ function injectScanErrorFlag(errorCode, extraMessage) {
     flag.className = "pg-flag pg-flag--neutral";
     flag.innerHTML = `
         <div class="pg-flag__icon">${buildIconSvg("warn")}</div>
-        <div class="pg-flag__content">
-            <div class="pg-flag__header">
+        <div class="pg-flag__main">
+            <div class="pg-flag__primary">
                 <span class="pg-flag__title">Analysis unavailable</span>
                 <span class="pg-flag__badge">PhishGuard</span>
             </div>
-            <div class="pg-flag__desc">${escapeHtml(message)}</div>
+            <p class="pg-flag__desc">${escapeHtml(message)}</p>
         </div>
     `;
     mountInboxCard(flag, target);
@@ -984,79 +668,77 @@ async function triggerScan() {
         return;
     }
 
-    const text = getEmailContent();
-    const url = location.href;
-    const target = getEmailTarget();
+    try {
+        const text = getEmailContent();
+        const url = location.href;
+        const target = getEmailTarget();
 
-    if (!target || text.length < MIN_EMAIL_SCAN_CHARS) {
-        removeScanPrompt();
-        return;
-    }
-
-    const currentHash = hashCode(text);
-    await restoreVisibleVerdict(currentHash);
-
-    if (currentHash === lastScannedTextHash) {
-        if (!document.getElementById(FLAG_ID) && lastScanResult) {
-            injectScanFlag(lastScanResult);
+        if (!target || text.length < MIN_EMAIL_SCAN_CHARS) {
+            removeScanPrompt();
+            return;
         }
-        return;
-    }
 
-    scanInFlight = true;
+        const currentHash = hashCode(text);
+        await restoreVisibleVerdict(currentHash);
 
-    sendRuntimeMessage({ action: "REFRESH_CONTEXT" }).catch(() => {});
+        if (currentHash === lastScannedTextHash) {
+            if (!document.getElementById(FLAG_ID) && lastScanResult) {
+                injectScanFlag(lastScanResult);
+            }
+            return;
+        }
 
-    const syncState = await readSyncState({
-        autoScan: true,
-        userPlan: null,
-        subscriptionStatus: null,
-        userRole: "user",
-        scansRemaining: 0,
-        planName: "Free"
-    });
+        scanInFlight = true;
 
-    if (syncState.autoScan === false) {
-        removeScanPrompt();
-        scanInFlight = false;
-        return;
-    }
+        sendRuntimeMessage({ action: "REFRESH_CONTEXT" }).catch(() => {});
 
-    if (requiresScanConfirmation(
-        syncState.userPlan,
-        syncState.userRole,
-        syncState.subscriptionStatus
-    )) {
-        if (currentHash === lastDismissedTextHash) {
+        const syncState = await fetchInboxSettings();
+
+        if (syncState.autoScan === false) {
+            removeScanPrompt();
             scanInFlight = false;
             return;
         }
 
-        injectFreePlanPrompt({
-            currentHash,
-            text,
-            url,
-            scansRemaining: Number(syncState.scansRemaining || 0),
-            planName: syncState.planName || "Free",
-            subscriptionStatus: syncState.subscriptionStatus || null,
-            isLimitReached: Number(syncState.scansRemaining || 0) <= 0
-        });
-        scanInFlight = false;
-        return;
-    }
+        if (requiresScanConfirmation(
+            syncState.userPlan,
+            syncState.userRole,
+            syncState.subscriptionStatus
+        )) {
+            if (currentHash === lastDismissedTextHash) {
+                scanInFlight = false;
+                return;
+            }
 
-    lastDismissedTextHash = "";
-    removeScanPrompt();
-    try {
-        await submitScan({
-            text,
-            url,
-            currentHash,
-            source: "auto",
-            planName: syncState.planName || "Free",
-            subscriptionStatus: syncState.subscriptionStatus || null
-        });
-    } finally {
+            injectFreePlanPrompt({
+                currentHash,
+                text,
+                url,
+                scansRemaining: Number(syncState.scansRemaining || 0),
+                planName: syncState.planName || "Free",
+                subscriptionStatus: syncState.subscriptionStatus || null,
+                isLimitReached: Number(syncState.scansRemaining || 0) <= 0
+            });
+            scanInFlight = false;
+            return;
+        }
+
+        lastDismissedTextHash = "";
+        removeScanPrompt();
+        try {
+            await submitScan({
+                text,
+                url,
+                currentHash,
+                source: "auto",
+                planName: syncState.planName || "Free",
+                subscriptionStatus: syncState.subscriptionStatus || null
+            });
+        } finally {
+            scanInFlight = false;
+        }
+    } catch (error) {
+        console.warn("PhishGuard: triggerScan failed", error);
         scanInFlight = false;
     }
 }
@@ -1130,30 +812,31 @@ function injectScanFlag(response) {
     }
 
     const iconSvg = buildIconSvg(config.icon);
-    const emphasisClass = isHighRisk ? "pg-flag__icon--emphasis" : "";
+    const riskLabel = riskLevel === "block" ? "blocked" : `${riskLevel} risk`;
 
-    const flag = document.createElement('div');
+    const flag = document.createElement("div");
     flag.id = FLAG_ID;
     flag.className = `pg-flag pg-flag--${riskLevel} ${isCompact ? "pg-flag--compact" : ""}`;
     flag.innerHTML = `
-        <div class="pg-flag__icon ${emphasisClass}">${iconSvg}</div>
-        <div class="pg-flag__content">
-            <div class="pg-flag__header">
-                <span class="pg-flag__title">${config.title}</span>
-                <span class="pg-flag__badge">${config.badge}</span>
+        <div class="pg-flag__icon">${iconSvg}</div>
+        <div class="pg-flag__main">
+            <div class="pg-flag__primary">
+                <span class="pg-flag__title">${escapeHtml(config.title)}</span>
+                <span class="pg-flag__badge">${escapeHtml(config.badge)}</span>
+                <span class="pg-flag__meta">${escapeHtml(metaParts.join(" · "))}</span>
             </div>
-            <div class="pg-flag__desc">${config.description}</div>
-            <div class="pg-flag__meta">${metaParts.join(" | ")}</div>
-            ${showDeepScan ? `<div class="pg-flag__actions"><button class="pg-flag__cta">Deep Scan with AI</button></div>` : ""}
-            <div class="pg-flag__actions">
-                <button class="pg-flag__feedback" data-label="safe">Mark Safe</button>
-                <button class="pg-flag__feedback" data-label="phishing">Mark Phishing</button>
-                <button class="pg-flag__feedback" data-label="unsure">Unsure</button>
+            ${isCompact ? "" : `<p class="pg-flag__desc">${escapeHtml(config.description)}</p>`}
+            <div class="pg-flag__toolbar">
+                ${showDeepScan ? `<button type="button" class="pg-btn pg-btn--primary pg-flag__cta">Deep Scan</button>` : ""}
+                <button type="button" class="pg-btn" data-label="safe">Mark safe</button>
+                <button type="button" class="pg-btn" data-label="phishing">Mark phishing</button>
+                <button type="button" class="pg-btn" data-label="unsure">Unsure</button>
             </div>
             <div class="pg-flag__feedback-status" style="display:none;"></div>
             <div class="pg-flag__ai" style="display:none;"></div>
         </div>
     `;
+    flag.dataset.riskLabel = riskLabel;
 
     mountInboxCard(flag, target);
 
@@ -1175,7 +858,7 @@ function injectScanFlag(response) {
                 url: location.href
             }, (result) => {
                 deepScanButton.disabled = false;
-                deepScanButton.textContent = "Deep Scan with AI";
+                deepScanButton.textContent = "Deep Scan";
 
                 if (chrome.runtime.lastError || !result) {
                     deepScanResult.style.display = "block";
@@ -1187,7 +870,7 @@ function injectScanFlag(response) {
                     deepScanResult.style.display = "block";
                     if (result.error === "PAYWALL") {
                         deepScanResult.textContent = "Deep Scan with AI is available on paid plans.";
-                        deepScanButton.classList.add("pg-flag__cta--ghost");
+                        deepScanButton.classList.remove("pg-btn--primary");
                     } else if (result.error === "NO_PUBLIC_KEY") {
                         deepScanResult.textContent = "Deep Scan is not configured yet. Contact your admin.";
                     } else if (result.error === "UNAUTHORIZED") {
@@ -1211,7 +894,7 @@ function injectScanFlag(response) {
     }
 
     // Feedback handler (safe/phishing/unsure)
-    const feedbackButtons = Array.from(flag.querySelectorAll(".pg-flag__feedback"));
+    const feedbackButtons = Array.from(flag.querySelectorAll('.pg-btn[data-label]'));
     const feedbackStatus = flag.querySelector(".pg-flag__feedback-status");
     if (feedbackButtons.length > 0 && feedbackStatus) {
         feedbackButtons.forEach((btn) => {
@@ -1287,7 +970,9 @@ function scheduleScan(delayMs = 500) {
         clearTimeout(scanTimeout);
     }
     scanTimeout = setTimeout(() => {
-        void triggerScan();
+        void triggerScan().catch((error) => {
+            console.warn("PhishGuard: scheduled scan failed", error);
+        });
     }, delayMs);
 }
 
@@ -1300,7 +985,9 @@ function scheduleScanBurst() {
             if (generation !== scanBurstGeneration) {
                 return;
             }
-            void triggerScan();
+            void triggerScan().catch((error) => {
+                console.warn("PhishGuard: burst scan failed", error);
+            });
         }, delayMs);
     });
 }

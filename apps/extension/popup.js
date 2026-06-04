@@ -411,16 +411,15 @@ function renderScanResult(response) {
       : riskLevel === "high" || riskLevel === "critical" || hardBlock;
   const variant = getResultVariant(riskLevel, isPhishing, hardBlock);
 
-  let title = "Safe";
-  if (hardBlock) {
-    title = "Threat blocked";
-  } else if (isPhishing) {
-    title = "Phishing detected";
-  } else if (riskLevel === "medium" || riskLevel === "low") {
-    title = "Suspicious signals";
-  }
+  const title =
+    hardBlock || riskLevel === "block"
+      ? "Blocked"
+      : `${riskLevel} risk`;
 
-  let meta = `Risk ${(finalScore * 100).toFixed(0)}% · ${riskLevel.toUpperCase()}`;
+  let meta = `${(finalScore * 100).toFixed(1)}% overall`;
+  if (typeof response.confidence === "number") {
+    meta += ` · ${(response.confidence * 100).toFixed(1)}% confidence`;
+  }
   if (typeof response.durationMs === "number") {
     meta += ` · ${Math.round(response.durationMs)}ms`;
   }

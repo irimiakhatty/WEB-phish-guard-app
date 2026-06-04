@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishGuard - AI Phishing Detector",
-  "version": "1.2.2",
+  "version": "1.2.4",
   "description": "Detects phishing in emails using server-side AI and threat intelligence.",
   "permissions": [
     "activeTab",
@@ -49,7 +49,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/*"
+        "assets/*",
+        "inbox-styles.css"
       ],
       "matches": [
         "*://mail.google.com/*",

@@ -21,7 +21,24 @@ const POLICY_DEFAULTS = {
     disableHardBlock: false
 };
 const latestScanByTab = new Map();
+const inboxScanCache = new Map();
+const INBOX_SCAN_CACHE_MAX = 40;
 let scanKeepAliveTimer = null;
+
+function getInboxScanCache(contentHash) {
+    return inboxScanCache.get(String(contentHash)) || null;
+}
+
+function setInboxScanCache(contentHash, result) {
+    const key = String(contentHash);
+    inboxScanCache.set(key, result);
+    if (inboxScanCache.size > INBOX_SCAN_CACHE_MAX) {
+        const oldest = inboxScanCache.keys().next().value;
+        if (oldest !== undefined) {
+            inboxScanCache.delete(oldest);
+        }
+    }
+}
 
 function startScanKeepAlive() {
     stopScanKeepAlive();
@@ -772,6 +789,44 @@ async function logIncident(data) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "GET_INBOX_SETTINGS") {
+        (async () => {
+            try {
+                const state = await chrome.storage.sync.get({
+                    autoScan: true,
+                    userPlan: null,
+                    subscriptionStatus: null,
+                    userRole: "user",
+                    scansRemaining: 0,
+                    planName: "Free"
+                });
+                sendResponse(state);
+            } catch (settingsError) {
+                console.warn("PhishGuard: inbox settings read failed", settingsError);
+                sendResponse({
+                    autoScan: true,
+                    userPlan: null,
+                    subscriptionStatus: null,
+                    userRole: "user",
+                    scansRemaining: 0,
+                    planName: "Free"
+                });
+            }
+        })();
+        return true;
+    }
+
+    if (request.action === "GET_SCAN_CACHE") {
+        sendResponse({ result: getInboxScanCache(request.contentHash) });
+        return true;
+    }
+
+    if (request.action === "SET_SCAN_CACHE") {
+        setInboxScanCache(request.contentHash, request.result);
+        sendResponse({ success: true });
+        return true;
+    }
+
     if (request.action === "scan_page") {
         let scanResponded = false;
         const finishScan = (payload) => {
@@ -1173,6 +1228,7 @@ chrome.runtime.onMessage.addListener(handleAuthHandoff);
 
 chrome.runtime.onInstalled.addListener((details) => {
     latestScanByTab.clear();
+    inboxScanCache.clear();
 
     if (details.reason === "install") {
         const keys = [...AUTH_STORAGE_KEYS];

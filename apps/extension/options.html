@@ -5,19 +5,20 @@
     <title>PhishGuard Settings</title>
     <style>
       :root {
-        --bg-canvas: #0d1117;
-        --surface: #161b22;
-        --surface-strong: #1c2128;
-        --foreground: #e6edf3;
-        --muted: #8b949e;
-        --border: #30363d;
-        --primary: #58a6ff;
-        --primary-foreground: #0d1117;
-        --ring: rgba(88, 166, 255, 0.3);
-        --radius-xl: 12px;
+        --background: #000000;
+        --foreground: #fafafa;
+        --card: #09090b;
+        --muted-foreground: #a1a1aa;
+        --border: #27272a;
+        --primary: #00e5ff;
+        --primary-foreground: #001216;
+        --secondary: #18181b;
+        --input-background: #111113;
+        --ring: rgba(0, 229, 255, 0.25);
+        --radius-xl: 14px;
         --radius-md: 8px;
-        --danger: #f85149;
-        --success: #3fb950;
+        --destructive: #ef4444;
+        --risk-safe: #22c55e;
       }
       * { box-sizing: border-box; }
       body {
@@ -28,7 +29,7 @@
         align-items: center;
         justify-content: center;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-        background: var(--bg-canvas);
+        background: var(--background);
         color: var(--foreground);
         color-scheme: dark;
       }
@@ -38,13 +39,13 @@
         margin-bottom: 12px;
         padding: 14px;
         border-radius: var(--radius-xl);
-        background: var(--surface);
+        background: var(--card);
         border: 1px solid var(--border);
       }
       .settings-brand { display: flex; align-items: center; gap: 12px; }
       .settings-brand img { width: 40px; height: 40px; border-radius: 10px; display: block; }
       .settings-brand h1 { margin: 0; font-size: 1.05rem; font-weight: 600; }
-      .settings-brand p { margin: 3px 0 0; font-size: 0.8rem; color: var(--muted); }
+      .settings-brand p { margin: 3px 0 0; font-size: 0.8rem; color: var(--muted-foreground); }
       label { display: block; margin-bottom: 6px; font-size: 0.86rem; font-weight: 600; }
       input[type="text"],
       input[type="password"] {
@@ -52,7 +53,7 @@
         padding: 10px 12px;
         border: 1px solid var(--border);
         border-radius: var(--radius-md);
-        background: var(--bg-canvas);
+        background: var(--background);
         color: var(--foreground);
       }
       input:focus {
@@ -60,7 +61,7 @@
         border-color: var(--primary);
         box-shadow: 0 0 0 3px var(--ring);
       }
-      .help-text { margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+      .help-text { margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted-foreground); }
       button {
         width: 100%;
         margin-top: 8px;
@@ -72,20 +73,20 @@
         color: var(--primary-foreground);
         font-weight: 600;
       }
-      button:hover { background: #79b8ff; border-color: #79b8ff; }
+      button:hover { background: #33ebff; border-color: #33ebff; }
       .button-row { display: flex; gap: 8px; margin-top: 8px; }
       .button-row button {
         flex: 1;
         width: auto;
         margin-top: 0;
-        background: var(--surface-strong);
+        background: var(--secondary);
         color: var(--foreground);
         border-color: var(--border);
       }
-      .button-row button:hover { background: #21262d; }
+      .button-row button:hover { background: #27272a; }
       #status { margin-top: 10px; font-size: 0.82rem; display: none; }
-      #status.success { color: var(--success); }
-      #status.error { color: var(--danger); }
+      #status.success { color: var(--risk-safe); }
+      #status.error { color: var(--destructive); }
     </style>
   </head>
   <body>
