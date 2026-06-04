@@ -42,6 +42,17 @@ function getOverallScore(response) {
     return Math.max(textScore, urlScore, heuristicScore);
 }
 
+const INBOX_STYLE_VERSION = "3";
+
+function escapeHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 const INBOX_ERROR_COPY = {
     UNAUTHORIZED: "Sign in via the PhishGuard extension popup to analyze emails.",
     AUTO_UNAVAILABLE: "Could not reach the analysis server. Check API URL in extension settings.",
@@ -53,9 +64,17 @@ const INBOX_ERROR_COPY = {
 };
 
 function ensureStyles() {
-    if (document.getElementById(STYLE_ID)) return;
+    const existing = document.getElementById(STYLE_ID);
+    if (existing?.dataset.version === INBOX_STYLE_VERSION) {
+        return;
+    }
+    if (existing) {
+        existing.remove();
+    }
+
     const style = document.createElement("style");
     style.id = STYLE_ID;
+    style.dataset.version = INBOX_STYLE_VERSION;
     style.textContent = `
         .pg-container {
             margin: 12px 0;
@@ -74,7 +93,7 @@ function ensureStyles() {
             margin: 0;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
+            box-shadow: none;
             animation: pg-in 220ms ease-out;
         }
         .pg-flag--compact {
@@ -96,8 +115,9 @@ function ensureStyles() {
             flex: 0 0 34px;
             animation: pg-pop 220ms ease-out;
         }
-        .pg-flag__icon.pg-pulse {
-            animation: pg-pop 220ms ease-out, pg-pulse 1.6s ease-out 1;
+        .pg-flag__icon--emphasis {
+            outline: 2px solid var(--pg-accent);
+            outline-offset: 1px;
         }
         .pg-flag__icon svg {
             width: 18px;
@@ -144,12 +164,13 @@ function ensureStyles() {
             flex-wrap: wrap;
         }
         .pg-flag__feedback {
-            background: rgba(255, 255, 255, 0.85);
+            background: #ffffff;
             color: var(--pg-text);
+            border: 1px solid var(--pg-border);
             font-size: 11px;
             font-weight: 600;
             padding: 6px 10px;
-            border-radius: 999px;
+            border-radius: 6px;
             cursor: pointer;
         }
         .pg-flag__feedback[disabled] {
@@ -179,15 +200,17 @@ function ensureStyles() {
             cursor: default;
         }
         .pg-flag__cta--ghost {
-            background: rgba(37, 99, 235, 0.08);
-            color: #2563eb;
+            background: #f6f8fa;
+            color: #0969da;
+            border: 1px solid #d0d7de;
         }
         .pg-flag__ai {
             font-size: 11px;
             color: var(--pg-muted);
-            background: rgba(255, 255, 255, 0.7);
+            background: #f6f8fa;
+            border: 1px solid var(--pg-border);
             padding: 6px 8px;
-            border-radius: 10px;
+            border-radius: 6px;
         }
         .pg-prompt {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
@@ -201,7 +224,7 @@ function ensureStyles() {
             border-left: 3px solid #58a6ff;
             background: #f6f8fa;
             color: #24292f;
-            box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
+            box-shadow: none;
             animation: pg-in 220ms ease-out;
         }
         .pg-prompt--limit {
@@ -241,7 +264,7 @@ function ensureStyles() {
             font-weight: 700;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: rgba(15, 23, 42, 0.56);
+            color: #57606a;
         }
         .pg-prompt__title {
             font-size: 14px;
@@ -251,11 +274,11 @@ function ensureStyles() {
         .pg-prompt__desc {
             font-size: 12px;
             line-height: 1.45;
-            color: rgba(15, 23, 42, 0.76);
+            color: #57606a;
         }
         .pg-prompt--limit .pg-prompt__eyebrow,
         .pg-prompt--limit .pg-prompt__desc {
-            color: rgba(127, 29, 29, 0.78);
+            color: #a40e26;
         }
         .pg-prompt__meta {
             font-size: 11px;
@@ -290,10 +313,10 @@ function ensureStyles() {
         }
         .pg-prompt__status {
             font-size: 11px;
-            color: rgba(15, 23, 42, 0.68);
+            color: #57606a;
         }
         .pg-prompt--limit .pg-prompt__status {
-            color: rgba(127, 29, 29, 0.78);
+            color: #a40e26;
         }
         .pg-flag--pending,
         .pg-flag--neutral {
@@ -358,14 +381,8 @@ function ensureStyles() {
             to { opacity: 1; transform: translateY(0); }
         }
         @keyframes pg-pop {
-            0% { opacity: 0; transform: scale(0.9); }
-            70% { opacity: 1; transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        @keyframes pg-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
         }
     `;
     document.head.appendChild(style);
@@ -642,7 +659,7 @@ function injectScanErrorFlag(errorCode, extraMessage) {
                 <span class="pg-flag__title">Analysis unavailable</span>
                 <span class="pg-flag__badge">PhishGuard</span>
             </div>
-            <div class="pg-flag__desc">${message}</div>
+            <div class="pg-flag__desc">${escapeHtml(message)}</div>
         </div>
     `;
     mountInboxCard(flag, target);
@@ -811,9 +828,9 @@ function injectFreePlanPrompt({
         <div class="pg-prompt__icon">${buildIconSvg(isLimitReached ? "warn" : "check")}</div>
         <div class="pg-prompt__content">
             <div class="pg-prompt__eyebrow">${isTrialExpired ? "Trial ended" : isLimitReached ? "Plan limit" : "Scan confirmation"}</div>
-            <div class="pg-prompt__title">${title}</div>
-            <div class="pg-prompt__desc">${description}</div>
-            <div class="pg-prompt__meta">${meta}</div>
+            <div class="pg-prompt__title">${escapeHtml(title)}</div>
+            <div class="pg-prompt__desc">${escapeHtml(description)}</div>
+            <div class="pg-prompt__meta">${escapeHtml(meta)}</div>
             <div class="pg-prompt__actions">
                 ${
                     isLimitReached
@@ -1068,13 +1085,13 @@ function injectScanFlag(response) {
     }
 
     const iconSvg = buildIconSvg(config.icon);
-    const pulseClass = isHighRisk ? "pg-pulse" : "";
+    const emphasisClass = isHighRisk ? "pg-flag__icon--emphasis" : "";
 
     const flag = document.createElement('div');
     flag.id = FLAG_ID;
     flag.className = `pg-flag pg-flag--${riskLevel} ${isCompact ? "pg-flag--compact" : ""}`;
     flag.innerHTML = `
-        <div class="pg-flag__icon ${pulseClass}">${iconSvg}</div>
+        <div class="pg-flag__icon ${emphasisClass}">${iconSvg}</div>
         <div class="pg-flag__content">
             <div class="pg-flag__header">
                 <span class="pg-flag__title">${config.title}</span>
