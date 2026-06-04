@@ -79,7 +79,7 @@ export type RetentionPolicy = {
 
 type AnalyzeContext = {
   userId?: string;
-  source?: "web" | "extension" | "api";
+  source?: "web" | "extension" | "api" | "deep_scan";
   enforceLimits?: boolean;
 };
 

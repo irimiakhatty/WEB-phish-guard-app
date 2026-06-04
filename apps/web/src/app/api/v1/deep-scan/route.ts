@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyApiToken } from "@/lib/auth/api-auth";
 import { getUserSubscriptionInfo } from "@/lib/billing/subscription-helpers";
 import { getRiskLevel, isPhishingScore } from "@/lib/security/risk-levels";
+import { runDeepScanInference } from "@/lib/security/run-deep-scan-inference";
+import type { EncryptedPayloadEnvelope } from "@/lib/security/payload-crypto";
 import prisma from "@phish-guard-app/db";
 
 export const runtime = "nodejs";
@@ -15,10 +17,54 @@ type InferenceResponse = {
   model?: string;
 };
 
+function shouldUseInlineInference(inferenceUrl: string | undefined): boolean {
+  if (!inferenceUrl) {
+    return true;
+  }
+  return inferenceUrl.includes("/api/internal/deep-scan-inference");
+}
+
+async function fetchExternalInference(
+  inferenceUrl: string,
+  payload: {
+    textHash: string;
+    encryptedPayload: EncryptedPayloadEnvelope;
+    url?: string;
+    userId: string;
+  }
+): Promise<InferenceResponse> {
+  const inferenceHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (process.env.DEEP_SCAN_INFERENCE_TOKEN) {
+    inferenceHeaders.Authorization = `Bearer ${process.env.DEEP_SCAN_INFERENCE_TOKEN}`;
+  }
+
+  const inferenceRes = await fetch(inferenceUrl, {
+    method: "POST",
+    headers: inferenceHeaders,
+    body: JSON.stringify({
+      textHash: payload.textHash,
+      encryptedPayload: payload.encryptedPayload,
+      url: payload.url,
+      source: "extension",
+      userId: payload.userId,
+    }),
+  });
+
+  const inferenceData = (await inferenceRes.json()) as InferenceResponse & { error?: string };
+
+  if (!inferenceRes.ok) {
+    throw new Error(inferenceData.error || "Inference service error");
+  }
+
+  return inferenceData;
+}
+
 /**
  * POST /api/v1/deep-scan
- * Receives encrypted payload + hash, forwards to inference microservice,
- * logs the event without storing any email content.
+ * Receives encrypted payload + hash, runs inference (inline or external service),
+ * logs the event without storing email body text.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -61,38 +107,22 @@ export async function POST(request: NextRequest) {
     }
 
     const inferenceUrl = process.env.DEEP_SCAN_INFERENCE_URL;
-    if (!inferenceUrl) {
-      return NextResponse.json(
-        { success: false, error: "Deep Scan inference service not configured" },
-        { status: 503 }
-      );
-    }
+    let inferenceData: InferenceResponse;
 
-    const inferenceHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (process.env.DEEP_SCAN_INFERENCE_TOKEN) {
-      inferenceHeaders.Authorization = `Bearer ${process.env.DEEP_SCAN_INFERENCE_TOKEN}`;
-    }
-
-    const inferenceRes = await fetch(inferenceUrl, {
-      method: "POST",
-      headers: inferenceHeaders,
-      body: JSON.stringify({
+    if (shouldUseInlineInference(inferenceUrl)) {
+      inferenceData = await runDeepScanInference({
+        userId: authResult.user.id,
         textHash,
-        encryptedPayload,
-        url,
-        source: "extension",
-      }),
-    });
-
-    const inferenceData = (await inferenceRes.json()) as InferenceResponse;
-
-    if (!inferenceRes.ok) {
-      return NextResponse.json(
-        { success: false, error: "Inference service error" },
-        { status: 502 }
-      );
+        encryptedPayload: encryptedPayload as EncryptedPayloadEnvelope,
+        url: typeof url === "string" ? url : undefined,
+      });
+    } else {
+      inferenceData = await fetchExternalInference(inferenceUrl!, {
+        textHash,
+        encryptedPayload: encryptedPayload as EncryptedPayloadEnvelope,
+        url: typeof url === "string" ? url : undefined,
+        userId: authResult.user.id,
+      });
     }
 
     const score =

@@ -42,7 +42,9 @@ function getOverallScore(response) {
     return Math.max(textScore, urlScore, heuristicScore);
 }
 
-const INBOX_STYLE_VERSION = "4";
+const EXTENSION_UI_VERSION = "1.2.5";
+const INBOX_STYLE_VERSION = "5";
+let cachedInboxCss = null;
 
 function escapeHtml(value) {
     return String(value || "")
@@ -63,20 +65,56 @@ const INBOX_ERROR_COPY = {
     TIMEOUT: "Analysis timed out. Reopen the email to retry."
 };
 
+function getOrCreateStyleElement() {
+    let style = document.getElementById(STYLE_ID);
+    if (!style) {
+        style = document.createElement("style");
+        style.id = STYLE_ID;
+        document.head.appendChild(style);
+    }
+    return style;
+}
+
 function ensureStyles() {
-    const existing = document.getElementById(STYLE_ID);
-    if (existing?.dataset.version === INBOX_STYLE_VERSION) {
+    const style = getOrCreateStyleElement();
+    if (style.dataset.version === INBOX_STYLE_VERSION && cachedInboxCss) {
         return;
     }
-    if (existing) {
-        existing.remove();
+
+    if (cachedInboxCss) {
+        style.textContent = cachedInboxCss;
+        style.dataset.version = INBOX_STYLE_VERSION;
+        return;
     }
 
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.dataset.version = INBOX_STYLE_VERSION;
-    style.textContent = `@import url("${chrome.runtime.getURL("inbox-styles.css")}");`;
-    document.head.appendChild(style);
+    // Minimal fallback so the badge is visible even before CSS fetch completes
+    style.textContent = `
+        .pg-container { display: block; width: 100%; margin: 0 0 10px; clear: both; }
+        .pg-flag, .pg-prompt {
+            display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px;
+            width: 100%; padding: 10px 14px; margin: 0; border-radius: 10px;
+            background: #09090b; color: #fafafa; border: 1px solid #27272a;
+            font-family: system-ui, sans-serif; box-sizing: border-box;
+        }
+    `;
+
+    if (style.dataset.loading === "1") {
+        return;
+    }
+    style.dataset.loading = "1";
+
+    fetch(chrome.runtime.getURL("inbox-styles.css"))
+        .then((response) => response.text())
+        .then((css) => {
+            cachedInboxCss = css;
+            style.textContent = css;
+            style.dataset.version = INBOX_STYLE_VERSION;
+            delete style.dataset.loading;
+        })
+        .catch((error) => {
+            console.warn("PhishGuard: inbox-styles.css load failed", error);
+            delete style.dataset.loading;
+        });
 }
 
 function buildIconSvg(type) {
@@ -87,7 +125,7 @@ function buildIconSvg(type) {
 }
 
 // --- 1. UTILS ---
-console.log("PhishGuard Content Script Loaded on:", location.href);
+console.log(`PhishGuard content script v${EXTENSION_UI_VERSION} on:`, location.href);
 
 function hashCode(str) {
     let hash = 0;
@@ -315,24 +353,45 @@ function mountInboxCard(element, target) {
 
     ensureStyles();
 
-    const mountPoint = getMessageMountPoint(target) || target.parentElement;
-    if (!mountPoint) {
-        target.parentElement?.insertBefore(element, target);
+    const parent = target.parentElement;
+    if (!parent) {
+        try {
+            target.before(element);
+            return true;
+        } catch (error) {
+            console.warn("PhishGuard: direct badge insert failed", error);
+            return false;
+        }
+    }
+
+    let container = target.previousElementSibling;
+    if (!container || container.id !== CONTAINER_ID) {
+        container = parent.querySelector(`#${CONTAINER_ID}`);
+    }
+
+    try {
+        if (!container) {
+            container = document.createElement("div");
+            container.id = CONTAINER_ID;
+            container.className = "pg-container";
+            container.dataset.pgVersion = EXTENSION_UI_VERSION;
+            parent.insertBefore(container, target);
+        } else if (container.nextElementSibling !== target) {
+            parent.insertBefore(container, target);
+        }
+
+        container.replaceChildren(element);
         return true;
+    } catch (error) {
+        console.warn("PhishGuard: mountInboxCard failed, fallback insert", error);
+        try {
+            target.before(element);
+            return true;
+        } catch (fallbackError) {
+            console.warn("PhishGuard: fallback badge insert failed", fallbackError);
+            return false;
+        }
     }
-
-    let container = mountPoint.querySelector(`#${CONTAINER_ID}`);
-    if (!container) {
-        container = document.createElement("div");
-        container.id = CONTAINER_ID;
-        container.className = "pg-container";
-        mountPoint.insertBefore(container, target);
-    } else if (container.nextElementSibling !== target) {
-        mountPoint.insertBefore(container, target);
-    }
-
-    container.replaceChildren(element);
-    return true;
 }
 
 function injectScanPending() {
@@ -838,7 +897,10 @@ function injectScanFlag(response) {
     `;
     flag.dataset.riskLabel = riskLabel;
 
-    mountInboxCard(flag, target);
+    if (!mountInboxCard(flag, target)) {
+        console.warn("PhishGuard: verdict badge could not be mounted");
+        return;
+    }
 
     // Deep Scan handler (paid plans only)
     const deepScanButton = flag.querySelector(".pg-flag__cta");
@@ -1041,6 +1103,7 @@ function startInboxWatchers() {
 }
 
 // --- 4. OBSERVERS ---
+ensureStyles();
 startInboxWatchers();
 
 // --- 5. AUTH HANDOFF LISTENER ---

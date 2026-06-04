@@ -12,6 +12,7 @@ build
 # Environment variables
 .env
 .env*.local
+.env.analyze.keys
 
 # IDEs and editors
 .vscode/*
