@@ -22,13 +22,11 @@ export default async function SubscriptionsLandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="pb-14">
-        <section className="relative overflow-hidden border-b border-border">
-          <div aria-hidden className="pointer-events-none absolute inset-0" />
-
-          <div className={`${PAGE_SHELL} relative space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
+        <section className="border-b border-border bg-background">
+          <div className={`${PAGE_SHELL} space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.96fr)] lg:items-start">
               <div className="max-w-3xl space-y-6">
-                <p className="inline-flex rounded-full border border-cyan-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-zinc-950 shadow-sm shadow-zinc-950/5 backdrop-blur dark:border-cyan-400/25 dark:bg-cyan-950/20 dark:text-cyan-100">
+                <p className="inline-flex rounded-full border border-border bg-muted px-4 py-1.5 text-xs font-semibold text-foreground">
                   Plans and billing
                 </p>
                 <div className="space-y-3">
@@ -42,7 +40,7 @@ export default async function SubscriptionsLandingPage() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-cyan-400/18 bg-white/82 p-6 shadow-xl shadow-black/25 backdrop-blur dark:bg-zinc-950/82">
+              <div className="rounded-xl border border-border bg-card p-6 shadow-none">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
                   Choose your path
                 </p>
@@ -50,7 +48,7 @@ export default async function SubscriptionsLandingPage() {
                   {ENTRY_POINTS.map((item) => (
                     <div
                       key={item.label}
-                      className="rounded-[22px] border border-cyan-200/70 bg-cyan-50/45 p-4 dark:border-cyan-400/18 dark:bg-black/15"
+                      className="rounded-xl border border-border bg-muted/50 p-4"
                     >
                       <p className="text-sm font-semibold text-foreground">{item.label}</p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">

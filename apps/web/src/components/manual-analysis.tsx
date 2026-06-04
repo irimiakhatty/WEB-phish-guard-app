@@ -452,10 +452,12 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
   );
 
   const assistantAvatarSrc = "/icon.png";
+  const composerControlClass =
+    "inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-xl px-0";
 
   const content = (
     <>
-      <Card className="border-cyan-400/15 bg-card shadow-lg shadow-black/30">
+      <Card className="border-border bg-card shadow-none">
         <CardHeader>
           <CardTitle className="text-2xl">Analyze</CardTitle>
           <CardDescription>
@@ -466,7 +468,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
 
         <CardContent>
           <div
-            className="rounded-2xl border border-cyan-400/15 bg-background p-3"
+            className="rounded-xl border border-border bg-background p-3"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
           >
@@ -500,7 +502,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
                     if (message.role === "user") {
                       return (
                         <div key={message.id} className="flex justify-end">
-                          <div className="max-w-[88%] overflow-hidden rounded-3xl rounded-br-lg border border-cyan-400/20 bg-cyan-950 px-4 py-3 text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.08)]">
+                          <div className="max-w-[88%] overflow-hidden rounded-2xl rounded-br-md border border-border bg-muted px-4 py-3 text-foreground">
                             {message.imagePreview ? (
                               <img
                                 src={message.imagePreview}
@@ -683,17 +685,24 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
 
             <div className="mt-4 space-y-3">
               {attachment ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-cyan-400/15 bg-zinc-950 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4 text-cyan-300" />
-                    <p className="text-sm text-zinc-200">Image attached</p>
-                  </div>
-                  <div className="flex-1" />
+                <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2">
+                  {attachment.preview ? (
+                    <img
+                      src={attachment.preview}
+                      alt="Attachment preview"
+                      className="h-11 w-11 shrink-0 rounded-lg border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-muted">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <p className="min-w-0 flex-1 truncate text-sm text-foreground">Image attached</p>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-zinc-300 hover:text-zinc-50"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
                     onClick={() => {
                       setAttachment(null);
                       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -705,28 +714,26 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
                 </div>
               ) : null}
 
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <textarea
-                    ref={textareaRef}
-                    className={cn(
-                      "no-scrollbar w-full min-h-12 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm leading-6 text-foreground",
-                      "break-words [overflow-wrap:anywhere] overflow-x-hidden",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                    )}
-                    placeholder="Paste a URL, email text, or drop an image…"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void handleSend();
-                      }
-                    }}
-                    rows={1}
-                    disabled={busy}
-                  />
-                </div>
+              <div className="flex items-center gap-2">
+                <textarea
+                  ref={textareaRef}
+                  className={cn(
+                    "no-scrollbar min-h-11 min-w-0 flex-1 resize-none rounded-xl border border-input bg-background px-4 py-2.5 text-sm leading-6 text-foreground",
+                    "break-words [overflow-wrap:anywhere] overflow-x-hidden",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                  )}
+                  placeholder="Paste a URL, email text, or drop an image…"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
+                  rows={1}
+                  disabled={busy}
+                />
 
                 <input
                   ref={fileInputRef}
@@ -743,7 +750,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
                 <Button
                   type="button"
                   variant="outline"
-                  className="shrink-0 rounded-2xl border-cyan-400/20 bg-background px-3 py-2.5 h-auto"
+                  className={cn(composerControlClass, "w-11 border-border")}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={busy}
                   aria-label="Attach image"
@@ -753,12 +760,15 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
 
                 <Button
                   type="button"
-                  className="shrink-0 rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground hover:bg-primary/90 h-auto"
+                  className={cn(
+                    composerControlClass,
+                    "gap-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90",
+                  )}
                   onClick={() => void handleSend()}
                   disabled={busy}
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send
+                  <Send className="h-4 w-4" />
+                  Analyze
                 </Button>
               </div>
 

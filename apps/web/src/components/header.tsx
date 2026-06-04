@@ -203,7 +203,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-cyan-400/10 bg-black/40 backdrop-blur-xl md:hidden">
+      <header className="sticky top-0 z-50 border-b border-border bg-background md:hidden">
         <div className="mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
@@ -245,7 +245,7 @@ export function Header() {
                     className={cn(
                       "shrink-0 border border-transparent",
                       active
-                        ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.1)]"
+                        ? "border-primary/30 bg-primary/10 text-foreground"
                         : "text-zinc-200 hover:text-zinc-50",
                       accent === "cyan" && !active && "text-cyan-300 hover:text-cyan-200",
                     )}
@@ -274,7 +274,7 @@ export function Header() {
           scheduleCollapse();
         }}
         className={cn(
-          "group/side hidden h-svh shrink-0 border-r border-cyan-400/10 bg-black/30 backdrop-blur-xl",
+          "group/side hidden h-svh shrink-0 border-r border-border bg-background",
           "md:sticky md:top-0 md:flex md:flex-col",
           isExpanded ? "md:w-72" : "md:w-[76px]",
           "md:transition-[width] md:duration-500 md:ease-[cubic-bezier(0.16,1,0.3,1)] md:will-change-[width]",
@@ -319,7 +319,7 @@ export function Header() {
                     className={cn(
                       "h-10 w-full border border-transparent",
                       active
-                        ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-50 shadow-[0_0_18px_rgba(0,229,255,0.1)]"
+                        ? "border-primary/30 bg-primary/10 text-foreground"
                         : "text-zinc-200 hover:text-zinc-50",
                       "md:justify-start md:gap-2 md:px-3",
                       accent === "cyan" && !active && "text-cyan-300 hover:text-cyan-200",

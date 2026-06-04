@@ -3,11 +3,28 @@
 ## TL;DR - Get Running in 5 Minutes
 
 ### Step 1: Start Services (2 minutes)
-```bash
-# Terminal 1 - Database
-docker-compose up -d
 
-# Terminal 2 - Web App
+**Database (pick one — Docker is optional):**
+
+| Option | Setup |
+|--------|--------|
+| **Docker** | `docker-compose up -d` (Postgres on port 5432) |
+| **Neon / Supabase** | Create a free Postgres DB, paste `DATABASE_URL` into `apps/web/.env` |
+| **PostgreSQL local** | Install Postgres on Windows, create DB `phishguard`, set `DATABASE_URL` |
+
+```bash
+# Web app (from repo root)
+bun install
+bun run dev:web
+# or: .\dev-web.ps1
+```
+
+Set `apps/web/.env` with `DATABASE_URL`, `BETTER_AUTH_SECRET`, then `bun run db:push`.
+
+**Extension + local app:** In extension options, set API URL to `http://localhost:3001` and sign in via the popup.
+
+```bash
+# Legacy npm variant
 npm install
 npm run dev
 
@@ -73,10 +90,13 @@ npx prisma generate
 → Click it and generate a token
 
 **"Can't reach database"?**
-→ `docker-compose up -d` and wait 10 seconds
+→ Use Docker Postgres, or a cloud/local `DATABASE_URL` in `apps/web/.env`, then `bun run db:push`
+
+**No inbox card or badge?**
+→ Reload extension at `chrome://extensions/`, sign in, enable **Auto-scan** in settings, confirm API URL matches your app (`http://localhost:3001` for local dev)
 
 **No badge on extension icon?**
-→ Reload extension at `chrome://extensions/`
+→ Reload extension (needs `tabs` permission after update)
 
 **"Rate limit exceeded"?**
 → Wait 1 hour or generate new token

@@ -73,12 +73,8 @@ function BusinessPageChrome({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="pb-14">
-        <section className="relative overflow-hidden border-b border-border">
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-cyan-500/7 blur-3xl dark:bg-cyan-400/9" />
-            <div className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-fuchsia-500/5 blur-3xl dark:bg-fuchsia-400/7" />
-          </div>
-          <div className={`${PAGE_SHELL} relative space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
+        <section className="border-b border-border bg-background">
+          <div className={`${PAGE_SHELL} space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
             <Button
               variant="outline"
               className="border-cyan-400/25 bg-background/70 text-foreground hover:bg-cyan-400/10 dark:bg-black/15 dark:text-cyan-100 dark:hover:bg-cyan-400/10"
@@ -92,7 +88,7 @@ function BusinessPageChrome({
 
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)] lg:items-start">
               <div className="max-w-3xl space-y-6">
-                <p className="inline-flex rounded-full border border-cyan-200/80 bg-white/80 px-4 py-1.5 text-xs font-semibold text-zinc-950 shadow-sm shadow-zinc-950/5 backdrop-blur dark:border-cyan-400/25 dark:bg-cyan-950/20 dark:text-cyan-100">
+                <p className="inline-flex rounded-full border border-border bg-muted px-4 py-1.5 text-xs font-semibold text-foreground">
                   {badge}
                 </p>
                 <div className="space-y-3">
@@ -107,10 +103,7 @@ function BusinessPageChrome({
                 {primaryAction || secondaryAction ? (
                   <div className="flex flex-wrap items-center gap-3">
                     {primaryAction ? (
-                      <Button
-                        className="shadow-[0_0_0_1px_rgba(0,229,255,0.25),0_0_40px_rgba(0,229,255,0.12)] hover:shadow-[0_0_0_1px_rgba(0,229,255,0.3),0_0_52px_rgba(0,229,255,0.16)]"
-                        asChild
-                      >
+                      <Button asChild>
                         <Link href={primaryAction.href}>{primaryAction.label}</Link>
                       </Button>
                     ) : null}
@@ -127,7 +120,7 @@ function BusinessPageChrome({
                 ) : null}
               </div>
 
-              <div className="rounded-[28px] border border-cyan-400/18 bg-white/82 p-6 shadow-xl shadow-black/25 backdrop-blur dark:bg-zinc-950/82">
+              <div className="rounded-xl border border-border bg-card p-6 shadow-none">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-950/55 dark:text-cyan-100/55">
                   What you unlock
                 </p>

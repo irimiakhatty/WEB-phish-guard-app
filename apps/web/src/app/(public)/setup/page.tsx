@@ -21,11 +21,8 @@ export default async function SetupPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
-        <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-zinc-950 px-10 py-12 text-zinc-50 dark:bg-zinc-900">
-          <div className="absolute -top-20 -left-20 h-72 w-72 rounded-full bg-white/5 blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-white/5 blur-3xl" />
-
-          <div className="relative z-10 space-y-8">
+        <div className="relative hidden lg:flex flex-col justify-between overflow-hidden border-r border-border bg-zinc-950 px-10 py-12 text-zinc-50 dark:bg-zinc-900">
+          <div className="space-y-8">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-800/70">
                 <Shield className="h-6 w-6 text-white" />

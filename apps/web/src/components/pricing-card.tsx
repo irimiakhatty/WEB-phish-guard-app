@@ -35,12 +35,12 @@ export default function PricingCard({
       className={cn(
         "relative flex h-full flex-col overflow-hidden rounded-[28px] border p-7 shadow-sm",
         highlighted
-          ? "border-cyan-400/22 bg-white shadow-[0_0_0_1px_rgba(0,229,255,0.16),0_0_40px_rgba(0,229,255,0.08)] dark:bg-zinc-950/82 dark:shadow-[0_0_0_1px_rgba(0,229,255,0.18),0_0_44px_rgba(0,229,255,0.1)]"
-          : "border-border/80 bg-card/95 shadow-zinc-950/5 dark:bg-zinc-950/82"
+          ? "border-primary/40 bg-card"
+          : "border-border bg-card"
       )}
     >
       {badge && (
-        <Badge className="absolute left-7 top-6 border-0 bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,229,255,0.18)]">
+        <Badge className="absolute left-7 top-6 border-0 bg-primary text-primary-foreground">
           <Sparkles className="mr-1 h-3 w-3" />
           {badge}
         </Badge>
@@ -68,8 +68,8 @@ export default function PricingCard({
           className={cn(
             "mt-7 w-full",
             highlighted
-              ? "shadow-[0_0_0_1px_rgba(0,229,255,0.22),0_0_36px_rgba(0,229,255,0.12)] hover:shadow-[0_0_0_1px_rgba(0,229,255,0.28),0_0_44px_rgba(0,229,255,0.16)]"
-              : "border-cyan-400/25 bg-background/90 hover:bg-cyan-400/10 hover:text-foreground dark:bg-zinc-950/60 dark:hover:bg-cyan-400/10"
+              ? ""
+              : "border-border bg-background hover:bg-muted"
           )}
           onClick={onSelect}
           disabled={disabled}

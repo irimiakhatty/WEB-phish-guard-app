@@ -5,42 +5,87 @@
     <title>PhishGuard Settings</title>
     <style>
       :root {
-        --bg: #000000;
-        --background: rgba(9, 9, 11, 0.72);
-        --card: rgba(9, 9, 11, 0.78);
-        --card-strong: rgba(9, 9, 11, 0.92);
-        --foreground: #f8fafc;
-        --muted: #a1a1aa;
-        --border: rgba(0, 229, 255, 0.12);
-        --primary: #00e5ff;
-        --primary-foreground: #001216;
-        --ring: rgba(0, 229, 255, 0.24);
-        --radius-xl: 18px;
-        --radius-lg: 16px;
-        --radius-md: 12px;
-        --shadow: 0 18px 60px -54px rgba(0, 0, 0, 0.9);
+        --bg-canvas: #0d1117;
+        --surface: #161b22;
+        --surface-strong: #1c2128;
+        --foreground: #e6edf3;
+        --muted: #8b949e;
+        --border: #30363d;
+        --primary: #58a6ff;
+        --primary-foreground: #0d1117;
+        --ring: rgba(88, 166, 255, 0.3);
+        --radius-xl: 12px;
+        --radius-md: 8px;
+        --danger: #f85149;
+        --success: #3fb950;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; min-height: 100vh; padding: 18px; display: flex; align-items: center; justify-content: center; font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--foreground); color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        padding: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+        background: var(--bg-canvas);
+        color: var(--foreground);
+        color-scheme: dark;
+      }
       .settings-shell { width: min(100%, 340px); margin: 0 auto; }
-      .settings-header { margin-bottom: 14px; padding: 14px 14px 12px; border-radius: var(--radius-xl); background: var(--background); box-shadow: var(--shadow); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+      .settings-header,
+      .option-group {
+        margin-bottom: 12px;
+        padding: 14px;
+        border-radius: var(--radius-xl);
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
       .settings-brand { display: flex; align-items: center; gap: 12px; }
-      .settings-brand img { width: 40px; height: 40px; border-radius: 14px; display: block; }
-      .settings-brand h1 { margin: 0; font-size: 1.05rem; letter-spacing: -0.02em; }
+      .settings-brand img { width: 40px; height: 40px; border-radius: 10px; display: block; }
+      .settings-brand h1 { margin: 0; font-size: 1.05rem; font-weight: 600; }
       .settings-brand p { margin: 3px 0 0; font-size: 0.8rem; color: var(--muted); }
-      .option-group { margin-bottom: 12px; padding: 12px; border-radius: var(--radius-lg); background: var(--card); box-shadow: 0 18px 38px rgba(0,0,0,0.46); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
-      label { display: block; margin-bottom: 6px; font-size: 0.86rem; font-weight: 650; color: var(--foreground); }
-      input[type="text"], input[type="password"] { width: 100%; padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--card-strong); color: var(--foreground); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
-      input:focus { outline: none; box-shadow: 0 0 0 4px rgba(0, 229, 255, 0.18), inset 0 1px 0 rgba(255,255,255,0.1); }
+      label { display: block; margin-bottom: 6px; font-size: 0.86rem; font-weight: 600; }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--bg-canvas);
+        color: var(--foreground);
+      }
+      input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
       .help-text { margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
-      button { width: 100%; margin-top: 8px; border: 0; border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer; background: var(--primary); color: var(--primary-foreground); font-weight: 700; box-shadow: 0 14px 30px rgba(0, 229, 255, 0.12); transition: 180ms ease; }
-      button:hover { filter: brightness(1.03); }
+      button {
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        cursor: pointer;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        font-weight: 600;
+      }
+      button:hover { background: #79b8ff; border-color: #79b8ff; }
       .button-row { display: flex; gap: 8px; margin-top: 8px; }
-      .button-row button { flex: 1; width: auto; min-height: 46px; margin-top: 0; background: rgba(255,255,255,0.02); color: var(--foreground); text-align: center; display: flex; align-items: center; justify-content: center; box-shadow: none; }
-      .button-row button:hover { transform: none; background: rgba(255,255,255,0.04); }
+      .button-row button {
+        flex: 1;
+        width: auto;
+        margin-top: 0;
+        background: var(--surface-strong);
+        color: var(--foreground);
+        border-color: var(--border);
+      }
+      .button-row button:hover { background: #21262d; }
       #status { margin-top: 10px; font-size: 0.82rem; display: none; }
-      #status.success { color: #16a34a; }
-      #status.error { color: #dc2626; }
+      #status.success { color: var(--success); }
+      #status.error { color: var(--danger); }
     </style>
   </head>
   <body>
@@ -61,12 +106,12 @@
           <button id="useLiveApp" type="button">Use Live App</button>
           <button id="useLocalDev" type="button">Use Localhost Dev</button>
         </div>
-        <div class="help-text">Use the live app for normal sign-in. Switch to <code>localhost</code> only when <code>bun run dev:web</code> is running and you want instant local changes.</div>
+        <div class="help-text">Use the live app for normal sign-in. Switch to <code>localhost</code> only when <code>bun run dev:web</code> is running.</div>
       </div>
       <div class="option-group">
         <label for="apiToken">API Token (optional)</label>
         <input type="password" id="apiToken" placeholder="Leave empty for normal sign-in" />
-        <div class="help-text">Normally you leave this empty and use <strong>Sign In / Sign Up</strong> in the extension popup. Paste a token here only if automatic sign-in fails. You can copy that token from the app&apos;s <code>/ext-auth</code> page after login.</div>
+        <div class="help-text">Paste a token from <code>/ext-auth</code> only if popup sign-in fails.</div>
       </div>
       <div class="option-group">
         <label>

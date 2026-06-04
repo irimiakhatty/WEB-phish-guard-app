@@ -10,7 +10,8 @@ const RISK_THRESHOLDS = {
 };
 
 const DEEP_SCAN_MAX_CHARS = 5000;
-const ANALYZE_TIMEOUT_MS = 5000; // Reduced from 8000ms — user-perceptible above 5s
+const ANALYZE_TIMEOUT_MS = 7000;
+const SCAN_KEEPALIVE_MS = 20000;
 const FALLBACK_SCORING_VERSION = "extension_fallback_weighted_v1";
 const MAX_ANALYZE_TEXT_CHARS = 6000;
 const POLICY_DEFAULTS = {
@@ -20,6 +21,56 @@ const POLICY_DEFAULTS = {
     disableHardBlock: false
 };
 const latestScanByTab = new Map();
+let scanKeepAliveTimer = null;
+
+function startScanKeepAlive() {
+    stopScanKeepAlive();
+    scanKeepAliveTimer = setInterval(() => {
+        chrome.runtime.getPlatformInfo(() => {});
+    }, SCAN_KEEPALIVE_MS);
+}
+
+function stopScanKeepAlive() {
+    if (scanKeepAliveTimer) {
+        clearInterval(scanKeepAliveTimer);
+        scanKeepAliveTimer = null;
+    }
+}
+
+function setExtensionTabBadge(tabId, { riskLevel, hardBlockApplied, state }) {
+    if (typeof tabId !== "number") {
+        return;
+    }
+
+    let badgeText = "";
+    let badgeColor = "#6e7681";
+
+    if (state === "pending") {
+        badgeText = "...";
+        badgeColor = "#58a6ff";
+    } else if (state === "error") {
+        badgeText = "!";
+        badgeColor = "#6e7681";
+    } else if (hardBlockApplied) {
+        badgeText = "BLOCK";
+        badgeColor = "#da3633";
+    } else if (riskLevel === "medium") {
+        badgeText = "RISK";
+        badgeColor = "#d29922";
+    } else if (riskLevel === "high" || riskLevel === "critical") {
+        badgeText = "WARN";
+        badgeColor = "#f85149";
+    } else if (riskLevel === "low") {
+        badgeText = "LOW";
+        badgeColor = "#58a6ff";
+    } else {
+        badgeText = "SAFE";
+        badgeColor = "#3fb950";
+    }
+
+    chrome.action.setBadgeText({ text: badgeText, tabId });
+    chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId });
+}
 
 function bootstrapPolicyDefaults(force = false) {
     chrome.storage.sync.get(
@@ -722,17 +773,52 @@ async function logIncident(data) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "scan_page") {
-        chrome.storage.sync.get(["authToken", "apiToken", "userPlan", "userRole", "scansRemaining"], async (items) => {
-            const authToken = items.apiToken || items.authToken;
-
-            if (!authToken) {
-                if (request.source === "auto") sendResponse({ error: "SILENT_FAIL" });
-                else sendResponse({ error: "UNAUTHORIZED" });
+        let scanResponded = false;
+        const finishScan = (payload) => {
+            if (scanResponded) {
                 return;
             }
+            scanResponded = true;
+            stopScanKeepAlive();
+            try {
+                sendResponse(payload);
+            } catch (responseError) {
+                console.warn("PhishGuard: scan response channel closed.", responseError);
+            }
+        };
 
-            processScan(request, sender, sendResponse, undefined, authToken);
-        });
+        startScanKeepAlive();
+        (async () => {
+            try {
+                const items = await chrome.storage.sync.get([
+                    "authToken",
+                    "apiToken",
+                    "userPlan",
+                    "userRole",
+                    "scansRemaining"
+                ]);
+                const authToken = items.apiToken || items.authToken;
+
+                if (!authToken) {
+                    if (request.source === "auto" || request.source === "auto_confirmed") {
+                        setExtensionTabBadge(sender.tab?.id, { state: "error" });
+                        finishScan({ error: "UNAUTHORIZED" });
+                    } else {
+                        finishScan({ error: "UNAUTHORIZED" });
+                    }
+                    return;
+                }
+
+                if (request.source === "auto" || request.source === "auto_confirmed") {
+                    setExtensionTabBadge(sender.tab?.id, { state: "pending" });
+                }
+
+                await processScan(request, sender, finishScan, items.scansRemaining, authToken);
+            } catch (scanError) {
+                console.error("PhishGuard: scan_page handler failed", scanError);
+                finishScan({ error: "ANALYZE_FAILED" });
+            }
+        })();
 
         return true;
     }
@@ -900,26 +986,31 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
                 return;
             }
             if (error?.status === 429 || error?.code === "SCAN_LIMIT_REACHED") {
-                try {
-                    const refreshedState = await refreshExtensionContext(authToken);
-                    sendResponse({
-                        error: "LIMIT_REACHED",
-                        scansRemaining:
-                            typeof refreshedState?.scansRemaining === "number"
-                                ? refreshedState.scansRemaining
+                sendResponse({
+                    error: "LIMIT_REACHED",
+                    scansRemaining:
+                        typeof error?.details?.scansRemaining === "number"
+                            ? error.details.scansRemaining
+                            : typeof remainingScans === "number"
+                                ? remainingScans
                                 : 0,
-                        subscriptionStatus: refreshedState?.subscriptionStatus || null,
-                        details: error?.details || null
-                    });
-                } catch (refreshError) {
+                    subscriptionStatus: error?.details?.subscriptionStatus || null,
+                    details: error?.details || null
+                });
+                refreshExtensionContext(authToken).catch((refreshError) => {
                     console.warn("PhishGuard: context refresh after limit hit failed", refreshError);
-                    sendResponse({ error: "LIMIT_REACHED", details: error?.details || null });
-                }
+                });
                 return;
             }
             if (!allowLocalFallback) {
-                const unavailableError = request.source === "auto" ? "SILENT_FAIL" : "ANALYZE_UNAVAILABLE";
-                sendResponse({ error: unavailableError });
+                const isAutoSource = request.source === "auto" || request.source === "auto_confirmed";
+                if (sender?.tab?.id !== undefined && isAutoSource) {
+                    setExtensionTabBadge(sender.tab.id, { state: "error" });
+                }
+                sendResponse({
+                    error: isAutoSource ? "AUTO_UNAVAILABLE" : "ANALYZE_UNAVAILABLE",
+                    message: error?.message || "Server analysis unavailable"
+                });
                 return;
             }
             console.warn("PhishGuard: API analyze unavailable, using fallback heuristics.", error);
@@ -947,22 +1038,7 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
                 latestScanByTab.set(sender.tab.id, result.scanId);
             }
 
-            let badgeText = "SAFE";
-            let badgeColor = "#22C55E";
-
-            if (hardBlockApplied) {
-                badgeText = "BLOCK";
-                badgeColor = "#7F1D1D";
-            } else if (riskLevel === "medium") {
-                badgeText = "RISK";
-                badgeColor = "#F59E0B";
-            } else if (riskLevel === "high" || riskLevel === "critical") {
-                badgeText = "WARN";
-                badgeColor = "#DC2626";
-            }
-
-            chrome.action.setBadgeText({ text: badgeText, tabId: sender.tab.id });
-            chrome.action.setBadgeBackgroundColor({ color: badgeColor, tabId: sender.tab.id });
+            setExtensionTabBadge(sender.tab.id, { riskLevel, hardBlockApplied });
         }
 
         // Only log incidents from local fallback path to avoid duplicate DB rows.
@@ -1023,7 +1099,14 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
         });
     } catch (error) {
         console.error("PhishGuard: scan processing failed", error);
-        sendResponse({ error: "ANALYZE_FAILED" });
+        const isAutoSource = request.source === "auto" || request.source === "auto_confirmed";
+        if (sender?.tab?.id !== undefined && isAutoSource) {
+            setExtensionTabBadge(sender.tab.id, { state: "error" });
+        }
+        sendResponse({
+            error: isAutoSource ? "AUTO_UNAVAILABLE" : "ANALYZE_FAILED",
+            message: error?.message || "Scan failed"
+        });
     }
 }
 

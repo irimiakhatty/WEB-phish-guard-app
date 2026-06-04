@@ -1,4 +1,17 @@
 const DEFAULT_API_URL = "https://phish-guard-rho.vercel.app";
+const POPUP_SCAN_TIMEOUT_MS = 10000;
+const POPUP_SCAN_SLOW_HINT_MS = 3500;
+let activeScanId = 0;
+
+const SCAN_ERROR_MESSAGES = {
+  TIMEOUT: "Analysis is taking longer than expected. Keep the popup open or try again.",
+  AUTO_UNAVAILABLE: "Inbox analysis could not reach the server. Set API URL to your running app in extension settings.",
+  ANALYZE_FAILED: "Analysis failed. Check your connection and API URL in settings.",
+  ANALYZE_UNAVAILABLE: "Server analysis is unavailable. Sign in again or verify the app URL.",
+  NETWORK_ERROR: "Could not reach the PhishGuard server.",
+  RUNTIME_ERROR: "Extension service is unavailable. Reload the extension and try again.",
+  UNKNOWN_ERROR: "Something went wrong during analysis.",
+};
 const AUTH_STORAGE_KEYS = [
   "authToken",
   "apiToken",
@@ -344,7 +357,44 @@ function openDashboard() {
   });
 }
 
+function getScanErrorMessage(errorCode) {
+  if (typeof errorCode !== "string") {
+    return SCAN_ERROR_MESSAGES.UNKNOWN_ERROR;
+  }
+  return SCAN_ERROR_MESSAGES[errorCode] || SCAN_ERROR_MESSAGES.UNKNOWN_ERROR;
+}
+
+function renderScanError(message, variant = "neutral") {
+  if (!resultDiv) {
+    return;
+  }
+  resultDiv.className = `result-card result-${variant}`;
+  resultDiv.innerHTML = `
+    <div class="result-card__title">Analysis unavailable</div>
+    <div class="result-card__meta">${escapeHtml(message)}</div>
+  `;
+}
+
+function getResultVariant(riskLevel, isPhishing, hardBlock) {
+  if (hardBlock || isPhishing || riskLevel === "high" || riskLevel === "critical") {
+    return "phish";
+  }
+  if (riskLevel === "medium" || riskLevel === "low") {
+    return "warn";
+  }
+  return "safe";
+}
+
 function renderScanResult(response) {
+  if (!resultDiv) {
+    return;
+  }
+
+  if (response?.error) {
+    renderScanError(getScanErrorMessage(response.error), "neutral");
+    return;
+  }
+
   const textScore = typeof response.textScore === "number" ? response.textScore : 0;
   const urlScore = typeof response.urlScore === "number" ? response.urlScore : 0;
   const heuristicScore = typeof response.heuristicScore === "number" ? response.heuristicScore : 0;
@@ -359,33 +409,40 @@ function renderScanResult(response) {
     typeof response.isPhishing === "boolean"
       ? response.isPhishing
       : riskLevel === "high" || riskLevel === "critical" || hardBlock;
+  const variant = getResultVariant(riskLevel, isPhishing, hardBlock);
 
-  if (isPhishing || hardBlock) {
-    resultDiv.className = "result-card result-phish";
-    let content = hardBlock
-      ? "<div><strong>THREAT BLOCKED BY POLICY</strong></div>"
-      : "<div><strong>PHISHING DETECTED</strong></div>";
-    content += `<div style='font-size:0.8rem; margin-top:0.5rem'>Risk: ${(finalScore * 100).toFixed(
-      0
-    )}% (${riskLevel.toUpperCase()})</div>`;
-    if (typeof policyAction === "string") {
-      content += `<div style='font-size:0.75rem; margin-top:0.35rem; opacity:0.9;'>Policy action: ${policyAction.toUpperCase()}</div>`;
-    }
-    if (typeof response.analysis === "string" && response.analysis.length > 0) {
-      const trimmed =
-        response.analysis.length > 140
-          ? `${response.analysis.slice(0, 137)}...`
-          : response.analysis;
-      content += `<div style='font-size:0.75rem; margin-top:0.5rem; opacity:0.9;'>${trimmed}</div>`;
-    }
-    resultDiv.innerHTML = content;
-    return;
+  let title = "Safe";
+  if (hardBlock) {
+    title = "Threat blocked";
+  } else if (isPhishing) {
+    title = "Phishing detected";
+  } else if (riskLevel === "medium" || riskLevel === "low") {
+    title = "Suspicious signals";
   }
 
-  resultDiv.className = "result-card result-safe";
-  resultDiv.innerHTML = `<div><strong>SAFE</strong></div><div style='font-size:0.8rem; margin-top:0.5rem'>Risk: ${(
-    finalScore * 100
-  ).toFixed(0)}% (${riskLevel.toUpperCase()})</div>`;
+  let meta = `Risk ${(finalScore * 100).toFixed(0)}% · ${riskLevel.toUpperCase()}`;
+  if (typeof response.durationMs === "number") {
+    meta += ` · ${Math.round(response.durationMs)}ms`;
+  }
+  if (typeof policyAction === "string") {
+    meta += ` · Policy ${policyAction.toUpperCase()}`;
+  }
+
+  let detailHtml = "";
+  if (typeof response.analysis === "string" && response.analysis.length > 0) {
+    const trimmed =
+      response.analysis.length > 160
+        ? `${response.analysis.slice(0, 157)}...`
+        : response.analysis;
+    detailHtml = `<div class="result-card__detail">${escapeHtml(trimmed)}</div>`;
+  }
+
+  resultDiv.className = `result-card result-${variant}`;
+  resultDiv.innerHTML = `
+    <div class="result-card__title">${escapeHtml(title)}</div>
+    <div class="result-card__meta">${escapeHtml(meta)}</div>
+    ${detailHtml}
+  `;
 }
 
 async function fetchExtensionContext(apiUrl, token) {
@@ -437,93 +494,109 @@ if (saveTokenBtn) {
   });
 }
 
+function setLoaderMessage(message) {
+  if (!loader) {
+    return;
+  }
+  const label = loader.querySelector("span");
+  if (label) {
+    label.textContent = message;
+  }
+}
+
+function finishScanUi(scanId) {
+  if (scanId !== activeScanId) {
+    return false;
+  }
+  if (loader) loader.classList.add("hidden");
+  if (scanBtn) scanBtn.disabled = false;
+  setLoaderMessage("Analyzing suspicious content...");
+  return true;
+}
+
 async function scan() {
   const urlField = document.getElementById("urlText");
   const textField = document.getElementById("emailText");
-  const textInput = textField ? textField.value : "";
-  const urlInput = urlField ? urlField.value : "";
+  const textInput = textField ? textField.value.trim() : "";
+  const urlInput = urlField ? urlField.value.trim() : "";
 
   if (!textInput && !urlInput) {
-    resultDiv.className = "result-card";
-    resultDiv.innerHTML =
-      "<span style='color:var(--muted-foreground)'>Please enter text or a URL to scan.</span>";
+    renderScanError("Enter a URL or paste suspicious content to analyze.", "neutral");
     return;
   }
 
+  const scanId = ++activeScanId;
   if (loader) loader.classList.remove("hidden");
   if (scanBtn) scanBtn.disabled = true;
   resultDiv.innerHTML = "";
   resultDiv.className = "";
+  setLoaderMessage("Analyzing suspicious content...");
 
-  // Safety timeout: if sendResponse never fires (e.g. service worker crash),
-  // unblock the UI after POPUP_SCAN_TIMEOUT_MS instead of hanging indefinitely.
-  const POPUP_SCAN_TIMEOUT_MS = 6000;
-  let responded = false;
-  const timeoutHandle = setTimeout(() => {
-    if (responded) return;
-    responded = true;
-    if (loader) loader.classList.add("hidden");
-    if (scanBtn) scanBtn.disabled = false;
-    resultDiv.className = "result-card";
-    resultDiv.innerText = "Analysis timed out. Please try again.";
-  }, POPUP_SCAN_TIMEOUT_MS);
+  const slowHintTimer = setTimeout(() => {
+    if (scanId !== activeScanId) return;
+    setLoaderMessage("Still analyzing — almost there...");
+  }, POPUP_SCAN_SLOW_HINT_MS);
 
-  chrome.runtime.sendMessage(
-    {
-      action: "scan_page",
-      text: textInput,
-      url: urlInput,
-    },
-    async (response) => {
-      if (responded) return; // already handled by timeout
-      responded = true;
-      clearTimeout(timeoutHandle);
+  let response;
+  try {
+    response = await Promise.race([
+      sendRuntimeMessage({
+        action: "scan_page",
+        text: textInput,
+        url: urlInput,
+      }),
+      new Promise((resolve) => {
+        setTimeout(() => resolve({ error: "TIMEOUT" }), POPUP_SCAN_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (runtimeError) {
+    console.error(runtimeError);
+    if (!finishScanUi(scanId)) return;
+    renderScanError(getScanErrorMessage("RUNTIME_ERROR"), "neutral");
+    return;
+  } finally {
+    clearTimeout(slowHintTimer);
+  }
 
-      if (loader) loader.classList.add("hidden");
-      if (scanBtn) scanBtn.disabled = false;
+  if (!finishScanUi(scanId)) return;
 
-      if (chrome.runtime.lastError) {
-        resultDiv.className = "result-card";
-        resultDiv.innerText = "Error connecting to service.";
-        console.error(chrome.runtime.lastError);
-        return;
-      }
+  if (!response) {
+    renderScanError("No response from the analysis service.", "neutral");
+    return;
+  }
 
-      if (!response) {
-        resultDiv.className = "result-card";
-        resultDiv.innerText = "No response from analysis service.";
-        return;
-      }
+  if (response.error === "LIMIT_REACHED") {
+    const data = await readExtensionState();
+    const subscriptionStatus =
+      data.subscriptionStatus || data.extensionAccount?.subscription?.status || null;
+    resultDiv.className = "result-card result-phish";
+    resultDiv.innerHTML = `
+      <div class="result-card__title">${
+        isTrialExpired(subscriptionStatus) ? "Trial ended" : "Monthly limit reached"
+      }</div>
+      <div class="result-card__meta">${
+        isTrialExpired(subscriptionStatus)
+          ? "Upgrade to restore automatic inbox analysis and manual scans."
+          : "Upgrade your plan for unlimited realtime inbox analysis."
+      }</div>
+    `;
+    showScanUI(data);
+    return;
+  }
 
-      if (response.error === "LIMIT_REACHED") {
-        const data = await readExtensionState();
-        const subscriptionStatus =
-          data.subscriptionStatus || data.extensionAccount?.subscription?.status || null;
-        resultDiv.className = "result-card result-phish";
-        resultDiv.innerHTML = `
-          <div style="font-weight: 800;">${
-            isTrialExpired(subscriptionStatus) ? "Trial ended" : "Monthly limit reached"
-          }</div>
-          <div style="font-size: 0.82rem; margin-top: 0.45rem;">${
-            isTrialExpired(subscriptionStatus)
-              ? "Upgrade to restore automatic inbox analysis and manual scans."
-              : "Upgrade your plan for unlimited realtime inbox analysis."
-          }</div>
-        `;
-        showScanUI(data);
-        return;
-      }
+  if (response.error === "UNAUTHORIZED") {
+    await logout();
+    return;
+  }
 
-      if (response.error === "UNAUTHORIZED") {
-        await logout();
-        return;
-      }
+  if (response.error) {
+    renderScanError(getScanErrorMessage(response.error), "neutral");
+    return;
+  }
 
-      renderScanResult(response);
-      const data = await readExtensionState();
-      showScanUI(data);
-    }
-  );
+  renderScanResult(response);
+  const data = await readExtensionState();
+  showScanUI(data);
 }
 
 if (loginBtn) loginBtn.addEventListener("click", login);

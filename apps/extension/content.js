@@ -26,6 +26,8 @@ const PROMPT_ID = "phishguard-scan-prompt";
 const CONTAINER_ID = "phishguard-scan-container";
 const MAX_DEEP_SCAN_CHARS = 5000;
 const MIN_EMAIL_SCAN_CHARS = 50;
+const SCAN_CACHE_PREFIX = "pg_scan_cache_";
+const SCAN_BURST_DELAYS_MS = [0, 500, 1200, 2500, 5000, 9000];
 
 function formatPercent(score) {
     const safeScore = Number.isFinite(score) ? Math.min(Math.max(score, 0), 1) : 0;
@@ -40,33 +42,40 @@ function getOverallScore(response) {
     return Math.max(textScore, urlScore, heuristicScore);
 }
 
+const INBOX_ERROR_COPY = {
+    UNAUTHORIZED: "Sign in via the PhishGuard extension popup to analyze emails.",
+    AUTO_UNAVAILABLE: "Could not reach the analysis server. Check API URL in extension settings.",
+    ANALYZE_UNAVAILABLE: "Server analysis is unavailable right now.",
+    ANALYZE_FAILED: "Analysis failed. Try reopening the email.",
+    LIMIT_REACHED: "Scan limit reached. Upgrade or wait for the next billing cycle.",
+    RUNTIME_ERROR: "Extension service unavailable. Reload the extension.",
+    TIMEOUT: "Analysis timed out. Reopen the email to retry."
+};
+
 function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+        .pg-container {
+            margin: 12px 0;
+        }
         .pg-flag {
-            font-family: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
             display: flex;
             gap: 12px;
             align-items: flex-start;
-            border-radius: 14px;
+            border-radius: 12px;
             background: var(--pg-bg);
             color: var(--pg-text);
+            border: 1px solid var(--pg-border);
+            border-left: 3px solid var(--pg-accent);
             padding: 12px 14px;
-            margin: 12px 0;
+            margin: 0;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
             animation: pg-in 220ms ease-out;
-        }
-        .pg-flag::before {
-            content: "";
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 4px;
-            background: var(--pg-icon-bg);
-            opacity: 0.9;
         }
         .pg-flag--compact {
             padding: 8px 12px;
@@ -181,21 +190,25 @@ function ensureStyles() {
             border-radius: 10px;
         }
         .pg-prompt {
-            font-family: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
             display: flex;
             gap: 12px;
             align-items: flex-start;
-            margin: 12px 0;
+            margin: 0;
             padding: 14px;
-            border-radius: 16px;
-            background: #ffffff;
-            color: #0f172a;
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            border: 1px solid #d0d7de;
+            border-left: 3px solid #58a6ff;
+            background: #f6f8fa;
+            color: #24292f;
+            box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04);
             animation: pg-in 220ms ease-out;
         }
         .pg-prompt--limit {
-            background: #fff1f2;
-            color: #7f1d1d;
+            background: #fff1f3;
+            color: #cf222e;
+            border-color: #ffbdc5;
+            border-left-color: #f85149;
         }
         .pg-prompt__icon {
             width: 36px;
@@ -267,12 +280,13 @@ function ensureStyles() {
             cursor: default;
         }
         .pg-prompt__button--primary {
-            background: #0f172a;
+            background: #238636;
             color: #ffffff;
         }
         .pg-prompt__button--secondary {
-            background: rgba(255, 255, 255, 0.8);
-            color: #0f172a;
+            background: #f6f8fa;
+            color: #24292f;
+            border: 1px solid #d0d7de;
         }
         .pg-prompt__status {
             font-size: 11px;
@@ -281,60 +295,63 @@ function ensureStyles() {
         .pg-prompt--limit .pg-prompt__status {
             color: rgba(127, 29, 29, 0.78);
         }
+        .pg-flag--pending,
+        .pg-flag--neutral {
+            --pg-bg: #f6f8fa;
+            --pg-border: #d0d7de;
+            --pg-accent: #8b949e;
+            --pg-text: #24292f;
+            --pg-muted: #57606a;
+            --pg-icon-bg: #eaeef2;
+            --pg-icon: #57606a;
+            --pg-badge-bg: #eaeef2;
+            --pg-badge-text: #57606a;
+        }
         .pg-flag--safe {
-            --pg-bg: #f0fdf4;
-            --pg-border: #bbf7d0;
-            --pg-text: #14532d;
-            --pg-muted: #166534;
-            --pg-icon-bg: #22c55e;
+            --pg-bg: #f0fff4;
+            --pg-border: #aceebb;
+            --pg-accent: #3fb950;
+            --pg-text: #1a7f37;
+            --pg-muted: #1a7f37;
+            --pg-icon-bg: #3fb950;
             --pg-icon: #ffffff;
-            --pg-badge-bg: #dcfce7;
-            --pg-badge-text: #166534;
-            --pg-badge-border: #86efac;
+            --pg-badge-bg: #dafbe1;
+            --pg-badge-text: #1a7f37;
         }
         .pg-flag--low {
-            --pg-bg: #eff6ff;
-            --pg-border: #bfdbfe;
-            --pg-text: #1e3a8a;
-            --pg-muted: #1e40af;
-            --pg-icon-bg: #3b82f6;
+            --pg-bg: #f6f8fa;
+            --pg-border: #d0d7de;
+            --pg-accent: #58a6ff;
+            --pg-text: #0969da;
+            --pg-muted: #0969da;
+            --pg-icon-bg: #58a6ff;
             --pg-icon: #ffffff;
-            --pg-badge-bg: #dbeafe;
-            --pg-badge-text: #1e40af;
-            --pg-badge-border: #bfdbfe;
+            --pg-badge-bg: #ddf4ff;
+            --pg-badge-text: #0969da;
         }
         .pg-flag--medium {
-            --pg-bg: #fffbeb;
-            --pg-border: #fde68a;
-            --pg-text: #78350f;
-            --pg-muted: #92400e;
-            --pg-icon-bg: #f59e0b;
+            --pg-bg: #fff8c5;
+            --pg-border: #f0ce4e;
+            --pg-accent: #d29922;
+            --pg-text: #7d4e00;
+            --pg-muted: #7d4e00;
+            --pg-icon-bg: #d29922;
             --pg-icon: #ffffff;
-            --pg-badge-bg: #fef3c7;
-            --pg-badge-text: #92400e;
-            --pg-badge-border: #fcd34d;
+            --pg-badge-bg: #fff8c5;
+            --pg-badge-text: #7d4e00;
         }
-        .pg-flag--high {
-            --pg-bg: #fef2f2;
-            --pg-border: #fecaca;
-            --pg-text: #7f1d1d;
-            --pg-muted: #991b1b;
-            --pg-icon-bg: #ef4444;
+        .pg-flag--high,
+        .pg-flag--critical,
+        .pg-flag--block {
+            --pg-bg: #fff1f3;
+            --pg-border: #ffbdc5;
+            --pg-accent: #f85149;
+            --pg-text: #cf222e;
+            --pg-muted: #a40e26;
+            --pg-icon-bg: #f85149;
             --pg-icon: #ffffff;
-            --pg-badge-bg: #fee2e2;
-            --pg-badge-text: #991b1b;
-            --pg-badge-border: #fecaca;
-        }
-        .pg-flag--critical {
-            --pg-bg: #fee2e2;
-            --pg-border: #fca5a5;
-            --pg-text: #7f1d1d;
-            --pg-muted: #b91c1c;
-            --pg-icon-bg: #dc2626;
-            --pg-icon: #ffffff;
-            --pg-badge-bg: #fecaca;
-            --pg-badge-text: #7f1d1d;
-            --pg-badge-border: #fca5a5;
+            --pg-badge-bg: #ffebe9;
+            --pg-badge-text: #cf222e;
         }
         @keyframes pg-in {
             from { opacity: 0; transform: translateY(-6px); }
@@ -429,30 +446,69 @@ function removeScanPrompt() {
     cleanupUiContainerIfEmpty();
 }
 
-function getOrCreateUiContainer(target) {
-    if (!target) return null;
-
-    const parent = target.parentElement;
-    if (!parent) return null;
-
-    let container = document.getElementById(CONTAINER_ID);
-    if (!container) {
-        container = document.createElement("div");
-        container.id = CONTAINER_ID;
-        container.className = "pg-container";
+function isElementVisible(element) {
+    if (!element || !(element instanceof Element)) {
+        return false;
     }
 
-    const needsMove = container.parentElement !== parent || container.nextSibling !== target;
-    if (needsMove) {
-        try {
-            container.remove();
-        } catch {
-            // ignore
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) {
+        return false;
+    }
+
+    const style = window.getComputedStyle(element);
+    return style.visibility !== "hidden" && style.display !== "none" && Number(style.opacity) > 0.05;
+}
+
+function findGmailBodyElements() {
+    const selectors = [
+        ".a3s.aiL",
+        ".a3s",
+        "div[data-message-id] .a3s",
+        "div[role=\"document\"]",
+        ".ii.gt"
+    ];
+    const seen = new Set();
+    const elements = [];
+
+    selectors.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((node) => {
+            if (!(node instanceof HTMLElement) || seen.has(node)) {
+                return;
+            }
+            seen.add(node);
+            elements.push(node);
+        });
+    });
+
+    return elements;
+}
+
+function pickVisibleEmailBody(elements) {
+    if (!elements.length) {
+        return null;
+    }
+
+    for (let i = elements.length - 1; i >= 0; i -= 1) {
+        if (isElementVisible(elements[i])) {
+            return elements[i];
         }
-        parent.insertBefore(container, target);
     }
 
-    return container;
+    return elements[elements.length - 1];
+}
+
+function getMessageMountPoint(bodyTarget) {
+    if (!bodyTarget) {
+        return null;
+    }
+
+    return (
+        bodyTarget.closest("[data-message-id]") ||
+        bodyTarget.closest("[data-legacy-message-id]") ||
+        bodyTarget.closest(".gs") ||
+        bodyTarget.parentElement
+    );
 }
 
 function cleanupUiContainerIfEmpty() {
@@ -470,107 +526,234 @@ function removeScanContainer() {
 }
 
 // --- 2. TEXT EXTRACTION ---
-function getEmailContent() {
-    let bodyText = "";
-
-    // GMAIL SELECTORS
-    // .a3s.aiL = Message body container
-    // .hP = Subject line (optional, but good for context)
-    const gmailBodies = document.querySelectorAll('.a3s.aiL');
-    if (gmailBodies.length > 0) {
-        // Get the last one (usually the open email in conversation view)
-        // Or concatenate all? Let's take the last visible one.
-        for (let i = gmailBodies.length - 1; i >= 0; i--) {
-            if (gmailBodies[i].offsetParent !== null) { // Check visibility
-                bodyText += gmailBodies[i].innerText + "\n";
-                break; // Only scan the latest/active email
-            }
-        }
+function getEmailTarget() {
+    const gmailBody = pickVisibleEmailBody(findGmailBodyElements());
+    if (gmailBody) {
+        return gmailBody;
     }
 
-    // OUTLOOK SELECTORS
-    // [aria-label="Message body"]
     const outlookBody = document.querySelector('[aria-label="Message body"]');
-    if (outlookBody) {
-        bodyText += outlookBody.innerText;
+    if (outlookBody && isElementVisible(outlookBody)) {
+        return outlookBody;
     }
 
-    // Fallback for Outlook Reading Pane
-    if (!bodyText) {
-        const readingPane = document.querySelector('.ReadingPane');
-        if (readingPane) bodyText += readingPane.innerText;
+    const readingPane = document.querySelector(".ReadingPane");
+    if (readingPane && isElementVisible(readingPane)) {
+        return readingPane;
     }
 
-    return bodyText.trim().substring(0, 3000); // Limit to 3000 chars
+    return null;
 }
 
-function getEmailTarget() {
-    const gmailBodies = document.querySelectorAll('.a3s.aiL');
-    if (gmailBodies.length > 0) {
-        for (let i = gmailBodies.length - 1; i >= 0; i--) {
-            if (gmailBodies[i].offsetParent !== null) {
-                return gmailBodies[i];
-            }
-        }
-        return gmailBodies[gmailBodies.length - 1];
+function getEmailContent() {
+    const target = getEmailTarget();
+    if (target) {
+        return target.innerText.trim().substring(0, 3000);
     }
 
-    return document.querySelector('[aria-label="Message body"]') || document.querySelector('.ReadingPane');
+    return "";
+}
+
+async function readCachedScanResult(contentHash) {
+    const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
+    const stored = await chrome.storage.session.get(cacheKey);
+    return stored[cacheKey] || null;
+}
+
+async function writeCachedScanResult(contentHash, result) {
+    const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
+    await chrome.storage.session.set({ [cacheKey]: result });
 }
 
 // --- 3. SCANNING LOGIC ---
-function submitScan({ text, url, currentHash, source, onResult, planName, subscriptionStatus }) {
+function mountInboxCard(element, target) {
+    if (!target) {
+        return false;
+    }
+
+    ensureStyles();
+
+    const mountPoint = getMessageMountPoint(target);
+    if (!mountPoint) {
+        target.prepend(element);
+        return true;
+    }
+
+    let container = mountPoint.querySelector(`#${CONTAINER_ID}`);
+    if (!container) {
+        container = document.createElement("div");
+        container.id = CONTAINER_ID;
+        container.className = "pg-container";
+        mountPoint.insertBefore(container, mountPoint.firstChild);
+    } else if (container.parentElement !== mountPoint || container !== mountPoint.firstElementChild) {
+        mountPoint.insertBefore(container, mountPoint.firstChild);
+    }
+
+    container.replaceChildren(element);
+    return true;
+}
+
+function injectScanPending() {
+    const target = getEmailTarget();
+    if (!target) {
+        return;
+    }
+
+    ensureStyles();
+    removeScanFlag();
+
+    const flag = document.createElement("div");
+    flag.id = FLAG_ID;
+    flag.className = "pg-flag pg-flag--pending pg-flag--compact";
+    flag.innerHTML = `
+        <div class="pg-flag__icon">${buildIconSvg("check")}</div>
+        <div class="pg-flag__content">
+            <div class="pg-flag__header">
+                <span class="pg-flag__title">Analyzing email</span>
+                <span class="pg-flag__badge">PhishGuard</span>
+            </div>
+            <div class="pg-flag__desc">Checking this message with your workspace policy...</div>
+        </div>
+    `;
+    mountInboxCard(flag, target);
+}
+
+function injectScanErrorFlag(errorCode, extraMessage) {
+    const target = getEmailTarget();
+    if (!target) {
+        return;
+    }
+
+    ensureStyles();
+    removeScanFlag();
+
+    const message =
+        extraMessage ||
+        INBOX_ERROR_COPY[errorCode] ||
+        "PhishGuard could not analyze this email.";
+
+    const flag = document.createElement("div");
+    flag.id = FLAG_ID;
+    flag.className = "pg-flag pg-flag--neutral";
+    flag.innerHTML = `
+        <div class="pg-flag__icon">${buildIconSvg("warn")}</div>
+        <div class="pg-flag__content">
+            <div class="pg-flag__header">
+                <span class="pg-flag__title">Analysis unavailable</span>
+                <span class="pg-flag__badge">PhishGuard</span>
+            </div>
+            <div class="pg-flag__desc">${message}</div>
+        </div>
+    `;
+    mountInboxCard(flag, target);
+}
+
+function handleAutoScanResponseError(response, {
+    currentHash,
+    text,
+    url,
+    planName,
+    subscriptionStatus,
+    onResult
+}) {
+    const errorCode = response?.error || "UNKNOWN_ERROR";
+
+    if (errorCode === "LIMIT_REACHED") {
+        injectFreePlanPrompt({
+            currentHash,
+            text,
+            url,
+            scansRemaining: Number(response?.scansRemaining || 0),
+            planName,
+            subscriptionStatus: response?.subscriptionStatus || subscriptionStatus || null,
+            isLimitReached: true
+        });
+    } else if (errorCode === "UNAUTHORIZED") {
+        injectScanErrorFlag("UNAUTHORIZED");
+    } else {
+        injectScanErrorFlag(errorCode, response?.message);
+    }
+
+    if (typeof onResult === "function") {
+        onResult(response || { error: errorCode });
+    }
+}
+
+async function submitScan({ text, url, currentHash, source, onResult, planName, subscriptionStatus }) {
     lastScannedTextHash = currentHash;
     lastScannedText = text;
     lastScanResult = null;
+
+    const isAutoSource = source === "auto" || source === "auto_confirmed";
 
     if (source === "auto") {
         console.log("PhishGuard: Auto-scanning new content...");
     }
 
-    chrome.runtime.sendMessage(
-        {
+    if (isAutoSource) {
+        injectScanPending();
+    }
+
+    let response;
+    try {
+        response = await sendRuntimeMessage({
             action: "scan_page",
             source,
             text,
             url
-        },
-        (response) => {
-            if (chrome.runtime.lastError) {
-                if (typeof onResult === "function") {
-                    onResult({ error: "RUNTIME_ERROR" });
-                }
-                return;
-            }
-
-            if (!response || response.error) {
-                if ((!response || response.error === "LIMIT_REACHED") && typeof onResult !== "function") {
-                    injectFreePlanPrompt({
-                        currentHash,
-                        text,
-                        url,
-                        scansRemaining: Number(response?.scansRemaining || 0),
-                        planName,
-                        subscriptionStatus: response?.subscriptionStatus || subscriptionStatus || null,
-                        isLimitReached: true
-                    });
-                }
-
-                if (typeof onResult === "function") {
-                    onResult(response || { error: "UNKNOWN_ERROR" });
-                }
-                return;
-            }
-
-            removeScanPrompt();
-            lastScanResult = response;
-            injectScanFlag(response);
-
-            if (typeof onResult === "function") {
-                onResult(response);
-            }
+        });
+    } catch (runtimeError) {
+        console.warn("PhishGuard: scan message failed", runtimeError);
+        if (isAutoSource) {
+            handleAutoScanResponseError(
+                { error: "RUNTIME_ERROR" },
+                { currentHash, text, url, planName, subscriptionStatus, onResult }
+            );
+        } else if (typeof onResult === "function") {
+            onResult({ error: "RUNTIME_ERROR" });
         }
-    );
+        return;
+    }
+
+    if (!response || response.error) {
+        if (isAutoSource) {
+            handleAutoScanResponseError(response, {
+                currentHash,
+                text,
+                url,
+                planName,
+                subscriptionStatus,
+                onResult
+            });
+            return;
+        }
+
+        if ((!response || response.error === "LIMIT_REACHED") && typeof onResult !== "function") {
+            injectFreePlanPrompt({
+                currentHash,
+                text,
+                url,
+                scansRemaining: Number(response?.scansRemaining || 0),
+                planName,
+                subscriptionStatus: response?.subscriptionStatus || subscriptionStatus || null,
+                isLimitReached: true
+            });
+        }
+
+        if (typeof onResult === "function") {
+            onResult(response || { error: "UNKNOWN_ERROR" });
+        }
+        return;
+    }
+
+    removeScanPrompt();
+    lastScanResult = response;
+    injectScanFlag(response);
+    void writeCachedScanResult(currentHash, response);
+
+    if (typeof onResult === "function") {
+        onResult(response);
+    }
 }
 
 function injectFreePlanPrompt({
@@ -645,12 +828,7 @@ function injectFreePlanPrompt({
         </div>
     `;
 
-    const container = getOrCreateUiContainer(target);
-    if (container) {
-        container.replaceChildren(prompt);
-    } else {
-        target.prepend(prompt);
-    }
+    mountInboxCard(prompt, target);
 
     const status = prompt.querySelector(".pg-prompt__status");
     const dismissButton = prompt.querySelector('[data-action="dismiss"]');
@@ -721,16 +899,41 @@ function injectFreePlanPrompt({
     }
 }
 
+let scanInFlight = false;
+let scanBurstGeneration = 0;
+
+async function restoreVisibleVerdict(contentHash) {
+    const cached = await readCachedScanResult(contentHash);
+    const payload = cached || lastScanResult;
+    if (!payload || payload.error) {
+        return false;
+    }
+
+    if (!document.getElementById(FLAG_ID)) {
+        lastScanResult = payload;
+        injectScanFlag(payload);
+    }
+
+    return Boolean(document.getElementById(FLAG_ID));
+}
+
 async function triggerScan() {
+    if (scanInFlight) {
+        return;
+    }
+
     const text = getEmailContent();
     const url = location.href;
+    const target = getEmailTarget();
 
-    if (text.length < MIN_EMAIL_SCAN_CHARS) {
+    if (!target || text.length < MIN_EMAIL_SCAN_CHARS) {
         removeScanPrompt();
         return;
     }
 
     const currentHash = hashCode(text);
+    await restoreVisibleVerdict(currentHash);
+
     if (currentHash === lastScannedTextHash) {
         if (!document.getElementById(FLAG_ID) && lastScanResult) {
             injectScanFlag(lastScanResult);
@@ -738,11 +941,9 @@ async function triggerScan() {
         return;
     }
 
-    try {
-        await sendRuntimeMessage({ action: "REFRESH_CONTEXT" });
-    } catch (_error) {
-        // Ignore refresh failures and fall back to the latest cached state.
-    }
+    scanInFlight = true;
+
+    sendRuntimeMessage({ action: "REFRESH_CONTEXT" }).catch(() => {});
 
     const syncState = await readSyncState({
         autoScan: true,
@@ -755,6 +956,7 @@ async function triggerScan() {
 
     if (syncState.autoScan === false) {
         removeScanPrompt();
+        scanInFlight = false;
         return;
     }
 
@@ -764,6 +966,7 @@ async function triggerScan() {
         syncState.subscriptionStatus
     )) {
         if (currentHash === lastDismissedTextHash) {
+            scanInFlight = false;
             return;
         }
 
@@ -776,39 +979,52 @@ async function triggerScan() {
             subscriptionStatus: syncState.subscriptionStatus || null,
             isLimitReached: Number(syncState.scansRemaining || 0) <= 0
         });
+        scanInFlight = false;
         return;
     }
 
     lastDismissedTextHash = "";
     removeScanPrompt();
-    submitScan({
-        text,
-        url,
-        currentHash,
-        source: "auto",
-        planName: syncState.planName || "Free",
-        subscriptionStatus: syncState.subscriptionStatus || null
-    });
+    try {
+        await submitScan({
+            text,
+            url,
+            currentHash,
+            source: "auto",
+            planName: syncState.planName || "Free",
+            subscriptionStatus: syncState.subscriptionStatus || null
+        });
+    } finally {
+        scanInFlight = false;
+    }
 }
 
 function injectScanFlag(response) {
     if (!response || response.error) return;
 
-    // Remove previous flag if exists
     const oldFlag = document.getElementById(FLAG_ID);
     if (oldFlag) oldFlag.remove();
 
-    // Find email body (Gmail/Outlook)
     const target = getEmailTarget();
     if (!target) return;
 
     ensureStyles();
 
     const overallScore = getOverallScore(response);
-    const riskLevel = response.riskLevel || getRiskLevelFromScore(overallScore);
+    const hardBlock = Boolean(response.hardBlockApplied) || response?.policyDecision?.action === "block";
+    let riskLevel = response.riskLevel || getRiskLevelFromScore(overallScore);
+    if (hardBlock && riskLevel !== "critical") {
+        riskLevel = "block";
+    }
     const attackType = response.attackType || "Other";
 
     const copy = {
+        block: {
+            title: "Threat blocked by policy",
+            badge: "Blocked",
+            description: "This message matches a workspace block policy.",
+            icon: "warn"
+        },
         safe: {
             title: "Safe email",
             badge: "Safe",
@@ -843,8 +1059,8 @@ function injectScanFlag(response) {
 
     const config = copy[riskLevel] || copy.medium;
     const isCompact = riskLevel === "safe" || riskLevel === "low";
-    const showDeepScan = riskLevel === "medium" || riskLevel === "high";
-    const isHighRisk = riskLevel === "high" || riskLevel === "critical";
+    const showDeepScan = !hardBlock && (riskLevel === "medium" || riskLevel === "high");
+    const isHighRisk = hardBlock || riskLevel === "high" || riskLevel === "critical" || riskLevel === "block";
 
     const metaParts = [`Risk score: ${formatPercent(overallScore)}`];
     if (!isCompact && attackType && attackType !== "Other") {
@@ -877,13 +1093,7 @@ function injectScanFlag(response) {
         </div>
     `;
 
-    const container = getOrCreateUiContainer(target);
-    if (container) {
-        container.replaceChildren(flag);
-    } else {
-        // Fallback: insert at top of email body if we cannot find a stable parent.
-        target.prepend(flag);
-    }
+    mountInboxCard(flag, target);
 
     // Deep Scan handler (paid plans only)
     const deepScanButton = flag.querySelector(".pg-flag__cta");
@@ -1010,49 +1220,79 @@ function injectScanFlag(response) {
 }
 
 // Debounce scan to avoid multiple calls during render
-function scheduleScan() {
-    if (scanTimeout) clearTimeout(scanTimeout);
+function scheduleScan(delayMs = 500) {
+    if (scanTimeout) {
+        clearTimeout(scanTimeout);
+    }
     scanTimeout = setTimeout(() => {
         void triggerScan();
-    }, 2000); // Wait 2s for full render
+    }, delayMs);
+}
+
+function scheduleScanBurst() {
+    scanBurstGeneration += 1;
+    const generation = scanBurstGeneration;
+
+    SCAN_BURST_DELAYS_MS.forEach((delayMs) => {
+        setTimeout(() => {
+            if (generation !== scanBurstGeneration) {
+                return;
+            }
+            void triggerScan();
+        }, delayMs);
+    });
+}
+
+function resetScanUiState() {
+    lastScannedTextHash = "";
+    lastDismissedTextHash = "";
+    lastScanResult = null;
+    scanInFlight = false;
+    removeScanPrompt();
+    removeScanFlag();
+    removeScanContainer();
+}
+
+function startInboxWatchers() {
+    const emailRoot = document.querySelector('div[role="main"]') || document.body;
+
+    new MutationObserver((mutations) => {
+        let shouldScan = false;
+        for (const mutation of mutations) {
+            if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+                shouldScan = true;
+                break;
+            }
+            if (mutation.type === "characterData") {
+                shouldScan = true;
+                break;
+            }
+        }
+        if (shouldScan) {
+            scheduleScan(450);
+        }
+    }).observe(emailRoot, {
+        childList: true,
+        subtree: true,
+        characterData: true
+    });
+
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+        const url = location.href;
+        if (url === lastUrl) {
+            return;
+        }
+        lastUrl = url;
+        resetScanUiState();
+        scheduleScanBurst();
+    }).observe(document, { subtree: true, childList: true });
+
+    scheduleScanBurst();
 }
 
 // --- 4. OBSERVERS ---
-
-// A. URL Change Observer (for SPA navigation)
-let lastUrl = location.href;
-new MutationObserver(() => {
-    const url = location.href;
-    if (url !== lastUrl) {
-        lastUrl = url;
-        lastScannedTextHash = ""; // Reset hash on navigation
-        lastDismissedTextHash = "";
-        lastScanResult = null;
-        removeScanPrompt();
-        removeScanFlag();
-        removeScanContainer();
-        scheduleScan();
-    }
-}).observe(document, { subtree: true, childList: true });
-
-// B. DOM Mutation Observer (for email content loading)
-const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        if (mutation.addedNodes.length > 0) {
-            scheduleScan();
-            break;
-        }
-    }
-});
-
-// Start observing
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
-
-// Initial Scan
-scheduleScan();
+startInboxWatchers();
 
 // --- 5. AUTH HANDOFF LISTENER ---
 window.addEventListener("message", (event) => {

@@ -7,7 +7,7 @@
   --foreground: #e6edf3;
   --muted: #8b949e;
   --muted-foreground: #6e7681;
-  --muted-surface: rgba(177, 186, 196, 0.08);
+  --muted-surface: #21262d;
   /* Borders — solid, GitHub style */
   --border: #30363d;
   --border-strong: #484f58;
@@ -134,7 +134,7 @@ textarea {
   height: 36px;
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-strong);
 }
 
 .logo-icon img {
@@ -166,7 +166,7 @@ textarea {
 
 .icon-btn:hover {
   color: var(--foreground);
-  background: rgba(0, 229, 255, 0.08);
+  background: var(--muted-surface);
 }
 
 .container {
@@ -259,24 +259,24 @@ textarea {
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(248, 250, 252, 0.9);
+  background: var(--surface-strong);
+  color: var(--foreground);
 }
 
 .plan-chip--active,
 .plan-chip--admin {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgba(209, 250, 229, 0.92);
+  background: var(--safe-bg);
+  color: var(--safe-text);
 }
 
 .plan-chip--limited {
-  background: rgba(0, 229, 255, 0.1);
-  color: rgba(224, 251, 255, 0.92);
+  background: #1c2d41;
+  color: var(--primary);
 }
 
 .plan-chip--warning {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgba(254, 226, 226, 0.92);
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .login-actions {
@@ -503,7 +503,7 @@ textarea {
 .loader-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.55rem;
   padding: 0.75rem 1rem;
   border-radius: var(--radius-lg);
@@ -511,6 +511,11 @@ textarea {
   border: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.loader-row span {
+  flex: 1;
+  line-height: 1.4;
 }
 
 /* Result card — GitHub alert style: solid left border strip */
@@ -538,6 +543,40 @@ textarea {
   color: var(--danger-text);
   border-color: var(--danger-border);
   border-left-color: var(--danger-text);
+}
+
+.result-warn {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-color: var(--warn-border);
+  border-left-color: var(--warn-text);
+}
+
+.result-neutral {
+  background: var(--muted-surface);
+  color: var(--foreground);
+  border-color: var(--border);
+  border-left-color: var(--muted);
+}
+
+.result-card__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.result-card__meta {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: inherit;
+  opacity: 0.92;
+}
+
+.result-card__detail {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  opacity: 0.88;
 }
 
 .footer {
