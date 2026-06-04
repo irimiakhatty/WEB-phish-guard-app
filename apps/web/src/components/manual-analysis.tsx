@@ -743,7 +743,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 w-12 rounded-2xl border-cyan-400/20 bg-background px-0"
+                  className="shrink-0 rounded-2xl border-cyan-400/20 bg-background px-3 py-2.5 h-auto"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={busy}
                   aria-label="Attach image"
@@ -753,7 +753,7 @@ export default function ManualAnalysis({ embedded = false }: ManualAnalysisProps
 
                 <Button
                   type="button"
-                  className="h-12 rounded-2xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+                  className="shrink-0 rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground hover:bg-primary/90 h-auto"
                   onClick={() => void handleSend()}
                   disabled={busy}
                 >

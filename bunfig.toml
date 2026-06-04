@@ -1,0 +1,4 @@
+# Hoisted linker avoids per-package node_modules trees.
+# Required after fixing the auth↔db workspace cycle (see packages/db/package.json).
+[install]
+linker = "hoisted"

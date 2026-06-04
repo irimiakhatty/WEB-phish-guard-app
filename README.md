@@ -26,6 +26,14 @@ A comprehensive phishing detection system with a Next.js web application, Python
 - **Token Authentication**: Secure API access with rate limiting (100 req/hour)
 - **Manual Scanning**: Scan any URL or text via popup interface
 
+## Disk usage (monorepo)
+
+Large project folders are usually **`node_modules`**, **`apps/web/.next`**, or a duplicate **`phish-guard-app.rar`** next to the repo. Do not commit these.
+
+- **Cleanup:** `.\cleanup.ps1` (dry-run) or `.\cleanup.ps1 -Run` on Windows; `./cleanup.sh` on macOS/Linux.
+- **Reinstall after cleanup:** `bun install` from the repo root.
+- **Avoid auth ↔ db cycles:** `@phish-guard-app/auth` must not be a runtime dependency of `@phish-guard-app/db` (seed-only → `devDependencies`). Root `bunfig.toml` uses a hoisted linker.
+
 ## Getting Started
 
 First, install the dependencies:

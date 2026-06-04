@@ -10,7 +10,7 @@ const RISK_THRESHOLDS = {
 };
 
 const DEEP_SCAN_MAX_CHARS = 5000;
-const ANALYZE_TIMEOUT_MS = 8000;
+const ANALYZE_TIMEOUT_MS = 5000; // Reduced from 8000ms — user-perceptible above 5s
 const FALLBACK_SCORING_VERSION = "extension_fallback_weighted_v1";
 const MAX_ANALYZE_TEXT_CHARS = 6000;
 const POLICY_DEFAULTS = {
@@ -994,23 +994,10 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
                 ? { action: "warn", reason: "hard_block_disabled_locally", hardBlock: false }
                 : backendPolicy;
 
-        let refreshedState = null;
-        try {
-            refreshedState = await refreshExtensionContext(authToken);
-        } catch (refreshError) {
-            console.warn("PhishGuard: context refresh after scan failed, using local fallback.", refreshError);
-            try {
-                await storeRecentScanSnapshot({
-                    scanId: result.scanId || null,
-                    overallScore: finalScore,
-                    riskLevel,
-                    isPhishing: isPhish
-                }, request, remainingScans);
-            } catch (storageError) {
-                console.warn("PhishGuard: failed to persist recent scan context", storageError);
-            }
-        }
-
+        // FIX: Send verdict immediately — do NOT block on context refresh.
+        // refreshExtensionContext() was previously awaited before sendResponse,
+        // causing a second full server round-trip to delay the visible result.
+        // Context sync is now fire-and-forget in the background.
         sendResponse({
             ...result,
             overallScore: finalScore,
@@ -1019,10 +1006,20 @@ async function processScan(request, sender, sendResponse, remainingScans, authTo
             hardBlockApplied,
             policyDecision: effectivePolicyDecision,
             durationMs,
-            scansRemaining:
-                typeof refreshedState?.scansRemaining === "number"
-                    ? refreshedState.scansRemaining
-                    : remainingScans
+            scansRemaining: typeof remainingScans === "number" ? remainingScans : null
+        });
+
+        // Background sync — does not affect popup UX
+        refreshExtensionContext(authToken).catch((refreshError) => {
+            console.warn("PhishGuard: background context refresh failed.", refreshError);
+            storeRecentScanSnapshot({
+                scanId: result.scanId || null,
+                overallScore: finalScore,
+                riskLevel,
+                isPhishing: isPhish
+            }, request, remainingScans).catch((storageError) => {
+                console.warn("PhishGuard: failed to persist recent scan snapshot.", storageError);
+            });
         });
     } catch (error) {
         console.error("PhishGuard: scan processing failed", error);

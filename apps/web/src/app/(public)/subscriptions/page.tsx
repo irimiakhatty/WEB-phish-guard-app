@@ -23,10 +23,7 @@ export default async function SubscriptionsLandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <main className="pb-14">
         <section className="relative overflow-hidden border-b border-border">
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-cyan-500/7 blur-3xl dark:bg-cyan-400/9" />
-            <div className="absolute -right-24 -top-20 h-80 w-80 rounded-full bg-fuchsia-500/5 blur-3xl dark:bg-fuchsia-400/7" />
-          </div>
+          <div aria-hidden className="pointer-events-none absolute inset-0" />
 
           <div className={`${PAGE_SHELL} relative space-y-10 pb-12 pt-10 lg:pb-14 lg:pt-12`}>
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.96fr)] lg:items-start">

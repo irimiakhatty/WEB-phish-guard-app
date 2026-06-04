@@ -455,6 +455,19 @@ async function scan() {
   resultDiv.innerHTML = "";
   resultDiv.className = "";
 
+  // Safety timeout: if sendResponse never fires (e.g. service worker crash),
+  // unblock the UI after POPUP_SCAN_TIMEOUT_MS instead of hanging indefinitely.
+  const POPUP_SCAN_TIMEOUT_MS = 6000;
+  let responded = false;
+  const timeoutHandle = setTimeout(() => {
+    if (responded) return;
+    responded = true;
+    if (loader) loader.classList.add("hidden");
+    if (scanBtn) scanBtn.disabled = false;
+    resultDiv.className = "result-card";
+    resultDiv.innerText = "Analysis timed out. Please try again.";
+  }, POPUP_SCAN_TIMEOUT_MS);
+
   chrome.runtime.sendMessage(
     {
       action: "scan_page",
@@ -462,6 +475,10 @@ async function scan() {
       url: urlInput,
     },
     async (response) => {
+      if (responded) return; // already handled by timeout
+      responded = true;
+      clearTimeout(timeoutHandle);
+
       if (loader) loader.classList.add("hidden");
       if (scanBtn) scanBtn.disabled = false;
 
