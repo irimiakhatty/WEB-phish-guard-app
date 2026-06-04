@@ -28,6 +28,7 @@ const MAX_DEEP_SCAN_CHARS = 5000;
 const MIN_EMAIL_SCAN_CHARS = 50;
 const SCAN_CACHE_PREFIX = "pg_scan_cache_";
 const SCAN_BURST_DELAYS_MS = [0, 500, 1200, 2500, 5000, 9000];
+const scanCacheMemory = new Map();
 
 function formatPercent(score) {
     const safeScore = Number.isFinite(score) ? Math.min(Math.max(score, 0), 1) : 0;
@@ -410,7 +411,21 @@ function hashCode(str) {
 
 function readSyncState(defaults) {
     return new Promise((resolve) => {
-        chrome.storage.sync.get(defaults, resolve);
+        try {
+            if (!chrome?.storage?.sync) {
+                resolve(defaults);
+                return;
+            }
+            chrome.storage.sync.get(defaults, (items) => {
+                if (chrome.runtime.lastError) {
+                    resolve(defaults);
+                    return;
+                }
+                resolve(items);
+            });
+        } catch {
+            resolve(defaults);
+        }
     });
 }
 
@@ -572,14 +587,39 @@ function getEmailContent() {
 }
 
 async function readCachedScanResult(contentHash) {
+    const memoryHit = scanCacheMemory.get(String(contentHash));
+    if (memoryHit) {
+        return memoryHit;
+    }
+
     const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
-    const stored = await chrome.storage.session.get(cacheKey);
-    return stored[cacheKey] || null;
+    try {
+        if (!chrome?.storage?.local) {
+            return null;
+        }
+        const stored = await chrome.storage.local.get(cacheKey);
+        const hit = stored[cacheKey] || null;
+        if (hit) {
+            scanCacheMemory.set(String(contentHash), hit);
+        }
+        return hit;
+    } catch {
+        return null;
+    }
 }
 
 async function writeCachedScanResult(contentHash, result) {
+    scanCacheMemory.set(String(contentHash), result);
+
     const cacheKey = `${SCAN_CACHE_PREFIX}${contentHash}`;
-    await chrome.storage.session.set({ [cacheKey]: result });
+    try {
+        if (!chrome?.storage?.local) {
+            return;
+        }
+        await chrome.storage.local.set({ [cacheKey]: result });
+    } catch {
+        // Extension context may be invalidated after reload; in-memory cache still works.
+    }
 }
 
 // --- 3. SCANNING LOGIC ---
@@ -920,7 +960,12 @@ let scanInFlight = false;
 let scanBurstGeneration = 0;
 
 async function restoreVisibleVerdict(contentHash) {
-    const cached = await readCachedScanResult(contentHash);
+    let cached = null;
+    try {
+        cached = await readCachedScanResult(contentHash);
+    } catch {
+        cached = null;
+    }
     const payload = cached || lastScanResult;
     if (!payload || payload.error) {
         return false;
