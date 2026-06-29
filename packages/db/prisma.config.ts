@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./load-env.js";
 import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({

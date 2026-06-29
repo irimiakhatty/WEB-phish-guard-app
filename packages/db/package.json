@@ -15,7 +15,8 @@
                     "db:migrate":  "prisma migrate dev --schema=./prisma/schema",
                     "db:studio":  "prisma studio --schema=./prisma/schema",
                     "db:backfill:org-departments":  "prisma db execute --file=./prisma/scripts/backfill_org_departments.sql",
-                    "db:seed":  "tsx seed.ts"
+                    "db:seed":  "tsx seed.ts",
+                    "db:bootstrap":  "tsx bootstrap.ts"
                 },
     "dependencies":  {
                          "@phish-guard-app/env":  "workspace:*",

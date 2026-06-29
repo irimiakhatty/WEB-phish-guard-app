@@ -4,22 +4,25 @@
 
 ### Step 1: Start Services (2 minutes)
 
-**Database (pick one — Docker is optional):**
+**Database (recommended: shared cloud — no Docker, no re-seed on each device):**
 
 | Option | Setup |
 |--------|--------|
-| **Docker** | `docker-compose up -d` (Postgres on port 5432) |
-| **Neon / Supabase** | Create a free Postgres DB, paste `DATABASE_URL` into `apps/web/.env` |
-| **PostgreSQL local** | Install Postgres on Windows, create DB `phishguard`, set `DATABASE_URL` |
+| **Neon** (recommended) | [neon.tech](https://neon.tech) → free Postgres → paste `DATABASE_URL` in `apps/web/.env` on all devices → `bun run db:bootstrap` once |
+| **Supabase** | Free Postgres → `DATABASE_URL` in `apps/web/.env` |
+| **Docker** (legacy, single machine) | `docker compose up -d` → local `DATABASE_URL` |
+
+See **[docs/DEV_DATABASE.md](docs/DEV_DATABASE.md)** for multi-device setup.
 
 ```bash
-# Web app (from repo root)
+# From repo root
 bun install
+bun run db:bootstrap   # first time only (or empty DB)
 bun run dev:web
 # or: .\dev-web.ps1
 ```
 
-Set `apps/web/.env` with `DATABASE_URL`, `BETTER_AUTH_SECRET`, then `bun run db:push`.
+Set `apps/web/.env` with `DATABASE_URL`, `BETTER_AUTH_SECRET`. On a **new device**, reuse the same `DATABASE_URL` — run `bun run db:push` only if schema changed; **do not re-seed**.
 
 **Extension + local app:** In extension options, set API URL to `http://localhost:3001` and sign in via the popup.
 
@@ -90,7 +93,7 @@ npx prisma generate
 → Click it and generate a token
 
 **"Can't reach database"?**
-→ Use Docker Postgres, or a cloud/local `DATABASE_URL` in `apps/web/.env`, then `bun run db:push`
+→ Use a shared cloud `DATABASE_URL` (Neon) in `apps/web/.env` — see [docs/DEV_DATABASE.md](docs/DEV_DATABASE.md). Or Docker locally, then `bun run db:bootstrap`.
 
 **No inbox card or badge?**
 → Reload extension at `chrome://extensions/`, sign in, enable **Auto-scan** in settings, confirm API URL matches your app (`http://localhost:3001` for local dev)

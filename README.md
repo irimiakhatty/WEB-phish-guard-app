@@ -44,16 +44,25 @@ bun install
 
 ## Database Setup
 
-This project uses PostgreSQL with Prisma.
+PostgreSQL via Prisma. **For development on multiple devices**, use a **shared cloud database** (Neon recommended) — not local Docker.
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
+1. Create a free project at [neon.tech](https://neon.tech) (or Supabase).
+2. Set `DATABASE_URL` in `apps/web/.env` (same on every machine). Add `?sslmode=require` if needed.
+3. First setup or empty DB:
 
-3. Apply the schema to your database:
+```bash
+bun run db:bootstrap
+```
+
+4. After schema changes on another device:
 
 ```bash
 bun run db:push
 ```
+
+Full guide: **[docs/DEV_DATABASE.md](docs/DEV_DATABASE.md)**
+
+Local Docker is optional (`docker compose up -d`) — see `docker-compose.yml`.
 
 ## Cloudinary Setup (for file uploads)
 
@@ -100,18 +109,19 @@ phish-guard-app/
 
 - `npm run dev`: Start web application in development mode
 - `npm run build`: Build all applications
-- `npm run db:push`: Push Prisma schema changes to database
-- `npm run db:migrate`: Create and run database migrations
+- `bun run db:push`: Push Prisma schema changes to database
+- `bun run db:bootstrap`: Push schema + seed only if database is empty (multi-device dev)
+- `bun run db:migrate`: Create and run database migrations
 - `npm run db:studio`: Open Prisma Studio (database GUI)
 
 ## 🌐 Chrome Extension Integration
 
 ### Quick Start
 
-1. **Start the database and web app:**
+1. **Start the web app** (shared Neon DB — no Docker required):
    ```bash
-   docker-compose up -d
-   npm run dev
+   bun run db:bootstrap   # once
+   bun run dev:web
    ```
 
 2. **Load the extension:**

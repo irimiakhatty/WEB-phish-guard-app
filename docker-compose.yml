@@ -1,3 +1,6 @@
+# Optional local Postgres (legacy — prefer shared cloud DB, see docs/DEV_DATABASE.md)
+# Start: docker compose up -d
+# DATABASE_URL=postgresql://phishguard:phishguard_dev_password@localhost:5432/phishguard
 services:
   postgres:
     image: postgres:16-alpine

@@ -1,3 +1,7 @@
+import {
+  analyzeTextPhishingCloudmersive,
+  isCloudmersiveConfigured,
+} from "@/lib/integrations/cloudmersive";
 import { analyzePhishing } from "@/server/actions/analyze";
 
 import {
@@ -20,10 +24,10 @@ export type DeepScanInferenceResult = {
   model: string;
 };
 
-export async function runDeepScanInference(
-  input: DeepScanInferenceInput
+async function runInlineDeepScan(
+  input: DeepScanInferenceInput,
+  textContent: string
 ): Promise<DeepScanInferenceResult> {
-  const textContent = decryptTextPayload(input.encryptedPayload, input.textHash);
   const result = await analyzePhishing(
     { textContent, url: input.url },
     { userId: input.userId, source: "api", enforceLimits: false }
@@ -36,4 +40,20 @@ export async function runDeepScanInference(
     confidence: result.confidence,
     model: "inline-analyze",
   };
+}
+
+export async function runDeepScanInference(
+  input: DeepScanInferenceInput
+): Promise<DeepScanInferenceResult> {
+  const textContent = decryptTextPayload(input.encryptedPayload, input.textHash);
+
+  if (isCloudmersiveConfigured()) {
+    try {
+      return await analyzeTextPhishingCloudmersive(textContent);
+    } catch (error) {
+      console.error("Cloudmersive Deep Scan failed, falling back to inline analyze:", error);
+    }
+  }
+
+  return runInlineDeepScan(input, textContent);
 }

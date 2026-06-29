@@ -24,7 +24,9 @@
     "db:push": "bun run --filter @phish-guard-app/db db:push",
     "db:studio": "bun run --filter @phish-guard-app/db db:studio",
     "db:generate": "bun run --filter @phish-guard-app/db db:generate",
-    "db:migrate": "bun run --filter @phish-guard-app/db db:migrate"
+    "db:migrate": "bun run --filter @phish-guard-app/db db:migrate",
+    "db:seed": "bun run --filter @phish-guard-app/db db:seed",
+    "db:bootstrap": "bun run --filter @phish-guard-app/db db:bootstrap"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
