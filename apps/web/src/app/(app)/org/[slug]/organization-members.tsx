@@ -400,11 +400,18 @@ export default function OrganizationMembers({
               {visibleDepartments.map((department) => {
                 const isSelected = selectedDepartmentId === department.id;
                 return (
-                  <button
+                  <div
                     key={department.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedDepartmentId(department.id)}
-                    className={`rounded-xl bg-muted/30 p-3 text-left transition-colors hover:bg-muted/40 ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedDepartmentId(department.id);
+                      }
+                    }}
+                    className={`rounded-xl bg-muted/30 p-3 text-left transition-colors hover:bg-muted/40 cursor-pointer ${
                       isSelected ? "ring-2 ring-primary/40" : ""
                     }`}
                   >
@@ -431,7 +438,7 @@ export default function OrganizationMembers({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
               <button

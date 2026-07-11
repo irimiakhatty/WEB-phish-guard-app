@@ -20,7 +20,7 @@ export async function generateAndCreateTrainingAssignment(
     },
   });
 
-  if (!membership || (membership.role !== "admin" && user.role !== "super_admin")) {
+  if (user.role !== "super_admin" && (!membership || membership.role !== "admin")) {
     throw new Error("Unauthorized");
   }
 
@@ -123,7 +123,7 @@ export async function getTrainingAssignments(organizationId: string, userId: str
     },
   });
 
-  if (!membership && user.id !== userId) {
+  if (!membership && user.id !== userId && user.role !== "super_admin") {
     throw new Error("Unauthorized");
   }
 
@@ -167,7 +167,7 @@ export async function completeTrainingAssignment(assignmentId: string, slug: str
       },
     });
 
-    if (!membership || (membership.role !== "admin" && user.role !== "super_admin")) {
+    if (user.role !== "super_admin" && (!membership || membership.role !== "admin")) {
       throw new Error("Unauthorized");
     }
   }

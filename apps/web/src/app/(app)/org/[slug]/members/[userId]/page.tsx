@@ -316,6 +316,7 @@ export default async function MemberProfilePage({ params }: PageProps) {
           userId={userId}
           slug={slug}
           isAdmin={isAdmin}
+          currentUserId={user.id}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

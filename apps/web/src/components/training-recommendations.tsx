@@ -5,13 +5,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
-import { generateAndCreateTrainingAssignment, getTrainingAssignments } from "@/server/actions/training";
+import {
+  completeTrainingAssignment,
+  generateAndCreateTrainingAssignment,
+  getTrainingAssignments,
+} from "@/server/actions/training";
 
 interface TrainingRecommendationsProps {
   organizationId: string;
   userId: string;
   slug: string;
   isAdmin: boolean;
+  currentUserId: string;
 }
 
 interface Recommendation {
@@ -29,12 +34,15 @@ export function TrainingRecommendations({
   userId,
   slug,
   isAdmin,
+  currentUserId,
 }: TrainingRecommendationsProps) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const canComplete = isAdmin || currentUserId === userId;
 
   useEffect(() => {
     async function loadData() {
@@ -78,6 +86,21 @@ export function TrainingRecommendations({
     }
   };
 
+  const handleCompleteAssignment = async (assignmentId: string) => {
+    try {
+      setCompletingId(assignmentId);
+      await completeTrainingAssignment(assignmentId, slug);
+      // Reload assignments
+      const assignRes = await getTrainingAssignments(organizationId, userId);
+      setAssignments(assignRes || []);
+    } catch (err) {
+      setError("Failed to complete training assignment");
+      console.error(err);
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -103,24 +126,20 @@ export function TrainingRecommendations({
     <>
       {recommendation?.needsTraining && (
         <Card
-          className={`border-${
+          className={
             recommendation.riskTier === "critical"
-              ? "red"
-              : recommendation.riskTier === "high"
-                ? "orange"
-                : "amber"
-          }-500/30 bg-${
-            recommendation.riskTier === "critical"
-              ? "red"
-              : recommendation.riskTier === "high"
-                ? "orange"
-                : "amber"
-          }-500/10`}
+              ? "border-red-500/30 bg-red-500/10"
+              : "border-orange-500/30 bg-orange-500/10"
+          }
         >
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
+                <AlertTriangle
+                  className={`w-5 h-5 mt-0.5 shrink-0 ${
+                    recommendation.riskTier === "critical" ? "text-red-500" : "text-orange-500"
+                  }`}
+                />
                 <div>
                   <CardTitle>Training recommended</CardTitle>
                   <CardDescription>Based on recent phishing detection patterns</CardDescription>
@@ -181,7 +200,7 @@ export function TrainingRecommendations({
             {activeAssignments.map((assignment) => (
               <div
                 key={assignment.id}
-                className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4"
+                className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4"
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div>
@@ -197,9 +216,26 @@ export function TrainingRecommendations({
                   )}
                 </div>
                 {assignment.assignedBy && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Assigned by {assignment.assignedBy.name || assignment.assignedBy.email}
                   </p>
+                )}
+                {canComplete && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCompleteAssignment(assignment.id)}
+                    disabled={completingId === assignment.id}
+                  >
+                    {completingId === assignment.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Completing...
+                      </>
+                    ) : (
+                      "Mark as completed"
+                    )}
+                  </Button>
                 )}
               </div>
             ))}
