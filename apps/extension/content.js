@@ -1149,35 +1149,7 @@ function startInboxWatchers() {
 }
 
 // --- 4. OBSERVERS ---
+// Gmail/Outlook only (see manifest.json content_scripts matches) — the
+// PhishGuard web app gets the lightweight auth-bridge.js instead.
 ensureStyles();
 startInboxWatchers();
-
-// --- 5. AUTH HANDOFF LISTENER ---
-window.addEventListener("message", (event) => {
-  // We only accept messages from ourselves
-  if (event.source !== window) return;
-
-  if (event.data.type && event.data.type === "PHISHGUARD_AUTH_SUCCESS") {
-    // console.log("ContentScript: Received auth token from page");
-    
-    chrome.runtime.sendMessage({
-        action: "AUTH_HANDOFF",
-        token: event.data.token,
-        context: event.data.context || null,
-        user: event.data.user,
-        account: event.data.account,
-        subscription: event.data.subscription,
-        activity: event.data.activity,
-        recentScans: event.data.recentScans,
-        keys: event.data.keys || null,
-        deepScanPublicKey: event.data.deepScanPublicKey || null,
-        analyzePayloadPublicKey: event.data.analyzePayloadPublicKey || null
-    }, (response) => {
-        // console.log("ContentScript: Handed off to background", response);
-    });
-  }
-
-  if (event.data.type && event.data.type === "PHISHGUARD_LOGOUT") {
-     chrome.runtime.sendMessage({ action: "LOGOUT" });
-  }
-});

@@ -36,15 +36,22 @@
         "*://mail.google.com/*",
         "*://outlook.live.com/*",
         "*://outlook.office.com/*",
-        "*://outlook.office365.com/*",
-        "http://localhost:3001/*",
-        "http://127.0.0.1:3001/*",
-        "https://phish-guard-rho.vercel.app/*"
+        "*://outlook.office365.com/*"
       ],
       "js": [
         "content.js"
       ],
       "all_frames": true
+    },
+    {
+      "matches": [
+        "http://localhost:3001/*",
+        "http://127.0.0.1:3001/*",
+        "https://phish-guard-rho.vercel.app/*"
+      ],
+      "js": [
+        "auth-bridge.js"
+      ]
     }
   ],
   "web_accessible_resources": [
