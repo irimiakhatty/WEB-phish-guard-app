@@ -174,8 +174,11 @@
 .pg-flag__feedback-status,
 .pg-flag__ai {
   width: 100%;
+  box-sizing: border-box;
   font-size: 11px;
   color: var(--pg-muted);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .pg-flag__ai {

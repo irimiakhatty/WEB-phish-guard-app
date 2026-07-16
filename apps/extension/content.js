@@ -43,7 +43,7 @@ function getOverallScore(response) {
 }
 
 const EXTENSION_UI_VERSION = "1.2.5";
-const INBOX_STYLE_VERSION = "5";
+const INBOX_STYLE_VERSION = "6";
 let cachedInboxCss = null;
 
 function escapeHtml(value) {
@@ -802,6 +802,76 @@ async function triggerScan() {
     }
 }
 
+const RISK_COPY = {
+    block: {
+        title: "Threat blocked by policy",
+        badge: "Blocked",
+        description: "This message matches a workspace block policy.",
+        icon: "warn"
+    },
+    safe: {
+        title: "Safe email",
+        badge: "Safe",
+        description: "No risky signals detected.",
+        icon: "check"
+    },
+    low: {
+        title: "Low risk email",
+        badge: "Low risk",
+        description: "Minor indicators detected.",
+        icon: "check"
+    },
+    medium: {
+        title: "Suspicious email",
+        badge: "Medium risk",
+        description: "Possible phishing patterns detected.",
+        icon: "warn"
+    },
+    high: {
+        title: "High risk detected",
+        badge: "High risk",
+        description: "Phishing likely. Avoid clicking links.",
+        icon: "warn"
+    },
+    critical: {
+        title: "Critical risk detected",
+        badge: "Critical",
+        description: "Phishing very likely. Do not click links.",
+        icon: "warn"
+    }
+};
+const RISK_SEVERITY_ORDER = ["safe", "low", "medium", "high", "critical", "block"];
+
+function riskSeverityRank(riskLevel) {
+    const rank = RISK_SEVERITY_ORDER.indexOf(riskLevel);
+    return rank === -1 ? -1 : rank;
+}
+
+// Re-styles an already-mounted flag in place (used when Deep Scan returns a
+// more severe verdict than the initial heuristic scan) without discarding
+// the Deep Scan result panel or feedback state already rendered inside it.
+function escalateFlagRisk(flag, riskLevel, overallScore) {
+    const config = RISK_COPY[riskLevel] || RISK_COPY.medium;
+    const previousLevel = flag.dataset.riskLevel;
+    if (previousLevel) {
+        flag.classList.remove(`pg-flag--${previousLevel}`);
+    }
+    flag.classList.add(`pg-flag--${riskLevel}`);
+    flag.dataset.riskLevel = riskLevel;
+
+    const title = flag.querySelector(".pg-flag__title");
+    const badge = flag.querySelector(".pg-flag__badge");
+    const meta = flag.querySelector(".pg-flag__meta");
+    const desc = flag.querySelector(".pg-flag__desc");
+
+    if (title) title.textContent = config.title;
+    if (badge) badge.textContent = config.badge;
+    if (meta && typeof overallScore === "number") {
+        meta.textContent = `Risk score: ${formatPercent(overallScore)} · Confirmed by Deep Scan`;
+    }
+    if (desc) desc.textContent = config.description;
+}
+
 function injectScanFlag(response) {
     if (!response || response.error) return;
 
@@ -821,46 +891,7 @@ function injectScanFlag(response) {
     }
     const attackType = response.attackType || "Other";
 
-    const copy = {
-        block: {
-            title: "Threat blocked by policy",
-            badge: "Blocked",
-            description: "This message matches a workspace block policy.",
-            icon: "warn"
-        },
-        safe: {
-            title: "Safe email",
-            badge: "Safe",
-            description: "No risky signals detected.",
-            icon: "check"
-        },
-        low: {
-            title: "Low risk email",
-            badge: "Low risk",
-            description: "Minor indicators detected.",
-            icon: "check"
-        },
-        medium: {
-            title: "Suspicious email",
-            badge: "Medium risk",
-            description: "Possible phishing patterns detected.",
-            icon: "warn"
-        },
-        high: {
-            title: "High risk detected",
-            badge: "High risk",
-            description: "Phishing likely. Avoid clicking links.",
-            icon: "warn"
-        },
-        critical: {
-            title: "Critical risk detected",
-            badge: "Critical",
-            description: "Phishing very likely. Do not click links.",
-            icon: "warn"
-        }
-    };
-
-    const config = copy[riskLevel] || copy.medium;
+    const config = RISK_COPY[riskLevel] || RISK_COPY.medium;
     const isCompact = riskLevel === "safe" || riskLevel === "low";
     const showDeepScan = !hardBlock && (riskLevel === "medium" || riskLevel === "high");
     const isHighRisk = hardBlock || riskLevel === "high" || riskLevel === "critical" || riskLevel === "block";
@@ -896,6 +927,7 @@ function injectScanFlag(response) {
         </div>
     `;
     flag.dataset.riskLabel = riskLabel;
+    flag.dataset.riskLevel = riskLevel;
 
     if (!mountInboxCard(flag, target)) {
         console.warn("PhishGuard: verdict badge could not be mounted");
@@ -944,13 +976,27 @@ function injectScanFlag(response) {
                 }
 
                 const data = result.data || {};
-                const aiRisk = data.riskLevel ? String(data.riskLevel).toUpperCase() : "RESULT";
+                const aiRiskLevel = typeof data.riskLevel === "string" ? data.riskLevel.toLowerCase() : null;
+                const aiRisk = aiRiskLevel ? aiRiskLevel.toUpperCase() : "RESULT";
                 const aiScore = typeof data.overallScore === "number" ? formatPercent(data.overallScore) : "";
                 const analysis = typeof data.analysis === "string" ? data.analysis : "Deep scan completed.";
                 const trimmed = analysis.length > 160 ? `${analysis.slice(0, 157)}...` : analysis;
 
                 deepScanResult.style.display = "block";
                 deepScanResult.textContent = `${aiRisk}${aiScore ? ` (${aiScore})` : ""}: ${trimmed}`;
+
+                // Deep Scan is the higher-confidence verdict — escalate the banner
+                // (title/badge/color) if it found more risk than the initial heuristic scan.
+                if (
+                    aiRiskLevel &&
+                    riskSeverityRank(aiRiskLevel) > riskSeverityRank(flag.dataset.riskLevel)
+                ) {
+                    escalateFlagRisk(
+                        flag,
+                        aiRiskLevel,
+                        typeof data.overallScore === "number" ? data.overallScore : null
+                    );
+                }
             });
         });
     }
