@@ -10,7 +10,7 @@ const RISK_THRESHOLDS = {
 };
 
 const DEEP_SCAN_MAX_CHARS = 5000;
-const ANALYZE_TIMEOUT_MS = 7000;
+const ANALYZE_TIMEOUT_MS = 18000;
 const SCAN_KEEPALIVE_MS = 20000;
 const FALLBACK_SCORING_VERSION = "extension_fallback_weighted_v1";
 const MAX_ANALYZE_TEXT_CHARS = 6000;

@@ -43,7 +43,8 @@
       ],
       "js": [
         "content.js"
-      ]
+      ],
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
