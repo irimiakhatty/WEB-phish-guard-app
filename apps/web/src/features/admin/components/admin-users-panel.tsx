@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getAllUsers, updateUserRole, deleteUser, searchUsers } from "@/server/actions/admin";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { AdminPlanBadge } from "./admin-plan-badge";
+import { USER_SORT_OPTIONS, sortUsers, type UserSortKey } from "./admin-list-sort";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +43,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  ArrowUpDown,
 } from "lucide-react";
 import AdminCreateUserForm from "./admin-create-user-form";
 import type { AdminUser } from "./types";
@@ -46,6 +57,8 @@ export default function AdminUsersPanel() {
   const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [sortKey, setSortKey] = useState<UserSortKey>("newest");
+  const sortedUsers = useMemo(() => sortUsers(users, sortKey), [users, sortKey]);
 
   const loadUsers = async (page = currentPage) => {
     setLoading(true);
@@ -120,8 +133,8 @@ export default function AdminUsersPanel() {
             {showCreateForm ? "Close form" : "Create user"}
           </Button>
         </div>
-        <div className="pt-2">
-          <div className="relative">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search users by email or name..."
@@ -129,6 +142,24 @@ export default function AdminUsersPanel() {
               value={searchQuery}
               onChange={(event) => handleSearch(event.target.value)}
             />
+          </div>
+          <div className="flex items-center gap-2 sm:w-56">
+            <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <Label htmlFor="user-sort" className="sr-only">
+              Sort users
+            </Label>
+            <Select value={sortKey} onValueChange={(value) => setSortKey(value as UserSortKey)}>
+              <SelectTrigger id="user-sort" className="w-full">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {USER_SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>
@@ -146,7 +177,7 @@ export default function AdminUsersPanel() {
           </div>
         ) : (
           <div className="space-y-4">
-            {users.map((user) => (
+            {sortedUsers.map((user) => (
               <div key={user.id} className="flex items-center justify-between rounded-lg border p-4">
                 <div className="flex items-center space-x-4">
                   <Avatar>
@@ -173,9 +204,7 @@ export default function AdminUsersPanel() {
                       <span>{user._count.scans} scans</span>
                       <span>{user._count.apiTokens} API tokens</span>
                       {user.personalSubscription ? (
-                        <Badge variant="outline" className="text-xs">
-                          {user.personalSubscription.plan}
-                        </Badge>
+                        <AdminPlanBadge planId={user.personalSubscription.plan} />
                       ) : null}
                       <span>{user.memberships.length} organizations</span>
                     </div>
@@ -211,7 +240,7 @@ export default function AdminUsersPanel() {
               </div>
             ))}
 
-            {users.length === 0 ? (
+            {sortedUsers.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground">
                 {searchQuery ? "No users found" : "No users yet"}
               </p>

@@ -6,7 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getPlanById } from "@/lib/billing/subscription-plans";
+import { AdminPlanBadge } from "./admin-plan-badge";
+import {
+  ORGANIZATION_SORT_OPTIONS,
+  sortOrganizations,
+  type OrganizationSortKey,
+} from "./admin-list-sort";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +47,7 @@ import {
   Building2,
   Users,
   DollarSign,
+  ArrowUpDown,
 } from "lucide-react";
 import Link from "next/link";
 import type { AdminOrganization } from "./types";
@@ -45,6 +60,7 @@ export default function AdminOrganizationsPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [orgToDelete, setOrgToDelete] = useState<AdminOrganization | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortKey, setSortKey] = useState<OrganizationSortKey>("newest");
   const currency = useMemo(
     () =>
       new Intl.NumberFormat("en-US", {
@@ -53,6 +69,10 @@ export default function AdminOrganizationsPanel() {
         maximumFractionDigits: 0,
       }),
     []
+  );
+  const sortedOrganizations = useMemo(
+    () => sortOrganizations(organizations, sortKey),
+    [organizations, sortKey]
   );
 
   const loadOrganizations = async (page = currentPage) => {
@@ -97,8 +117,8 @@ export default function AdminOrganizationsPanel() {
       <CardHeader>
         <CardTitle>Organization Management</CardTitle>
         <CardDescription>Review and manage every organization in one place.</CardDescription>
-        <div className="pt-2">
-          <div className="relative">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search organizations by name or slug..."
@@ -106,6 +126,27 @@ export default function AdminOrganizationsPanel() {
               value={searchQuery}
               onChange={(event) => handleSearch(event.target.value)}
             />
+          </div>
+          <div className="flex items-center gap-2 sm:w-56">
+            <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <Label htmlFor="organization-sort" className="sr-only">
+              Sort organizations
+            </Label>
+            <Select
+              value={sortKey}
+              onValueChange={(value) => setSortKey(value as OrganizationSortKey)}
+            >
+              <SelectTrigger id="organization-sort" className="w-full">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                {ORGANIZATION_SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>
@@ -116,7 +157,7 @@ export default function AdminOrganizationsPanel() {
           </div>
         ) : (
           <div className="space-y-4">
-            {organizations.map((organization) => (
+            {sortedOrganizations.map((organization) => (
               <div key={organization.id} className="flex items-center justify-between rounded-lg border p-4">
                 <div className="flex items-center space-x-4">
                   <div className="rounded-lg bg-primary/10 p-2">
@@ -137,9 +178,7 @@ export default function AdminOrganizationsPanel() {
                         {organization._count.members} members
                       </span>
                       <span>{organization._count.scans} scans</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {organization.subscription?.plan || "team_free"}
-                      </Badge>
+                      <AdminPlanBadge planId={organization.subscription?.plan || "team_free"} />
                       <span className="flex items-center">
                         <DollarSign className="mr-1 h-3 w-3" />
                         {(() => {
@@ -180,7 +219,7 @@ export default function AdminOrganizationsPanel() {
               </div>
             ))}
 
-            {organizations.length === 0 ? (
+            {sortedOrganizations.length === 0 ? (
               <p className="py-8 text-center text-muted-foreground">
                 {searchQuery ? "No organizations found" : "No organizations yet"}
               </p>
